@@ -3,7 +3,6 @@ import {
   createWalletClient,
   custom,
   encodeAbiParameters,
-  encodeFunctionData,
   encodePacked,
   erc20Abi,
   getAddress,
@@ -14,14 +13,12 @@ import {
 import { robinhood } from '../chain';
 import { API_BASE } from '../api';
 
-/** Universal Router — V4_SWAP only (WETH must be deposited + Permit2-approved first). */
+/** Universal Router — V4_SWAP only (WETH deposited on the user wallet first). */
 const CMD_V4_SWAP = 0x10;
 
 const ACTION_SWAP_EXACT_IN_SINGLE = 0x06;
 const ACTION_SETTLE_ALL = 0x0c;
 const ACTION_TAKE_ALL = 0x0f;
-
-const MULTICALL3 = '0xcA11bde05977b3631167028862bE2a173976CA11' as const;
 
 const wethAbi = [
   {
@@ -63,36 +60,6 @@ const universalRouterAbi = [
   },
 ] as const;
 
-const multicall3Abi = [
-  {
-    type: 'function',
-    name: 'aggregate3Value',
-    stateMutability: 'payable',
-    inputs: [
-      {
-        name: 'calls',
-        type: 'tuple[]',
-        components: [
-          { name: 'target', type: 'address' },
-          { name: 'allowFailure', type: 'bool' },
-          { name: 'value', type: 'uint256' },
-          { name: 'callData', type: 'bytes' },
-        ],
-      },
-    ],
-    outputs: [
-      {
-        name: 'returnData',
-        type: 'tuple[]',
-        components: [
-          { name: 'success', type: 'bool' },
-          { name: 'returnData', type: 'bytes' },
-        ],
-      },
-    ],
-  },
-] as const;
-
 export interface HoodmarketsPoolKey {
   currency0: `0x${string}`;
   currency1: `0x${string}`;
@@ -121,6 +88,22 @@ export async function fetchTokenSwapConfig(tokenAddress: string): Promise<TokenS
     throw new Error('Swap config missing Permit2 address.');
   }
   return data;
+}
+
+/** HoodMarketsHookV2 expects ABI-encoded PoolSwapData (empty bytes when not in sniper bid). */
+function encodeHoodmarketsHookData(): Hex {
+  return encodeAbiParameters(
+    [
+      {
+        type: 'tuple',
+        components: [
+          { name: 'mevModuleSwapData', type: 'bytes' },
+          { name: 'poolExtensionSwapData', type: 'bytes' },
+        ],
+      },
+    ],
+    [{ mevModuleSwapData: '0x', poolExtensionSwapData: '0x' }],
+  );
 }
 
 function encodeV4WethToTokenSwap(
@@ -166,7 +149,7 @@ function encodeV4WethToTokenSwap(
         zeroForOne: config.zeroForOne,
         amountIn: amountInWei,
         amountOutMinimum,
-        hookData: '0x',
+        hookData: encodeHoodmarketsHookData(),
       },
     ],
   );
@@ -199,55 +182,14 @@ function encodeV4WethToTokenSwap(
   };
 }
 
-function buildSwapMulticallData(
-  config: TokenSwapConfig,
-  amountInWei: bigint,
-  deadline: bigint,
-): { to: `0x${string}`; data: Hex; value: bigint } {
-  const weth = getAddress(config.weth);
-  const permit2 = getAddress(config.permit2);
-  const router = getAddress(config.universalRouter);
-  const expiry = Math.floor(Date.now() / 1000) + 60 * 20;
-
-  const { commands, inputs } = encodeV4WethToTokenSwap(config, amountInWei);
-
-  const depositData = encodeFunctionData({
-    abi: wethAbi,
-    functionName: 'deposit',
-  });
-
-  const approveErc20Data = encodeFunctionData({
-    abi: erc20Abi,
-    functionName: 'approve',
-    args: [permit2, amountInWei],
-  });
-
-  const permit2ApproveData = encodeFunctionData({
-    abi: permit2Abi,
-    functionName: 'approve',
-    args: [weth, router, amountInWei, expiry],
-  });
-
-  const executeData = encodeFunctionData({
-    abi: universalRouterAbi,
-    functionName: 'execute',
-    args: [commands, inputs, deadline],
-  });
-
-  const calls = [
-    { target: weth, allowFailure: false, value: amountInWei, callData: depositData },
-    { target: weth, allowFailure: false, value: 0n, callData: approveErc20Data },
-    { target: permit2, allowFailure: false, value: 0n, callData: permit2ApproveData },
-    { target: router, allowFailure: false, value: 0n, callData: executeData },
-  ] as const;
-
-  const data = encodeFunctionData({
-    abi: multicall3Abi,
-    functionName: 'aggregate3Value',
-    args: [calls],
-  });
-
-  return { to: MULTICALL3, data, value: amountInWei };
+async function waitForTx(
+  publicClient: ReturnType<typeof createPublicClient>,
+  hash: Hex,
+): Promise<void> {
+  const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 180_000 });
+  if (receipt.status !== 'success') {
+    throw new Error(`Transaction reverted: ${hash}`);
+  }
 }
 
 export async function swapEthForHoodmarketsToken(opts: {
@@ -255,12 +197,17 @@ export async function swapEthForHoodmarketsToken(opts: {
   amountEth: string;
   walletProvider: unknown;
   account: `0x${string}`;
+  onStep?: (step: number, total: number, label: string) => void;
 }): Promise<Hex> {
   const amountInWei = parseEther(opts.amountEth);
   if (amountInWei <= 0n) throw new Error('Enter an ETH amount greater than zero.');
 
-  const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 20);
-  const batch = buildSwapMulticallData(opts.config, amountInWei, deadline);
+  const weth = getAddress(opts.config.weth);
+  const permit2 = getAddress(opts.config.permit2);
+  const router = getAddress(opts.config.universalRouter);
+  const expiry = Math.floor(Date.now() / 1000) + 60 * 20;
+  const deadline = BigInt(expiry);
+  const { commands, inputs } = encodeV4WethToTokenSwap(opts.config, amountInWei);
 
   const transport = custom(opts.walletProvider as Parameters<typeof custom>[0]);
   const publicClient = createPublicClient({ chain: robinhood, transport });
@@ -270,24 +217,73 @@ export async function swapEthForHoodmarketsToken(opts: {
     transport,
   });
 
-  let gas: bigint | undefined;
-  try {
-    gas = await publicClient.estimateGas({
-      account: opts.account,
-      to: batch.to,
-      data: batch.data,
-      value: batch.value,
-    });
-    gas = (gas * 12n) / 10n;
-  } catch {
-    gas = 2_500_000n;
+  const steps = [
+    { label: 'Wrap ETH to WETH', run: () =>
+      walletClient.writeContract({
+        chain: robinhood,
+        address: weth,
+        abi: wethAbi,
+        functionName: 'deposit',
+        value: amountInWei,
+      }),
+    },
+    { label: 'Approve WETH for Permit2', run: () =>
+      walletClient.writeContract({
+        chain: robinhood,
+        address: weth,
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [permit2, amountInWei],
+      }),
+    },
+    { label: 'Approve router on Permit2', run: () =>
+      walletClient.writeContract({
+        chain: robinhood,
+        address: permit2,
+        abi: permit2Abi,
+        functionName: 'approve',
+        args: [weth, router, amountInWei, expiry],
+      }),
+    },
+    { label: 'Swap WETH for token', run: async () => {
+      try {
+        await publicClient.simulateContract({
+          account: opts.account,
+          address: router,
+          abi: universalRouterAbi,
+          functionName: 'execute',
+          args: [commands, inputs, deadline],
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (/NotAuctionBlock|auction/i.test(msg)) {
+          throw new Error(
+            'This pool is still in its anti-sniper auction window. Try again in a few blocks, or use a smaller amount after the fee decay period.',
+          );
+        }
+        throw new Error(
+          `Swap simulation failed — the pool may have low liquidity or the anti-sniper window may still be active. (${msg.slice(0, 180)})`,
+        );
+      }
+
+      return walletClient.writeContract({
+        chain: robinhood,
+        address: router,
+        abi: universalRouterAbi,
+        functionName: 'execute',
+        args: [commands, inputs, deadline],
+      });
+    }},
+  ] as const;
+
+  let lastHash: Hex | undefined;
+  for (let i = 0; i < steps.length; i += 1) {
+    opts.onStep?.(i + 1, steps.length, steps[i].label);
+    const hash = await steps[i].run();
+    await waitForTx(publicClient, hash);
+    lastHash = hash;
   }
 
-  return walletClient.sendTransaction({
-    chain: robinhood,
-    to: batch.to,
-    data: batch.data,
-    value: batch.value,
-    gas,
-  });
+  if (!lastHash) throw new Error('Swap did not submit.');
+  return lastHash;
 }
