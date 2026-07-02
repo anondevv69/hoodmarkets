@@ -72,6 +72,9 @@ import {
   listSelfFeeTokensForFeeRecipient,
   listThirdPartyFeeTokensForFeeRecipientRollingHours,
   listDeploymentCatalogByDeployer,
+  getDeploymentByTransactionHash,
+  recordDeploymentCatalog,
+  type DeploymentCatalogRow,
 } from '../lib/deploymentCatalog.js';
 import {
   isReservedTicker,
@@ -107,12 +110,26 @@ import {
   deserializeDeploymentConfig,
   type SerializedDeploymentConfig,
 } from '../lib/deploymentConfigJson.js';
-import { recordDeploymentCatalog } from '../lib/deploymentCatalog.js';
 import {
   applyWebDeployRateLimit,
   RATE_LIMIT_FORCED_PLATFORM_FEE_LABEL,
   webDeployRateLimitPlatformNotice,
 } from '../lib/webDeployRateLimit.js';
+
+function walletCompleteResultFromCatalogRow(
+  row: DeploymentCatalogRow,
+  deployChain: ReturnType<typeof resolveDeployChain>,
+): Awaited<ReturnType<LiquidDeployer['deployToken']>> {
+  return {
+    tokenAddress: row.tokenAddress as `0x${string}`,
+    poolId: row.poolId,
+    transactionHash: row.transactionHash as `0x${string}`,
+    blockNumber: BigInt(row.blockNumber),
+    timestamp: Date.now(),
+    chain: deployChain,
+    ...(row.tokenImageUrl ? { imageUrl: row.tokenImageUrl } : {}),
+  };
+}
 
 const agentPaymentPublicClient = createPublicClient({
   chain: robinhood,
@@ -1066,7 +1083,24 @@ export function registerWebDeployRoutes(
           return;
         }
 
-        if (launchMode === 'simple') {
+        const existingByTx = await getDeploymentByTransactionHash(txHash);
+        if (existingByTx) {
+          if (existingByTx.deployerId !== userId) {
+            res.status(403).json({ error: 'This transaction is already registered to another account.' });
+            return;
+          }
+          if (
+            existingByTx.tokenName !== name ||
+            existingByTx.tokenSymbol.toLowerCase() !== symbol.toLowerCase()
+          ) {
+            res.status(409).json({
+              error:
+                'This transaction is already registered for a different token name or ticker.',
+            });
+            return;
+          }
+          result = walletCompleteResultFromCatalogRow(existingByTx, deployChain);
+        } else if (launchMode === 'simple') {
           const v3Serialized = body.deploymentConfig as unknown as import('../lib/v3DeploymentConfigJson.js').SerializedV3DeploymentConfig;
           const v3cfg = deserializeV3DeploymentConfig(v3Serialized);
           if (v3cfg.tokenConfig.name !== name || v3cfg.tokenConfig.symbol !== symbol) {

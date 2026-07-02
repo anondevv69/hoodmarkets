@@ -22,6 +22,17 @@ export class DeployApiError extends Error {
   }
 }
 
+/** Wallet tx succeeded on-chain but POST /api/deploy complete failed — tx hash is known. */
+export class WalletDeployCompleteError extends Error {
+  transactionHash: string;
+
+  constructor(message: string, transactionHash: string) {
+    super(message);
+    this.name = 'WalletDeployCompleteError';
+    this.transactionHash = transactionHash;
+  }
+}
+
 export const API_BASE = (() => {
   const fromEnv = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '');
   if (fromEnv) return fromEnv;
@@ -264,6 +275,66 @@ async function postDeploy(
   return data;
 }
 
+const PENDING_WALLET_DEPLOY_KEY = 'hoodmarkets_wallet_deploy_pending';
+
+type PendingWalletDeploy = {
+  payload: LaunchPayload;
+  transactionHash: string;
+  deploymentConfig: WalletDeployPrepare['deploymentConfig'];
+  imageUrl?: string;
+};
+
+function savePendingWalletDeploy(pending: PendingWalletDeploy): void {
+  try {
+    sessionStorage.setItem(PENDING_WALLET_DEPLOY_KEY, JSON.stringify(pending));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+export function loadPendingWalletDeploy(): PendingWalletDeploy | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_WALLET_DEPLOY_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PendingWalletDeploy;
+  } catch {
+    return null;
+  }
+}
+
+function clearPendingWalletDeploy(): void {
+  try {
+    sessionStorage.removeItem(PENDING_WALLET_DEPLOY_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export async function retryPendingWalletDeployComplete(token: string): Promise<DeployResult> {
+  const pending = loadPendingWalletDeploy();
+  if (!pending) {
+    throw new Error('No pending launch to finalize.');
+  }
+
+  const complete = await postDeploy(token, {
+    ...pending.payload,
+    walletDeployPhase: 'complete',
+    transactionHash: pending.transactionHash,
+    deploymentConfig: pending.deploymentConfig,
+  });
+
+  clearPendingWalletDeploy();
+
+  return {
+    ok: complete.ok,
+    tokenAddress: complete.tokenAddress,
+    transactionHash: complete.transactionHash,
+    feeWallet: complete.feeWallet,
+    imageUrl: complete.imageUrl ?? pending.imageUrl,
+    links: complete.links,
+  };
+}
+
 export async function deployToken(
   token: string,
   payload: LaunchPayload,
@@ -305,22 +376,40 @@ export async function deployToken(
       account: wallet.address as `0x${string}`,
     });
 
-    const complete = await postDeploy(token, {
-      ...payload,
-      initialBuyEth: initialBuy,
-      walletDeployPhase: 'complete',
-      transactionHash: txHash,
-      deploymentConfig: prepare.deploymentConfig,
-    });
+    try {
+      const complete = await postDeploy(token, {
+        ...payload,
+        initialBuyEth: initialBuy,
+        walletDeployPhase: 'complete',
+        transactionHash: txHash,
+        deploymentConfig: prepare.deploymentConfig,
+      });
 
-    return {
-      ok: complete.ok,
-      tokenAddress: complete.tokenAddress,
-      transactionHash: complete.transactionHash,
-      feeWallet: complete.feeWallet,
-      imageUrl: complete.imageUrl ?? prepare.imageUrl,
-      links: complete.links,
-    };
+      clearPendingWalletDeploy();
+
+      return {
+        ok: complete.ok,
+        tokenAddress: complete.tokenAddress,
+        transactionHash: complete.transactionHash,
+        feeWallet: complete.feeWallet,
+        imageUrl: complete.imageUrl ?? prepare.imageUrl,
+        links: complete.links,
+      };
+    } catch (err) {
+      savePendingWalletDeploy({
+        payload,
+        transactionHash: txHash,
+        deploymentConfig: prepare.deploymentConfig,
+        imageUrl: prepare.imageUrl,
+      });
+      const message =
+        err instanceof DeployApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Launch failed';
+      throw new WalletDeployCompleteError(message, txHash);
+    }
   }
 
   const out = await postDeploy(token, payload);
