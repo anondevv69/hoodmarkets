@@ -95,38 +95,18 @@ a {
   flex-wrap: wrap;
 }
 
-.site-logo {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-}
-
-.site-logo-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 7px;
-  flex-shrink: 0;
-  display: block;
-}
-
 .logo {
-  display: inline-flex;
-  align-items: baseline;
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1;
-  background: #f7faf8;
-  padding: 0.28rem 0.55rem;
-  border-radius: 7px;
 }
 
 .logo-hood {
-  color: #0a0a0a;
+  color: var(--text);
 }
 
 .logo-markets {
-  color: var(--accent-dim);
+  color: var(--accent);
 }
 
 .logo span {

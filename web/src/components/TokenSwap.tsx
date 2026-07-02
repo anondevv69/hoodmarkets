@@ -20,6 +20,7 @@ export function TokenSwap({
   const wallet = wallets[0];
   const [amountEth, setAmountEth] = useState(suggestedBuyEth?.trim() || '0.005');
   const [loading, setLoading] = useState(false);
+  const [swapStep, setSwapStep] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -52,6 +53,7 @@ export function TokenSwap({
       return;
     }
     setLoading(true);
+    setSwapStep(null);
     try {
       const provider = await wallet.getEthereumProvider();
       await ensureRobinhoodChainInWallet(
@@ -63,12 +65,16 @@ export function TokenSwap({
         amountEth,
         walletProvider: provider,
         account: wallet.address as `0x${string}`,
+        onStep: (step, total, label) => {
+          setSwapStep(`Step ${step}/${total}: ${label}`);
+        },
       });
       setTxHash(hash);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Swap failed');
     } finally {
       setLoading(false);
+      setSwapStep(null);
     }
   }
 
@@ -78,8 +84,8 @@ export function TokenSwap({
     <div className="lp-card token-swap-card">
       <p className="section-label">Buy on hood.markets</p>
       <p className="muted token-swap-note">
-        Uniswap&apos;s app can&apos;t route hood.markets pools yet. Swap here directly on your
-        token&apos;s Uniswap v4 pool — same path as launch.
+        Swaps use your wallet directly on this token&apos;s Uniswap v4 pool (WETH → token). MetaMask
+        will ask you to confirm up to 4 transactions: wrap, approve, permit, then swap.
       </p>
 
       <div className="initial-buy-presets" style={{ marginBottom: '0.75rem' }}>
@@ -114,7 +120,7 @@ export function TokenSwap({
         disabled={loading}
         onClick={() => void onBuy()}
       >
-        {loading ? 'Confirm in wallet…' : `Buy $${sym}`}
+        {loading ? (swapStep ?? 'Confirm in wallet…') : `Buy $${sym}`}
       </button>
 
       {error ? (

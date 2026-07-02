@@ -61,12 +61,9 @@ export default function App() {
     <div className="app lp-root">
       <header className="site-header">
         <div className="header-inner">
-          <div className="site-logo">
-            <img src="/favicon.png" alt="" className="site-logo-icon" width={32} height={32} />
-            <div className="logo lp-display" aria-label="hood.markets">
-              <span className="logo-hood">hood</span>
-              <span className="logo-markets">.markets</span>
-            </div>
+          <div className="logo lp-display" aria-label="hood.markets">
+            <span className="logo-hood">hood</span>
+            <span className="logo-markets">.markets</span>
           </div>
           <nav className="site-nav" aria-label="Main">
             <button
