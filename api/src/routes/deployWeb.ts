@@ -13,7 +13,7 @@ import {
   fetchPrivyUserRecordById,
   formatWebDeployInitiatorAttribution,
 } from '../lib/privy.js';
-import { checkAndRecordDeploy, type DeployRequest } from '../lib/deployDedup.js';
+import { checkAndRecordDeploy, hashDeployRequest, releaseDeployAttempt, type DeployRequest } from '../lib/deployDedup.js';
 import { notifyDiscordWebLaunch } from '../lib/discordDebug.js';
 import { webDeployCorsHeaders, webDeployCorsHeadersRead } from '../lib/webDeployCors.js';
 import {
@@ -59,6 +59,7 @@ import {
   releaseAgentPaymentTx,
   listSelfFeeTokensForFeeRecipient,
   listThirdPartyFeeTokensForFeeRecipientRollingHours,
+  listDeploymentCatalogByDeployer,
 } from '../lib/deploymentCatalog.js';
 import {
   isReservedTicker,
@@ -815,6 +816,15 @@ export function registerWebDeployRoutes(
         return;
       }
 
+      let devBuyAmount: bigint;
+      try {
+        devBuyAmount = parseWebInitialBuyWei(body.initialBuyEth, config.deployBondWei);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Invalid initialBuyEth';
+        res.status(400).json({ error: msg });
+        return;
+      }
+
       const deployReq: DeployRequest = {
         platform: 'web',
         sourceId: `web-${crypto.randomUUID()}`,
@@ -825,14 +835,32 @@ export function registerWebDeployRoutes(
         chain: deployChain,
       };
 
-      const { isDuplicate } = await checkAndRecordDeploy(deployReq);
+      let { isDuplicate, hash: deployDedupHash } = await checkAndRecordDeploy(deployReq);
+      if (isDuplicate) {
+        const prior = await listDeploymentCatalogByDeployer(userId, 50, 0);
+        const nameKey = name.toLowerCase();
+        const symKey = symbol.replace(/^\$/, '').toUpperCase();
+        const launchedOnChain = prior.some(
+          (row) =>
+            row.tokenName.trim().toLowerCase() === nameKey &&
+            row.tokenSymbol.replace(/^\$/, '').toUpperCase() === symKey,
+        );
+        if (!launchedOnChain) {
+          await releaseDeployAttempt(hashDeployRequest(deployReq));
+          const retry = await checkAndRecordDeploy(deployReq);
+          isDuplicate = retry.isDuplicate;
+          deployDedupHash = retry.hash;
+        }
+      }
       if (isDuplicate) {
         res.status(409).json({
-          error: 'A deployment with the same token and fee wallet is already recorded for your account.',
+          error:
+            'This name and ticker were already launched successfully for your account. Pick a different name or ticker.',
         });
         return;
       }
 
+      try {
       /** Match fee recipient identity for self-fee deploys so “deployed by” = the account used (Privy / X / GitHub / …). */
       const deployerLabel = anonymousNoDev
         ? 'Web (No Dev · anonymous)'
@@ -856,15 +884,6 @@ export function registerWebDeployRoutes(
         : agentWalletDeploy
           ? `Agent${agentProviderForLabel ? ` · ${agentProviderForLabel}` : ''} · ${resolved.walletAddress.slice(0, 6)}…${resolved.walletAddress.slice(-4)}`
           : resolved.feeRecipientLabel;
-
-      let devBuyAmount: bigint;
-      try {
-        devBuyAmount = parseWebInitialBuyWei(body.initialBuyEth, config.deployBondWei);
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : 'Invalid initialBuyEth';
-        res.status(400).json({ error: msg });
-        return;
-      }
 
       const result = await deployer.deployToken({
         name,
@@ -964,6 +983,10 @@ export function registerWebDeployRoutes(
           : {}),
         ...(agentWalletDeploy && metaResponse ? { agentMetadata: metaResponse } : {}),
       });
+      } catch (deployErr) {
+        await releaseDeployAttempt(deployDedupHash);
+        throw deployErr;
+      }
       };
 
       if (runSelfFeeQueued) {
