@@ -10,13 +10,14 @@ import {
   isHoodmarketsPlatformFeeRecipient,
 } from '../lib/feeRecipientDisplay';
 import { buildTradingLinks } from '../lib/tradingLinks';
-import { closeTokenPage } from '../lib/tokenRoute';
+import { closeTokenPage, readBuyEthFromUrl } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
 import { ClaimFeesActions } from './ClaimFeesActions';
 import { DexMetricsStrip } from './DexMetricsStrip';
+import { DexScreenerChartEmbed } from './TokenListingStatus';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
-import { DexScreenerChartEmbed } from './TokenListingStatus';
+import { TokenSwap } from './TokenSwap';
 import { TradingLinksRow } from './TradingLinksRow';
 
 export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
@@ -63,6 +64,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
 
   const sym = token.tokenSymbol.replace(/^\$/, '');
   const links = buildTradingLinks(token.tokenAddress);
+  const suggestedBuyEth = readBuyEthFromUrl() ?? undefined;
   const feeLabel = token.feeRecipientLabel?.trim();
   const platformFees = isHoodmarketsPlatformFeeRecipient(feeLabel);
   const feeHeadline = feeRecipientHeadline(token.feeRecipientAddress, feeLabel);
@@ -153,6 +155,12 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
           </div>
         </dl>
       </div>
+
+      <TokenSwap
+        tokenAddress={token.tokenAddress}
+        symbol={sym}
+        suggestedBuyEth={suggestedBuyEth}
+      />
 
       <div className="lp-card token-page-trade">
         <p className="section-label">Buy / track</p>

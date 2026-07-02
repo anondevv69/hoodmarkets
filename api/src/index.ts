@@ -19,6 +19,7 @@ import {
 import { registerWebDeployRoutes } from './routes/deployWeb.js';
 import { registerResolveSourceRoutes } from './routes/resolveSource.js';
 import { registerDeploymentCatalogRoutes } from './routes/deploymentCatalog.js';
+import { registerTokenSwapRoutes } from './routes/tokenSwap.js';
 import { registerMyDeploymentsRoutes } from './routes/myDeployments.js';
 import { registerMyDeploymentsClaimRoutes } from './routes/myDeploymentsClaim.js';
 import { registerMyDeploymentsCollectPoolRoutes } from './routes/myDeploymentsCollectPool.js';
@@ -191,6 +192,7 @@ async function main() {
     registerAgentClaimRoutes(app);
     registerResolveSourceRoutes(app, neynar);
     registerDeploymentCatalogRoutes(app);
+    registerTokenSwapRoutes(app);
     registerMyDeploymentsRoutes(app);
     registerMyDeploymentsClaimRoutes(app);
     registerMyDeploymentsCollectPoolRoutes(app);

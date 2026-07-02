@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { shortenAddress } from '../chain';
 import { formatUsdVol, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import type { ExploreToken } from '../lib/exploreTokens';
-import { buildTradingLinks } from '../lib/tradingLinks';
 import { openTokenPage } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
 import { DexMetricsStrip } from './DexMetricsStrip';
@@ -18,7 +17,6 @@ function ExploreRow({
 }) {
   const d = token.deployment;
   const sym = token.symbol;
-  const links = buildTradingLinks(d.tokenAddress);
   const mc = metrics?.fdvUsd;
 
   function openDetails() {
@@ -71,15 +69,16 @@ function ExploreRow({
         <DexMetricsStrip metrics={metrics} />
       </div>
       <div className="explore-links" onClick={stopRowClick} onKeyDown={stopRowClick}>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={openDetails}>
-          Details
+        <button type="button" className="btn btn-primary btn-sm" onClick={openDetails}>
+          View
         </button>
-        <a href={links.dexscreener} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
-          Chart
-        </a>
-        <a href={links.uniswapSwap} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
-          Trade
-        </a>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={() => openTokenPage(d.tokenAddress, { buyEth: '0.005' })}
+        >
+          Buy
+        </button>
       </div>
     </li>
   );

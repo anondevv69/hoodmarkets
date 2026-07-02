@@ -533,6 +533,26 @@ label {
   font-size: 0.82rem;
 }
 
+.token-swap-card {
+  margin-bottom: 1rem;
+}
+
+.token-swap-note {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin: 0 0 0.75rem;
+}
+
+.token-swap-field {
+  display: block;
+}
+
+.token-swap-field span {
+  display: block;
+  font-size: 0.82rem;
+  margin-bottom: 0.35rem;
+}
+
 .token-page-trade {
   padding: 1rem 1.25rem;
 }

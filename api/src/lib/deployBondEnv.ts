@@ -1,5 +1,5 @@
 import { parseEther } from 'viem';
-export const DEFAULT_DEPLOY_BOND_ETH = '0.002';
+export const DEFAULT_DEPLOY_BOND_ETH = '0.005';
 
 export const WEB_INITIAL_BUY_MIN_ETH = '0.001';
 export const WEB_INITIAL_BUY_MAX_ETH = '0.1';

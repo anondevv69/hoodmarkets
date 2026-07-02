@@ -38,6 +38,7 @@ export function LaunchTab() {
   const [description, setDescription] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [xUrl, setXUrl] = useState('');
+  const [yourBuyEth, setYourBuyEth] = useState('0.005');
   const [rateLimitNotice, setRateLimitNotice] = useState<string | null>(null);
   const [config, setConfig] = useState<WebDeployConfig | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -210,7 +211,7 @@ export function LaunchTab() {
       setRateLimitNotice(null);
       setLiveTickerConflict(null);
       setLiveNameConflict(null);
-      openTokenPage(out.tokenAddress);
+      openTokenPage(out.tokenAddress, { buyEth: yourBuyEth.trim() || undefined });
     } catch (err) {
       if (err instanceof DeployApiError) {
         setError(err.message);
@@ -396,13 +397,25 @@ export function LaunchTab() {
               </div>
 
               <div className="lp-card form-section initial-buy-section">
-                <p className="section-label">Initial pool liquidity</p>
+                <p className="section-label">Your first buy (optional)</p>
                 <p className="muted initial-buy-note">
-                  hood.markets seeds <strong>{platformSeedEth} ETH</strong> into the WETH side of the
-                  pool at launch (paid from our launcher wallet — <strong>not your wallet</strong>).
-                  Extra liquidity after launch must come from <strong>your wallet</strong> (buy on a
-                  DEX or add LP).
+                  hood.markets seeds <strong>{platformSeedEth} ETH</strong> into the pool from our
+                  launcher wallet. You can also buy from <strong>your wallet</strong> right after
+                  launch — this adds liquidity and gives you tokens (Uniswap&apos;s app can&apos;t
+                  route hood.markets pools yet).
                 </p>
+                <div className="initial-buy-presets">
+                  {['0', '0.001', '0.005', '0.01', '0.02'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className={`btn btn-ghost btn-sm${yourBuyEth === preset ? ' filter-chip--active' : ''}`}
+                      onClick={() => setYourBuyEth(preset)}
+                    >
+                      {preset === '0' ? 'Skip' : `${preset} ETH`}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 

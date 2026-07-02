@@ -4,10 +4,20 @@ export function readTokenFromUrl(): string | null {
   return raw;
 }
 
-export function openTokenPage(tokenAddress: string): void {
+export function readBuyEthFromUrl(): string | null {
+  const raw = new URLSearchParams(window.location.search).get('buy')?.trim();
+  if (!raw || !/^\d+(\.\d+)?$/.test(raw)) return null;
+  const n = Number.parseFloat(raw);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return raw;
+}
+
+export function openTokenPage(tokenAddress: string, opts?: { buyEth?: string }): void {
   const url = new URL(window.location.href);
   url.searchParams.set('token', tokenAddress);
   url.searchParams.delete('tab');
+  if (opts?.buyEth) url.searchParams.set('buy', opts.buyEth);
+  else url.searchParams.delete('buy');
   window.history.pushState({}, '', url);
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
@@ -15,6 +25,7 @@ export function openTokenPage(tokenAddress: string): void {
 export function closeTokenPage(): void {
   const url = new URL(window.location.href);
   url.searchParams.delete('token');
+  url.searchParams.delete('buy');
   if (!url.searchParams.get('tab')) url.searchParams.set('tab', 'tokens');
   window.history.pushState({}, '', url);
   window.dispatchEvent(new PopStateEvent('popstate'));
