@@ -62,34 +62,7 @@ export default function App() {
       <header className="site-header">
         <div className="header-inner">
           <div className="logo lp-display" aria-label="hood.markets">
-            <svg className="logo-mark" width="34" height="34" viewBox="0 0 64 64" aria-hidden>
-              <rect width="64" height="64" rx="16" fill="#00e676" />
-              <path
-                d="M20 14 C 12 32, 12 32, 20 50"
-                stroke="#04140a"
-                strokeWidth="3.4"
-                fill="none"
-                strokeLinecap="round"
-              />
-              <line x1="19" y1="32" x2="46" y2="32" stroke="#04140a" strokeWidth="3.4" strokeLinecap="round" />
-              <path
-                d="M38 22 L 50 32 L 38 42"
-                stroke="#04140a"
-                strokeWidth="3.4"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M19 32 L 26 27 M19 32 L 26 37"
-                stroke="#04140a"
-                strokeWidth="3.4"
-                fill="none"
-                strokeLinecap="round"
-              />
-            </svg>
-            <span className="logo-hood">hood</span>
-            <span className="logo-markets">.markets</span>
+            <span className="logo-hood">hood</span><span className="logo-markets">.markets</span>
           </div>
           <nav className="site-nav" aria-label="Main">
             <button

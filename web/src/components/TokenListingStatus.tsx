@@ -1,36 +1,41 @@
 import type { DexTokenMetrics } from '../lib/dexscreenerVolume';
+import { hasDexMarketData } from '../lib/dexscreenerVolume';
 
-function isIndexedOnDexScreener(metrics?: DexTokenMetrics): boolean {
-  if (!metrics) return false;
-  if (metrics.dexscreenerUrl) return true;
-  return (
-    (metrics.liquidityUsd != null && metrics.liquidityUsd > 0) ||
-    (metrics.volumeH24Usd != null && metrics.volumeH24Usd > 0)
-  );
+/** Full DexScreener embed — only loaded on token detail pages. */
+export function dexScreenerEmbedUrl(tokenAddress: string, metrics?: DexTokenMetrics): string {
+  const raw =
+    metrics?.dexscreenerUrl?.trim() ||
+    `https://dexscreener.com/robinhood/${tokenAddress.trim().toLowerCase()}`;
+  const url = new URL(raw);
+  url.searchParams.set('embed', '1');
+  url.searchParams.set('theme', 'dark');
+  return url.toString();
 }
 
-export function DexScreenerChartEmbed({
+export function dexScreenerTokenPageUrl(tokenAddress: string): string {
+  return `https://dexscreener.com/robinhood/${tokenAddress.trim().toLowerCase()}`;
+}
+
+export function DexScreenerEmbed({
   tokenAddress,
   metrics,
 }: {
   tokenAddress: string;
   metrics?: DexTokenMetrics;
 }) {
-  if (!isIndexedOnDexScreener(metrics)) return null;
-
-  const addr = tokenAddress.trim().toLowerCase();
-  const src =
-    metrics?.dexscreenerUrl ??
-    `https://dexscreener.com/robinhood/${addr}?embed=1&theme=dark&trades=0&info=0`;
+  if (!hasDexMarketData(metrics)) return null;
 
   return (
-    <div className="dex-chart-embed">
+    <div className="dex-chart-embed dex-screener-embed">
       <iframe
-        title="DexScreener chart"
-        src={src}
+        title="DexScreener"
+        src={dexScreenerEmbedUrl(tokenAddress, metrics)}
         allow="clipboard-write"
-        allowFullScreen
+        loading="lazy"
       />
     </div>
   );
 }
+
+/** @deprecated use DexScreenerEmbed */
+export const DexScreenerChartEmbed = DexScreenerEmbed;

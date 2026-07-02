@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { claimTradingFees, collectPoolFees } from '../api';
 import { txUrl } from '../chain';
 import {
-  HOODMARKETS_PLATFORM_FEE_LABEL,
   isHoodmarketsPlatformFeeRecipient,
 } from '../lib/feeRecipientDisplay';
 
@@ -16,7 +15,7 @@ export function ClaimFeesActions({
   feeRecipientAddress: string;
   feeRecipientLabel?: string;
 }) {
-  const { authenticated, getAccessToken, login } = usePrivy();
+  const { authenticated, getAccessToken } = usePrivy();
   const { wallets } = useWallets();
   const walletAddress = wallets[0]?.address?.toLowerCase();
   const platformFees = isHoodmarketsPlatformFeeRecipient(feeRecipientLabel);
@@ -32,39 +31,15 @@ export function ClaimFeesActions({
   const [txHash, setTxHash] = useState<string | null>(null);
 
   if (!authenticated) {
-    return (
-      <div className="lp-card claim-fees-card">
-        <p className="section-label">Trading fees</p>
-        <p className="muted">Sign in with your fee wallet to collect and claim LP trading fees.</p>
-        <button type="button" className="btn btn-primary btn-sm" onClick={login} style={{ marginTop: '0.75rem' }}>
-          Sign in to claim
-        </button>
-      </div>
-    );
+    return null;
   }
 
   if (platformFees) {
-    return (
-      <div className="lp-card claim-fees-card claim-fees-card--platform">
-        <p className="section-label">Trading fees</p>
-        <p className="muted claim-fees-platform-note">
-          {HOODMARKETS_PLATFORM_FEE_LABEL} — fees from this launch go to hood.markets during the
-          24h deploy limit.
-        </p>
-      </div>
-    );
+    return null;
   }
 
   if (!isFeeOwner) {
-    return (
-      <div className="lp-card claim-fees-card">
-        <p className="section-label">Trading fees</p>
-        <p className="muted">
-          Connect the fee recipient wallet ({feeRecipientAddress.slice(0, 6)}…
-          {feeRecipientAddress.slice(-4)}) to collect and claim fees.
-        </p>
-      </div>
-    );
+    return null;
   }
 
   async function onCollect() {
@@ -105,7 +80,7 @@ export function ClaimFeesActions({
 
   return (
     <div className="lp-card claim-fees-card">
-      <p className="section-label">Trading fees</p>
+      <p className="section-label">Claim fees</p>
       <p className="muted" style={{ marginBottom: '0.75rem' }}>
         Pull pool fees into the locker, then claim WETH to your wallet. Gas is paid by hood.markets.
         Fees only build up after others trade your pool.

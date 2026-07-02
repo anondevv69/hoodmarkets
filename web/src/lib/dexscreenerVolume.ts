@@ -11,8 +11,8 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-export function formatUsdVol(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return '—';
+export function formatUsdVol(n: number | undefined): string {
+  if (n == null || !Number.isFinite(n) || n <= 0) return '—';
   if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
   if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
   if (n >= 1e3) return `$${(n / 1e3).toFixed(2)}K`;
@@ -23,14 +23,22 @@ interface DexPair {
   chainId?: string;
   url?: string;
   pairAddress?: string;
+  dexId?: string;
+  labels?: string[];
+  pairCreatedAt?: number;
   baseToken?: { address?: string };
   quoteToken?: { address?: string };
-  volume?: { h24?: number };
-  priceChange?: { h24?: number };
+  volume?: { h24?: number; h6?: number; h1?: number; m5?: number };
+  priceChange?: { h24?: number; h6?: number; h1?: number; m5?: number };
   fdv?: number;
   marketCap?: number;
   liquidity?: { usd?: number };
-  txns?: { h24?: { buys?: number; sells?: number } };
+  txns?: {
+    h24?: { buys?: number; sells?: number };
+    h6?: { buys?: number; sells?: number };
+    h1?: { buys?: number; sells?: number };
+    m5?: { buys?: number; sells?: number };
+  };
   priceUsd?: string;
 }
 
@@ -64,14 +72,106 @@ function pickBestPairForToken(pairs: DexPair[], tokenKey: string): DexPair | nul
 
 export interface DexTokenMetrics {
   volumeH24Usd?: number;
+  volumeH6Usd?: number;
+  volumeH1Usd?: number;
+  volumeM5Usd?: number;
   change24hPct?: number;
+  changeH6Pct?: number;
+  changeH1Pct?: number;
+  changeM5Pct?: number;
   marketCapUsd?: number;
   fdvUsd?: number;
   liquidityUsd?: number;
   txnsH24?: number;
+  buysH24?: number;
+  sellsH24?: number;
+  buyersH24?: number;
+  sellersH24?: number;
   priceUsd?: number;
+  pairAddress?: string;
+  pairCreatedAt?: number;
+  dexId?: string;
+  dexVersion?: string;
   /** DexScreener pair page URL when indexed (often pair address, not token). */
   dexscreenerUrl?: string;
+}
+
+function assignPct(target: DexTokenMetrics, key: keyof DexTokenMetrics, v: unknown) {
+  if (typeof v === 'number' && Number.isFinite(v)) (target as Record<string, number>)[key] = v;
+}
+
+function assignUsd(target: DexTokenMetrics, key: keyof DexTokenMetrics, v: unknown) {
+  if (typeof v === 'number' && Number.isFinite(v) && v > 0) (target as Record<string, number>)[key] = v;
+}
+
+function pairToMetrics(best: DexPair): DexTokenMetrics {
+  const buys = best.txns?.h24?.buys ?? 0;
+  const sells = best.txns?.h24?.sells ?? 0;
+  const txns = buys + sells;
+  const metrics: DexTokenMetrics = {};
+
+  assignUsd(metrics, 'volumeH24Usd', best.volume?.h24);
+  assignUsd(metrics, 'volumeH6Usd', best.volume?.h6);
+  assignUsd(metrics, 'volumeH1Usd', best.volume?.h1);
+  assignUsd(metrics, 'volumeM5Usd', best.volume?.m5);
+  assignPct(metrics, 'change24hPct', best.priceChange?.h24);
+  assignPct(metrics, 'changeH6Pct', best.priceChange?.h6);
+  assignPct(metrics, 'changeH1Pct', best.priceChange?.h1);
+  assignPct(metrics, 'changeM5Pct', best.priceChange?.m5);
+  assignUsd(metrics, 'marketCapUsd', best.marketCap);
+  assignUsd(metrics, 'fdvUsd', best.fdv);
+  assignUsd(metrics, 'liquidityUsd', best.liquidity?.usd);
+  if (txns > 0) metrics.txnsH24 = txns;
+  if (buys > 0) metrics.buysH24 = buys;
+  if (sells > 0) metrics.sellsH24 = sells;
+  const priceRaw = best.priceUsd;
+  if (priceRaw != null) {
+    const p = Number(priceRaw);
+    if (Number.isFinite(p) && p > 0) metrics.priceUsd = p;
+  }
+  if (typeof best.pairAddress === 'string' && best.pairAddress.length > 0) {
+    metrics.pairAddress = best.pairAddress;
+  }
+  if (typeof best.pairCreatedAt === 'number' && Number.isFinite(best.pairCreatedAt)) {
+    metrics.pairCreatedAt = best.pairCreatedAt;
+  }
+  if (typeof best.dexId === 'string' && best.dexId.length > 0) metrics.dexId = best.dexId;
+  if (best.labels?.[0]) metrics.dexVersion = best.labels[0];
+  if (typeof best.url === 'string' && best.url.length > 0) metrics.dexscreenerUrl = best.url;
+  return metrics;
+}
+
+export function formatDexName(dexId?: string, dexVersion?: string): string {
+  const dex = dexId ? dexId.charAt(0).toUpperCase() + dexId.slice(1) : '';
+  const ver = dexVersion?.toUpperCase();
+  if (dex && ver) return `${dex} ${ver}`;
+  return dex || ver || '—';
+}
+
+export function formatPairAge(createdAtMs: number | undefined): string {
+  if (createdAtMs == null || !Number.isFinite(createdAtMs)) return '—';
+  const ageMs = Date.now() - createdAtMs;
+  if (ageMs < 0) return '—';
+  const mins = Math.floor(ageMs / 60_000);
+  if (mins < 1) return '<1m';
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d`;
+  const months = Math.floor(days / 30);
+  return `${months}mo`;
+}
+
+export function hasDexMarketData(metrics?: DexTokenMetrics): boolean {
+  if (!metrics) return false;
+  return (
+    !!metrics.dexscreenerUrl ||
+    (metrics.liquidityUsd != null && metrics.liquidityUsd > 0) ||
+    (metrics.volumeH24Usd != null && metrics.volumeH24Usd > 0) ||
+    (metrics.marketCapUsd != null && metrics.marketCapUsd > 0) ||
+    (metrics.priceUsd != null && metrics.priceUsd > 0)
+  );
 }
 
 export async function fetchTokenMetricsFromDexscreener(
@@ -87,31 +187,7 @@ export async function fetchTokenMetricsFromDexscreener(
       if (out[key]) continue;
       const best = pickBestPairForToken(pairs, key);
       if (!best) continue;
-      const vol = best.volume?.h24;
-      const chg = best.priceChange?.h24;
-      const fdv = best.fdv;
-      const mc = best.marketCap;
-      const liq = best.liquidity?.usd;
-      const buys = best.txns?.h24?.buys ?? 0;
-      const sells = best.txns?.h24?.sells ?? 0;
-      const txns = buys + sells;
-      const priceRaw = best.priceUsd;
-      const metrics: DexTokenMetrics = {};
-      if (typeof vol === 'number' && Number.isFinite(vol) && vol > 0) metrics.volumeH24Usd = vol;
-      if (typeof chg === 'number' && Number.isFinite(chg)) metrics.change24hPct = chg;
-      if (typeof mc === 'number' && Number.isFinite(mc) && mc > 0) {
-        metrics.marketCapUsd = mc;
-        metrics.fdvUsd = mc;
-      } else if (typeof fdv === 'number' && Number.isFinite(fdv) && fdv > 0) {
-        metrics.fdvUsd = fdv;
-      }
-      if (typeof liq === 'number' && Number.isFinite(liq) && liq > 0) metrics.liquidityUsd = liq;
-      if (txns > 0) metrics.txnsH24 = txns;
-      if (priceRaw != null) {
-        const p = Number(priceRaw);
-        if (Number.isFinite(p) && p > 0) metrics.priceUsd = p;
-      }
-      if (typeof best.url === 'string' && best.url.length > 0) metrics.dexscreenerUrl = best.url;
+      const metrics = pairToMetrics(best);
       if (Object.keys(metrics).length > 0) out[key] = metrics;
     }
   };

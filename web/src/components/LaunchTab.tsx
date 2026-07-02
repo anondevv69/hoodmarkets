@@ -377,7 +377,7 @@ export function LaunchTab() {
               ) : null}
               <label>
                 <span className="field-label">
-                  Description <span className="field-label__optional">(optional)</span>
+                  Description <span className="field-label__optional">optional</span>
                 </span>
                 <textarea
                   className="lp-input"
@@ -388,9 +388,7 @@ export function LaunchTab() {
               </label>
               <div className="name-symbol-row">
                 <label>
-                  <span className="field-label">
-                    Website <span className="field-label__optional">(optional)</span>
-                  </span>
+                  Website
                   <input
                     className="lp-input"
                     value={websiteUrl}
@@ -400,9 +398,7 @@ export function LaunchTab() {
                   />
                 </label>
                 <label>
-                  <span className="field-label">
-                    X <span className="field-label__optional">(optional)</span>
-                  </span>
+                  X
                   <input
                     className="lp-input"
                     value={xUrl}

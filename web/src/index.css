@@ -96,16 +96,10 @@ a {
 }
 
 .logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-}
-
-.logo-mark {
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .logo-hood {
@@ -249,7 +243,7 @@ textarea.lp-input {
 label {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.2rem;
   font-size: 0.85rem;
   font-weight: 500;
   color: var(--muted);
@@ -543,6 +537,15 @@ label {
   margin-bottom: 0;
 }
 
+.token-page-details {
+  padding: 1.25rem;
+  margin-top: 0.85rem;
+}
+
+.token-page-details .token-detail-grid {
+  margin-top: 0.75rem;
+}
+
 .token-page-header {
   display: flex;
   gap: 1rem;
@@ -584,6 +587,141 @@ label {
 .token-fee-note {
   margin: 0.35rem 0 0;
   font-size: 0.82rem;
+}
+
+.token-trade-links {
+  margin-top: 0.85rem;
+}
+
+.token-trade-links-label {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (min-width: 640px) {
+  .token-detail-span-2 {
+    grid-column: 1 / -1;
+  }
+}
+
+.dex-chart-embed {
+  margin-top: 0.85rem;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  background: #0a0a0a;
+  min-height: 360px;
+}
+
+.dex-screener-embed {
+  min-height: 520px;
+}
+
+.dex-chart-embed iframe {
+  display: block;
+  width: 100%;
+  height: 360px;
+  border: 0;
+}
+
+.dex-screener-embed iframe {
+  height: 520px;
+}
+
+.token-market-card {
+  padding: 1.25rem;
+  margin-top: 0.85rem;
+}
+
+.token-market-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.token-market-price {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.token-market-chg {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+.token-market-chg.up,
+.token-market-change-pill.up {
+  color: var(--accent);
+}
+
+.token-market-chg.down,
+.token-market-change-pill.down {
+  color: var(--danger);
+}
+
+.token-market-chg-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.token-market-source {
+  margin: 0;
+  font-size: 0.72rem;
+  align-self: center;
+}
+
+.token-market-changes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.token-market-change-pill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  color: var(--muted);
+}
+
+.token-market-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem 1.25rem;
+  margin: 0;
+}
+
+@media (min-width: 640px) {
+  .token-market-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.token-market-stat dt {
+  margin: 0 0 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.token-market-stat dd {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .token-swap-card {
@@ -735,17 +873,18 @@ label {
 .field-label {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  font-size: 0.82rem;
+  gap: 0.35rem;
+  font-size: 0.85rem;
   font-weight: 500;
-  color: var(--text);
-  margin-bottom: 0.35rem;
+  color: var(--muted);
+  margin-bottom: 0;
 }
 
 .field-label__optional {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 400;
   color: var(--muted-faint);
+  text-transform: lowercase;
 }
 
 .empty-state {
@@ -918,6 +1057,46 @@ label {
   color: var(--muted);
 }
 
+.explore-mcap-cell,
+.explore-market-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  justify-content: center;
+}
+
+.explore-price {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.explore-market-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.explore-chg {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.explore-chg.up {
+  color: var(--accent);
+}
+
+.explore-chg.down {
+  color: var(--danger);
+}
+
+.explore-mcap {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 .initial-buy-section {
   margin-top: 0.75rem;
   padding: 1rem !important;
@@ -1069,21 +1248,6 @@ label {
   text-shadow:
     0 0 4px rgba(255, 212, 0, 0.9),
     0 0 10px rgba(255, 212, 0, 0.5);
-}
-
-.dex-chart-embed {
-  margin-top: 1rem;
-  border-radius: var(--radius);
-  overflow: hidden;
-  border: 1px solid var(--border-soft);
-  min-height: 420px;
-}
-
-.dex-chart-embed iframe {
-  display: block;
-  width: 100%;
-  height: 420px;
-  border: 0;
 }
 
 .filter-chips {
