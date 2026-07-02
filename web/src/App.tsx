@@ -1,0 +1,128 @@
+import { useEffect, useState } from 'react';
+import { LaunchTab } from './components/LaunchTab';
+import { ProfileTab } from './components/ProfileTab';
+import { TokenPage } from './components/TokenPage';
+import { TokensTab } from './components/TokensTab';
+import { useEnsureRobinhoodChain } from './hooks/useEnsureRobinhoodChain';
+import { readTokenFromUrl } from './lib/tokenRoute';
+
+type Tab = 'tokens' | 'launch' | 'profile';
+
+const TAB_COPY: Record<Tab, { title: string; sub: string }> = {
+  tokens: {
+    title: 'Explore tokens',
+    sub: 'Every token launched on Robinhood Chain.',
+  },
+  launch: {
+    title: 'Launch a token',
+    sub: 'Fill in the details and deploy in seconds.',
+  },
+  profile: {
+    title: 'Your profile',
+    sub: "Tokens you've launched and fee wallets.",
+  },
+};
+
+const TOKEN_PAGE_COPY = {
+  title: 'Token',
+  sub: 'Launch details, fee recipient, and trading links.',
+};
+
+function readTabFromUrl(): Tab {
+  if (readTokenFromUrl()) return 'tokens';
+  const t = new URLSearchParams(window.location.search).get('tab');
+  if (t === 'launch' || t === 'profile' || t === 'tokens') return t;
+  return 'launch';
+}
+
+export default function App() {
+  useEnsureRobinhoodChain();
+  const [tab, setTab] = useState<Tab>(readTabFromUrl);
+  const [tokenAddress, setTokenAddress] = useState<string | null>(readTokenFromUrl);
+
+  useEffect(() => {
+    const sync = () => {
+      setTokenAddress(readTokenFromUrl());
+      setTab(readTabFromUrl());
+    };
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
+
+  const copy = tokenAddress ? TOKEN_PAGE_COPY : TAB_COPY[tab];
+
+  return (
+    <div className="app lp-root">
+      <header className="site-header">
+        <div className="header-inner">
+          <div className="logo lp-display">hoodmarkets</div>
+          <nav className="site-nav" aria-label="Main">
+            <button
+              type="button"
+              className={`nav-tab ${tab === 'tokens' && !tokenAddress ? 'active' : ''}`}
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('token');
+                url.searchParams.set('tab', 'tokens');
+                window.history.pushState({}, '', url);
+                setTokenAddress(null);
+                setTab('tokens');
+              }}
+            >
+              Explore
+            </button>
+            <button
+              type="button"
+              className={`nav-tab ${tab === 'launch' && !tokenAddress ? 'active' : ''}`}
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('token');
+                url.searchParams.set('tab', 'launch');
+                window.history.pushState({}, '', url);
+                setTokenAddress(null);
+                setTab('launch');
+              }}
+            >
+              Launch
+            </button>
+            <button
+              type="button"
+              className={`nav-tab ${tab === 'profile' && !tokenAddress ? 'active' : ''}`}
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('token');
+                url.searchParams.set('tab', 'profile');
+                window.history.pushState({}, '', url);
+                setTokenAddress(null);
+                setTab('profile');
+              }}
+            >
+              Profile
+            </button>
+          </nav>
+        </div>
+      </header>
+
+      <main className="main-wrap">
+        <div className="page-intro">
+          <h1 className="lp-display page-title">{copy.title}</h1>
+          <p className="page-sub">{copy.sub}</p>
+        </div>
+
+        <div className="panel">
+          {tokenAddress ? (
+            <TokenPage tokenAddress={tokenAddress} />
+          ) : tab === 'tokens' ? (
+            <TokensTab />
+          ) : tab === 'launch' ? (
+            <LaunchTab />
+          ) : (
+            <ProfileTab />
+          )}
+        </div>
+
+        <p className="footer-note">hoodmarkets · Robinhood Chain · trading fees go to your wallet</p>
+      </main>
+    </div>
+  );
+}

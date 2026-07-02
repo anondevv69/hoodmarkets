@@ -1,0 +1,10 @@
+{
+  "chainId": 4663,
+  "factory": "0xdebc9bc5c3ca697493a01e8ac503b590d209d8bd",
+  "feeLocker": "0xd588f6f8819fc0b34ff72300bb87b8c69c4cd454",
+  "hookDynamic": "0x5de599d4363bb9308434351600c34c96d46868cc",
+  "hookStatic": "0xcd9dd3fa11c53cf6ae3d4e4d3fdf7c1f790468cc",
+  "lpLocker": "0x34861965c8efc302e794c8593404cf17c6e65ff0",
+  "univ4EthDevBuy": "0x39ddf0339f9dccef59457a3579de1789c38d5a40",
+  "mevModule": "0xcbbc3534a892a365c57023c34349300d360f6a1b"
+}
