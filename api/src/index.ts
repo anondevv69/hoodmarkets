@@ -28,6 +28,7 @@ import { registerAgentCaptchaRoutes } from './routes/agentCaptcha.js';
 import { registerZeroExSwapRoutes } from './routes/zeroexSwap.js';
 import { registerBotSwapRoutes } from './routes/botSwap.js';
 import { registerLangchainAgentRoutes } from './routes/langchainAgent.js';
+import { registerWebDeployCorsMiddleware } from './lib/webDeployCors.js';
 
 async function main() {
   try {
@@ -120,7 +121,9 @@ async function main() {
         },
       }),
     );
-    
+
+    registerWebDeployCorsMiddleware(app);
+
     // Health check
     app.get('/', (req, res) => {
       res.json({
@@ -251,28 +254,30 @@ async function main() {
         });
       }
 
-      let reportAttempts = 0;
-      const maxReportAttempts = 25;
-      const scheduleStartupDiscordReport = (): void => {
-        setTimeout(() => {
-          void postStartupListenReport()
-            .then((result) => {
-              if (
-                result === 'pending_discord_client' &&
-                reportAttempts++ < maxReportAttempts
-              ) {
-                scheduleStartupDiscordReport();
-              }
-            })
-            .catch((e: unknown) => {
-              logger.error(
-                'Startup Discord status report failed',
-                e instanceof Error ? { message: e.message, stack: e.stack } : { detail: String(e) },
-              );
-            });
-        }, reportAttempts === 0 ? 1500 : 1000);
-      };
-      scheduleStartupDiscordReport();
+      if (!config.webOnlyMode) {
+        let reportAttempts = 0;
+        const maxReportAttempts = 25;
+        const scheduleStartupDiscordReport = (): void => {
+          setTimeout(() => {
+            void postStartupListenReport()
+              .then((result) => {
+                if (
+                  result === 'pending_discord_client' &&
+                  reportAttempts++ < maxReportAttempts
+                ) {
+                  scheduleStartupDiscordReport();
+                }
+              })
+              .catch((e: unknown) => {
+                logger.error(
+                  'Startup Discord status report failed',
+                  e instanceof Error ? { message: e.message, stack: e.stack } : { detail: String(e) },
+                );
+              });
+          }, reportAttempts === 0 ? 1500 : 1000);
+        };
+        scheduleStartupDiscordReport();
+      }
     });
     
   } catch (error: any) {

@@ -15,14 +15,14 @@ Bridge via [Robinhood Chain docs](https://docs.robinhood.com/chain/) if needed.
 ## 2. Contract deploy (do not paste keys in chat)
 
 ```bash
-cd contracts-robinhood
+cd contracts
 cp .env.robinhood.example .env.robinhood
 # Edit .env.robinhood — set DEPLOYER_PRIVATE_KEY only in this file (never commit)
 chmod +x scripts/deploy-robinhood.sh
 ./scripts/deploy-robinhood.sh
 ```
 
-On success you get `contracts-robinhood/deployed-robinhood-mainnet.json`.
+On success you get `contracts/deployed-robinhood-mainnet.json`.
 
 **Hook mining** (phase 01) can take several minutes — let it run.
 
