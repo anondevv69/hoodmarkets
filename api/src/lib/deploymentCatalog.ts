@@ -7,6 +7,7 @@ import { logger } from '../logger.js';
 import { BASE_DEAD_FEE_RECIPIENT } from './deadFeeWallet.js';
 import { getEasternDayRangeUtc, toSqliteUtc } from './easternDay.js';
 import { notifyTelegramDeploymentFeed } from './telegramFeed.js';
+import { resolveTokenImageUrl } from './tokenImageUrl.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '../../.data');
@@ -14,6 +15,19 @@ const dataDir = path.join(__dirname, '../../.data');
 const dbPath = path.join(dataDir, 'deploy-dedup.db');
 
 let db: sqlite3.Database | null = null;
+
+export function hydrateDeploymentCatalogRow<T extends DeploymentCatalogRow>(
+  row: T | null | undefined,
+): T | null {
+  if (!row) return null;
+  const fixed = resolveTokenImageUrl(row.tokenImageUrl);
+  if (!fixed || fixed === row.tokenImageUrl) return row;
+  return { ...row, tokenImageUrl: fixed };
+}
+
+export function hydrateDeploymentCatalogRows<T extends DeploymentCatalogRow>(rows: T[]): T[] {
+  return rows.map((r) => hydrateDeploymentCatalogRow(r) as T);
+}
 
 export interface DeploymentCatalogRow {
   id: number;
@@ -714,7 +728,8 @@ export async function recordDeploymentCatalog(
   const clientKind =
     input.clientKind === 'agent' ? 'agent' : 'web';
   const agentMetadata = (input.agentMetadataJson ?? '').trim().slice(0, 1024);
-  const tokenImageUrl = (input.tokenImageUrl ?? '').trim().slice(0, 1024);
+  const rawImage = (input.tokenImageUrl ?? '').trim().slice(0, 1024);
+  const tokenImageUrl = resolveTokenImageUrl(rawImage)?.slice(0, 1024) ?? rawImage;
   const tokenWebsiteUrl = (input.tokenWebsiteUrl ?? '').trim().slice(0, 1024);
   const tokenXUrl = (input.tokenXUrl ?? '').trim().slice(0, 1024);
   const chain =
@@ -874,7 +889,7 @@ export async function listDeploymentCatalog(
           resolve([]);
           return;
         }
-        resolve(rows ?? []);
+        resolve(hydrateDeploymentCatalogRows(rows ?? []));
       },
     );
   });
@@ -943,7 +958,7 @@ export async function listDeploymentCatalogByFeeRecipient(
           resolve([]);
           return;
         }
-        resolve(rows ?? []);
+        resolve(hydrateDeploymentCatalogRows(rows ?? []));
       },
     );
   });
@@ -1037,7 +1052,7 @@ export async function listDeploymentCatalogByDeployerPlatformHandle(
           resolve([]);
           return;
         }
-        resolve(rows ?? []);
+        resolve(hydrateDeploymentCatalogRows(rows ?? []));
       },
     );
   });
@@ -1091,7 +1106,7 @@ export async function listDeploymentCatalogByDeployer(
           resolve([]);
           return;
         }
-        resolve(rows ?? []);
+        resolve(hydrateDeploymentCatalogRows(rows ?? []));
       },
     );
   });
@@ -1218,7 +1233,7 @@ export async function getDeploymentByDeployerAndTokenAddress(
           resolve(null);
           return;
         }
-        resolve(row ?? null);
+        resolve(hydrateDeploymentCatalogRow(row));
       },
     );
   });
@@ -1295,7 +1310,7 @@ export async function getDeploymentByFeeRecipientAndTokenAddress(
           resolve(null);
           return;
         }
-        resolve(row ?? null);
+        resolve(hydrateDeploymentCatalogRow(row));
       },
     );
   });
@@ -1325,7 +1340,7 @@ export async function getDeploymentByTokenAddress(
           resolve(null);
           return;
         }
-        resolve(row ?? null);
+        resolve(hydrateDeploymentCatalogRow(row));
       },
     );
   });
@@ -1379,7 +1394,7 @@ export async function getDeploymentCatalogRowForPrivyClaimAuth(
           resolve(null);
           return;
         }
-        resolve(row ?? null);
+        resolve(hydrateDeploymentCatalogRow(row));
       },
     );
   });
@@ -1409,7 +1424,7 @@ export async function listDeploymentsByFeeRecipientAndSymbol(
           resolve([]);
           return;
         }
-        resolve(rows ?? []);
+        resolve(hydrateDeploymentCatalogRows(rows ?? []));
       },
     );
   });
@@ -1439,7 +1454,7 @@ export async function listDeploymentsByFeeRecipientAndName(
           resolve([]);
           return;
         }
-        resolve(rows ?? []);
+        resolve(hydrateDeploymentCatalogRows(rows ?? []));
       },
     );
   });
@@ -1482,7 +1497,7 @@ export async function getDeploymentByPlatformDeployerFeeRecipientAndTokenAddress
           resolve(null);
           return;
         }
-        resolve(row ?? null);
+        resolve(hydrateDeploymentCatalogRow(row));
       },
     );
   });
@@ -1523,7 +1538,7 @@ export async function listDeploymentsByPlatformDeployerFeeRecipientAndSymbol(
           resolve([]);
           return;
         }
-        resolve(rows ?? []);
+        resolve(hydrateDeploymentCatalogRows(rows ?? []));
       },
     );
   });
@@ -1564,7 +1579,7 @@ export async function listDeploymentsByPlatformDeployerFeeRecipientAndName(
           resolve([]);
           return;
         }
-        resolve(rows ?? []);
+        resolve(hydrateDeploymentCatalogRows(rows ?? []));
       },
     );
   });

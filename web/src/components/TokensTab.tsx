@@ -6,7 +6,6 @@ import { buildTradingLinks } from '../lib/tradingLinks';
 import { openTokenPage } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
 import { DexMetricsStrip } from './DexMetricsStrip';
-import { FilterChips, useTokenFilter } from './ExploreFilters';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 
@@ -98,26 +97,23 @@ export function TokensTab({
   error: string | null;
 }) {
   const [query, setQuery] = useState('');
-  const { filter, setFilter, filtered: chipFiltered, counts } = useTokenFilter(exploreTokens);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return chipFiltered;
-    return chipFiltered.filter(
+    if (!q) return exploreTokens;
+    return exploreTokens.filter(
       (t) =>
         t.name.toLowerCase().includes(q) ||
         t.symbol.toLowerCase().includes(q) ||
         t.address.toLowerCase().includes(q),
     );
-  }, [chipFiltered, query]);
+  }, [exploreTokens, query]);
 
   if (loading) return <p className="muted">Loading tokens…</p>;
   if (error) return <p className="error">{error}</p>;
 
   return (
     <div className="lp-fade-in">
-      <FilterChips filter={filter} setFilter={setFilter} counts={counts} />
-
       <div style={{ marginBottom: '1rem' }}>
         <input
           className="lp-input"
@@ -132,7 +128,7 @@ export function TokensTab({
         <div className="empty">
           {exploreTokens.length === 0
             ? 'No tokens launched yet. Be the first.'
-            : 'No tokens match your filters.'}
+            : 'No tokens match your search.'}
         </div>
       ) : (
         <div className="lp-card explore-card">

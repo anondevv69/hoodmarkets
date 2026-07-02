@@ -6,6 +6,7 @@ import lighthouse from '@lighthouse-web3/sdk';
 import sharp from 'sharp';
 import { config } from '../config.js';
 import { logger } from '../logger.js';
+import { resolveTokenImageUrl } from './tokenImageUrl.js';
 
 export class ImageUploadService {
   private supabase: ReturnType<typeof createClient> | null;
@@ -114,9 +115,7 @@ export class ImageUploadService {
       return undefined;
     }
 
-    // Prefer a public gateway — lighthouse gateway often returns 402 without a paid plan.
-    const publicGateway =
-      process.env.LIGHTHOUSE_IPFS_GATEWAY_URL?.trim() || 'https://ipfs.io/ipfs';
+    const publicGateway = config.lighthouse.ipfsGatewayBase;
     const base = publicGateway.replace(/\/$/, '');
     const url = `${base}/${hash}`;
     logger.info('Image uploaded to Lighthouse (IPFS)', { token: tokenName, cid: hash, url });

@@ -879,39 +879,6 @@ label {
     0 0 10px rgba(255, 212, 0, 0.5);
 }
 
-.listing-status {
-  margin-top: 1rem;
-  padding: 1rem 1.1rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--border-soft);
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.listing-status__title {
-  font-weight: 600;
-  margin: 0 0 0.5rem;
-}
-
-.listing-status__body,
-.listing-status__hint {
-  margin: 0 0 0.75rem;
-  font-size: 0.92rem;
-  line-height: 1.5;
-}
-
-.listing-status__pool {
-  margin: 0 0 0.75rem;
-  font-size: 0.8rem;
-  word-break: break-all;
-}
-
-.listing-status__list {
-  margin: 0 0 0.75rem;
-  padding-left: 1.2rem;
-  font-size: 0.88rem;
-  line-height: 1.55;
-}
-
 .dex-chart-embed {
   margin-top: 1rem;
   border-radius: var(--radius);
@@ -1044,13 +1011,6 @@ label {
 
 .trade-links a:hover {
   text-decoration: underline;
-}
-
-.trade-links-note {
-  margin: 0.65rem 0 0;
-  font-size: 0.82rem;
-  line-height: 1.45;
-  max-width: 52ch;
 }
 
 .token-meta {

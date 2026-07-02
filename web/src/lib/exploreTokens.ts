@@ -1,7 +1,7 @@
 import type { Deployment } from '../api';
 import type { DexTokenMetrics } from './dexscreenerVolume';
 
-/** Normalized shape for ticker + filter chips (shared categorization). */
+/** Normalized shape for ticker + explore list. */
 export interface ExploreToken {
   address: string;
   symbol: string;
@@ -15,8 +15,6 @@ export interface ExploreToken {
 }
 
 export const NEW_WINDOW_MS = 1000 * 60 * 60 * 24;
-export const HOT_COUNT = 15;
-export const TRENDING_COUNT = 15;
 export const TICKER_SLICE = 5;
 
 export function toExploreTokens(
@@ -37,39 +35,6 @@ export function toExploreTokens(
       deployment: d,
     };
   });
-}
-
-export interface TokenCategorySets {
-  hotSet: Set<string>;
-  trendingSet: Set<string>;
-  newSet: Set<string>;
-}
-
-export function categorizeTokenSets(tokens: ExploreToken[]): TokenCategorySets {
-  const now = Date.now();
-
-  const hotSet = new Set(
-    [...tokens]
-      .sort((a, b) => b.volume24h - a.volume24h)
-      .slice(0, HOT_COUNT)
-      .map((t) => t.address),
-  );
-
-  const trendingSet = new Set(
-    [...tokens]
-      .sort((a, b) => (b.change24h ?? -Infinity) - (a.change24h ?? -Infinity))
-      .filter((t) => typeof t.change24h === 'number')
-      .slice(0, TRENDING_COUNT)
-      .map((t) => t.address),
-  );
-
-  const newSet = new Set(
-    tokens
-      .filter((t) => t.createdAt && now - new Date(t.createdAt).getTime() < NEW_WINDOW_MS)
-      .map((t) => t.address),
-  );
-
-  return { hotSet, trendingSet, newSet };
 }
 
 export type TickerCategory = 'hot' | 'trending' | 'new';

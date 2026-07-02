@@ -9,6 +9,7 @@ import {
 import { privateKeyToAccount } from 'viem/accounts';
 import { config } from './config.js';
 import { imageUploadService } from './lib/imageUpload.js';
+import { resolveTokenImageUrl } from './lib/tokenImageUrl.js';
 import {
   deployTokenOnchain,
   assertValidTokenAdmin,
@@ -197,6 +198,7 @@ export class LiquidDeployer {
         image = uploadedUrl;
       }
     }
+    image = resolveTokenImageUrl(image) ?? image;
     if (image.startsWith('data:')) {
       throw new Error(
         'Token image could not be stored. Use a public HTTPS image URL, or set LIGHTHOUSE_API_KEY on the server for logo uploads.',
