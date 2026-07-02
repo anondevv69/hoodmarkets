@@ -31,6 +31,7 @@ import { registerZeroExSwapRoutes } from './routes/zeroexSwap.js';
 import { registerBotSwapRoutes } from './routes/botSwap.js';
 import { registerLangchainAgentRoutes } from './routes/langchainAgent.js';
 import { registerAgentBankrRoutes } from './routes/agentBankr.js';
+import { registerCatalogAdminRoutes } from './routes/catalogAdmin.js';
 import { registerWebDeployCorsMiddleware } from './lib/webDeployCors.js';
 
 async function main() {
@@ -205,6 +206,7 @@ async function main() {
     registerMyDeploymentsCollectPoolRoutes(app);
     registerAgentCaptchaRoutes(app);
     registerAgentBankrRoutes(app);
+    registerCatalogAdminRoutes(app);
     registerZeroExSwapRoutes(app);
     registerBotSwapRoutes(app);
     registerLangchainAgentRoutes(app);

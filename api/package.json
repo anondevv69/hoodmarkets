@@ -14,6 +14,7 @@
     "purge-deprecated-v3:dry-run": "tsx scripts/purge-deprecated-v3-catalog.ts --dry-run",
     "purge-catalog": "tsx scripts/purge-catalog.ts",
     "purge-catalog:dry-run": "tsx scripts/purge-catalog.ts --dry-run",
+    "delete-catalog-token": "tsx scripts/delete-catalog-token.ts",
     "lint": "eslint src/**/*.ts"
   },
   "dependencies": {
