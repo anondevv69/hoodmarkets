@@ -36,6 +36,6 @@
       "duplicate_deployer_name_symbol",
       "launch_mode_unavailable"
     ],
-    "warningCodes": ["rate_limit_would_force_burn", "third_party_rolling_warning"]
+    "warningCodes": ["rate_limit_would_force_platform_fee", "rate_limit_would_force_burn", "third_party_rolling_warning"]
   }
 }

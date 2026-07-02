@@ -2,6 +2,8 @@ import { config } from '../config.js';
 import {
   countSelfFeeDeploymentsCurrentEasternDay,
   countSelfFeeDeploymentsRollingHours,
+  countDeployerDeploymentsCurrentEasternDay,
+  countDeployerDeploymentsRollingHours,
   type SelfFeeCountKey,
 } from './deploymentCatalog.js';
 
@@ -76,16 +78,21 @@ export async function selfFeeDeployLimitErrorOrNull(
 export async function shouldForceMemeDueToSelfFeeLimit(
   key: SelfFeeCountKey,
 ): Promise<boolean> {
+  const isAgentDeployer = key.deployerId.startsWith('agent:');
   const easternMax = maxSelfFeeDeploysPerEasternDay();
   if (easternMax > 0) {
-    const n = await countSelfFeeDeploymentsCurrentEasternDay(key);
+    const n = isAgentDeployer
+      ? await countDeployerDeploymentsCurrentEasternDay(key.platform, key.deployerId)
+      : await countSelfFeeDeploymentsCurrentEasternDay(key);
     if (n >= easternMax) return true;
   }
   const rollingMax = maxSelfFeeDeploysPerRollingWindow();
   if (rollingMax > 0) {
     const h = deployRateLimitRollingHours();
     if (h > 0) {
-      const n = await countSelfFeeDeploymentsRollingHours(key, h);
+      const n = isAgentDeployer
+        ? await countDeployerDeploymentsRollingHours(key.platform, key.deployerId, h)
+        : await countSelfFeeDeploymentsRollingHours(key, h);
       if (n >= rollingMax) return true;
     }
   }
