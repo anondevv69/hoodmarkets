@@ -91,6 +91,8 @@ export type WebWalletDeployV3CompleteInput = {
   expectedTokenAdmin: string;
   deploymentConfig: SerializedV3DeploymentConfig;
   expectedMsgValueWei: bigint;
+  /** When set, tx must be sent from this wallet (e.g. deployer paying seed for someone else). */
+  expectedSigner?: string;
 };
 
 export type WebWalletDeployV3CompleteResult = {
@@ -117,7 +119,10 @@ export async function completeWebWalletDeployV3(
   }
 
   const tx = await publicClient.getTransaction({ hash: txHash });
-  assertWalletDeploySenderMatches(tx?.from, expectedAdmin);
+  const expectedSigner = input.expectedSigner?.trim()
+    ? getAddress(input.expectedSigner)
+    : expectedAdmin;
+  assertWalletDeploySenderMatches(tx?.from, expectedSigner);
   if ((tx?.value ?? 0n) !== input.expectedMsgValueWei) {
     throw new Error('Deploy transaction value does not match initial buy amount.');
   }

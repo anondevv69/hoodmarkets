@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { fetchDeploymentByAddress } from '../api';
 import { shortenAddress } from '../chain';
-import { formatUsdVol, fetchTokenMetricsFromDexscreener, type DexTokenMetrics } from '../lib/dexscreenerVolume';
+import { formatUsdVol, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import type { ExploreToken } from '../lib/exploreTokens';
 import { toExploreTokens } from '../lib/exploreTokens';
 import { extractContractAddressFromSearch, looksLikeAddressSearch } from '../lib/exploreSearch';
@@ -37,11 +37,6 @@ function sortExploreTokens(
   });
 }
 
-function pageForTokenIndex(index: number): number {
-  if (index < 0) return 1;
-  return Math.floor(index / EXPLORE_PAGE_SIZE) + 1;
-}
-
 function buildPageList(current: number, total: number): (number | 'gap')[] {
   if (total <= 7) {
     return Array.from({ length: total }, (_, i) => i + 1);
@@ -59,11 +54,9 @@ function buildPageList(current: number, total: number): (number | 'gap')[] {
 function ExploreRow({
   token,
   metrics,
-  highlight,
 }: {
   token: ExploreToken;
   metrics?: DexTokenMetrics;
-  highlight?: boolean;
 }) {
   const d = token.deployment;
   const sym = token.symbol;
@@ -86,7 +79,7 @@ function ExploreRow({
 
   return (
     <li
-      className={`explore-row explore-row-clickable${highlight ? ' explore-row-highlight' : ''}`}
+      className="explore-row explore-row-clickable"
       role="button"
       tabIndex={0}
       onClick={openDetails}
@@ -143,28 +136,36 @@ export function TokensTab({
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ExploreSort>('mcap');
   const [page, setPage] = useState(1);
-  const [addressLookup, setAddressLookup] = useState<ExploreToken | null>(null);
-  const [addressLookupMetrics, setAddressLookupMetrics] = useState<DexTokenMetrics | undefined>();
   const [addressLookupState, setAddressLookupState] = useState<'idle' | 'loading' | 'miss'>('idle');
-  const lastJumpAddressRef = useRef<string | null>(null);
+  const lastOpenedAddressRef = useRef<string | null>(null);
 
   const fullAddressQuery = useMemo(() => extractContractAddressFromSearch(query), [query]);
   const isTextSearch = query.trim().length > 0 && !fullAddressQuery;
+  const inCatalog = useMemo(
+    () =>
+      fullAddressQuery
+        ? catalog.some((d) => d.tokenAddress.toLowerCase() === fullAddressQuery)
+        : false,
+    [catalog, fullAddressQuery],
+  );
+
+  useLayoutEffect(() => {
+    if (!fullAddressQuery || loading) return;
+    if (lastOpenedAddressRef.current === fullAddressQuery) return;
+    if (!inCatalog) return;
+
+    lastOpenedAddressRef.current = fullAddressQuery;
+    openTokenPage(fullAddressQuery);
+  }, [fullAddressQuery, inCatalog, loading]);
 
   useEffect(() => {
     if (!fullAddressQuery) {
-      setAddressLookup(null);
-      setAddressLookupMetrics(undefined);
       setAddressLookupState('idle');
+      lastOpenedAddressRef.current = null;
       return;
     }
 
-    const inCatalog = catalog.some(
-      (d) => d.tokenAddress.toLowerCase() === fullAddressQuery,
-    );
-    if (inCatalog) {
-      setAddressLookup(null);
-      setAddressLookupMetrics(undefined);
+    if (inCatalog || loading) {
       setAddressLookupState('idle');
       return;
     }
@@ -173,43 +174,25 @@ export function TokensTab({
     setAddressLookupState('loading');
     void (async () => {
       try {
-        const deployment = await fetchDeploymentByAddress(fullAddressQuery);
+        await fetchDeploymentByAddress(fullAddressQuery);
         if (cancelled) return;
-        const metrics = await fetchTokenMetricsFromDexscreener([deployment.tokenAddress]);
-        if (cancelled) return;
-        const m = metrics[deployment.tokenAddress];
-        setAddressLookup(toExploreTokens([deployment], { [deployment.tokenAddress]: m })[0]);
-        setAddressLookupMetrics(m);
-        setAddressLookupState('idle');
+        if (lastOpenedAddressRef.current === fullAddressQuery) return;
+        lastOpenedAddressRef.current = fullAddressQuery;
+        openTokenPage(fullAddressQuery);
       } catch {
-        if (!cancelled) {
-          setAddressLookup(null);
-          setAddressLookupMetrics(undefined);
-          setAddressLookupState('miss');
-        }
+        if (!cancelled) setAddressLookupState('miss');
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [fullAddressQuery, catalog]);
+  }, [fullAddressQuery, inCatalog, loading]);
 
-  const mergedMetrics = useMemo(() => {
-    if (!addressLookup) return metricsByAddress;
-    return {
-      ...metricsByAddress,
-      [addressLookup.address]: addressLookupMetrics ?? metricsByAddress[addressLookup.address],
-    };
-  }, [addressLookup, addressLookupMetrics, metricsByAddress]);
-
-  const sortedTokens = useMemo(() => {
-    const base = toExploreTokens(catalog, mergedMetrics);
-    if (addressLookup && !base.some((t) => t.address.toLowerCase() === addressLookup.address.toLowerCase())) {
-      return sortExploreTokens([...base, addressLookup], mergedMetrics, sort);
-    }
-    return sortExploreTokens(base, mergedMetrics, sort);
-  }, [addressLookup, catalog, mergedMetrics, sort]);
+  const sortedTokens = useMemo(
+    () => sortExploreTokens(toExploreTokens(catalog, metricsByAddress), metricsByAddress, sort),
+    [catalog, metricsByAddress, sort],
+  );
 
   const totalPages = Math.max(1, Math.ceil(sortedTokens.length / EXPLORE_PAGE_SIZE));
 
@@ -217,26 +200,8 @@ export function TokensTab({
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  useEffect(() => {
-    if (!fullAddressQuery || loading) return;
-    if (addressLookupState === 'loading') return;
-    if (addressLookupState === 'miss') return;
-
-    const idx = sortedTokens.findIndex(
-      (t) => t.address.toLowerCase() === fullAddressQuery,
-    );
-    if (idx < 0) return;
-    if (lastJumpAddressRef.current === fullAddressQuery) return;
-
-    lastJumpAddressRef.current = fullAddressQuery;
-    setPage(pageForTokenIndex(idx));
-  }, [addressLookupState, fullAddressQuery, loading, sortedTokens]);
-
-  useEffect(() => {
-    if (!fullAddressQuery) lastJumpAddressRef.current = null;
-  }, [fullAddressQuery]);
-
   const displayTokens = useMemo(() => {
+    if (fullAddressQuery && addressLookupState === 'miss') return [];
     if (isTextSearch) {
       const q = query.trim().toLowerCase();
       return sortedTokens.filter(
@@ -248,7 +213,7 @@ export function TokensTab({
     }
     const start = (page - 1) * EXPLORE_PAGE_SIZE;
     return sortedTokens.slice(start, start + EXPLORE_PAGE_SIZE);
-  }, [isTextSearch, page, query, sortedTokens]);
+  }, [addressLookupState, fullAddressQuery, isTextSearch, page, query, sortedTokens]);
 
   useEffect(() => {
     if (!onEnsureMetrics || displayTokens.length === 0) return;
@@ -256,11 +221,29 @@ export function TokensTab({
   }, [displayTokens, onEnsureMetrics]);
 
   const pageList = buildPageList(page, totalPages);
-  const showPagination = !isTextSearch && sortedTokens.length > EXPLORE_PAGE_SIZE;
-  const highlightAddress = fullAddressQuery;
+  const showPagination = !isTextSearch && !fullAddressQuery && sortedTokens.length > EXPLORE_PAGE_SIZE;
+  const openingToken =
+    fullAddressQuery != null &&
+    (loading || inCatalog || addressLookupState === 'loading');
 
   if (loading) return <p className="muted">Loading tokens…</p>;
   if (error) return <p className="error">{error}</p>;
+
+  if (openingToken && addressLookupState !== 'miss') {
+    return (
+      <div className="lp-fade-in">
+        <div className="explore-toolbar">
+          <input
+            className="lp-input explore-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name or contract address"
+          />
+        </div>
+        <p className="muted">Opening token page…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="lp-fade-in">
@@ -353,11 +336,7 @@ export function TokensTab({
               <ExploreRow
                 key={t.address}
                 token={t}
-                metrics={mergedMetrics[t.address]}
-                highlight={
-                  highlightAddress != null &&
-                  t.address.toLowerCase() === highlightAddress
-                }
+                metrics={metricsByAddress[t.address]}
               />
             ))}
           </ul>

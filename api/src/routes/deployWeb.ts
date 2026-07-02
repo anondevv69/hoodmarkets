@@ -12,6 +12,7 @@ import { resolveWebFeeRecipient } from '../lib/webFeeRecipient.js';
 import {
   fetchPrivyUserRecordById,
   formatWebDeployInitiatorAttribution,
+  getEmbeddedEthAddressForPrivyUserId,
 } from '../lib/privy.js';
 import { checkAndRecordDeploy, hashDeployRequest, releaseDeployAttempt, type DeployRequest } from '../lib/deployDedup.js';
 import { notifyDiscordWebLaunch } from '../lib/discordDebug.js';
@@ -422,7 +423,7 @@ export function registerWebDeployRoutes(
       v3LaunchEnabled: !!config.hoodmarketsV3.factory,
       proLaunchEnabled: !!config.liquid.factory,
       imageUploadEnabled: imageUploadService.isConfigured(),
-      /** Fixed WETH seed at launch — paid by launcher wallet (`DEPLOY_BOND_ETH`), not the user. */
+      /** Fixed WETH seed at launch — paid by launcher wallet for agents only (`DEPLOY_BOND_ETH`). */
       platformSubsidizedInitialBuyEth: Number(webInitialBuyDefaultEth()),
       initialBuyMinEth: webInitialBuyMinEth(),
       initialBuyMaxEth: webInitialBuyMaxEth(),
@@ -855,10 +856,10 @@ export function registerWebDeployRoutes(
         return;
       }
 
-      if (userInitialBuyWei > 0n && feeTarget !== 'self') {
+      if (userInitialBuyWei > 0n && (anonymousNoDev || agentWalletDeploy)) {
         res.status(400).json({
           error:
-            'Paying pool seed from your wallet is only supported when trading fees go to you (Me). Use 0 for launches on behalf of someone else (hood.markets covers pool seed).',
+            'Paying pool seed from your wallet is not supported for this launch type. Use 0 or omit initialBuyEth.',
         });
         return;
       }
@@ -868,14 +869,26 @@ export function registerWebDeployRoutes(
       const launchMode: 'simple' | 'pro' =
         launchModeRaw === 'pro' ? 'pro' : launchModeRaw === 'simple' ? 'simple' : config.defaultLaunchMode;
 
-      const selfPaysPoolSeed =
-        feeTarget === 'self' &&
+      const deployerPaysPoolSeed =
+        (feeTarget === 'self' || feeTarget === 'other') &&
         !anonymousNoDev &&
         !agentWalletDeploy &&
         (launchMode === 'simple' || launchMode === 'pro');
 
-      if (selfPaysPoolSeed && userInitialBuyWei === 0n) {
+      if (deployerPaysPoolSeed && userInitialBuyWei === 0n) {
         userInitialBuyWei = config.deployBondWei;
+      }
+
+      let deployerWallet: Address | undefined;
+      if (!anonymousNoDev && !agentWalletDeploy && deployerPaysPoolSeed) {
+        const embedded = await getEmbeddedEthAddressForPrivyUserId(userId);
+        if (embedded) {
+          try {
+            deployerWallet = getAddress(embedded);
+          } catch {
+            deployerWallet = undefined;
+          }
+        }
       }
 
       if (launchMode === 'simple' && !config.hoodmarketsV3.factory) {
@@ -888,12 +901,37 @@ export function registerWebDeployRoutes(
 
       const useWalletDeploy =
         (launchMode === 'pro' || launchMode === 'simple') &&
-        feeTarget === 'self' &&
+        (feeTarget === 'self' || feeTarget === 'other') &&
         !anonymousNoDev &&
         !agentWalletDeploy &&
         !rateLimitForcedBurn &&
         !rateLimitForcedPlatformFee &&
-        userInitialBuyWei > 0n;
+        userInitialBuyWei > 0n &&
+        deployerWallet != null;
+
+      const walletDeploySigner =
+        feeTarget === 'other' ? deployerWallet : resolved.walletAddress;
+
+      if (deployerPaysPoolSeed && userInitialBuyWei > 0n && !walletDeploySigner) {
+        res.status(400).json({
+          error:
+            'Connect your hood.markets wallet to pay the pool seed (~0.005 ETH). Deployment gas is still covered by hood.markets.',
+        });
+        return;
+      }
+
+      if (
+        useWalletDeploy &&
+        feeTarget === 'self' &&
+        deployerWallet &&
+        getAddress(resolved.walletAddress) !== deployerWallet
+      ) {
+        res.status(400).json({
+          error:
+            'Your connected wallet must match the fee recipient for Me launches. Reconnect the wallet shown in your profile.',
+        });
+        return;
+      }
 
       const walletPhase =
         body.walletDeployPhase === 'complete'
@@ -945,7 +983,7 @@ export function registerWebDeployRoutes(
       }
 
       let devBuyAmount = 0n;
-      if (feeTarget !== 'self' || anonymousNoDev || agentWalletDeploy) {
+      if (anonymousNoDev || agentWalletDeploy) {
         devBuyAmount = userInitialBuyWei > 0n ? 0n : config.deployBondWei;
       } else if (!useWalletDeploy) {
         devBuyAmount = config.deployBondWei;
@@ -1043,6 +1081,7 @@ export function registerWebDeployRoutes(
           const onchain = await completeWebWalletDeployV3(agentPaymentPublicClient, {
             transactionHash: txHash,
             expectedTokenAdmin: resolved.walletAddress,
+            expectedSigner: walletDeploySigner ?? resolved.walletAddress,
             deploymentConfig: v3Serialized,
             expectedMsgValueWei: userInitialBuyWei,
           });
@@ -1099,7 +1138,7 @@ export function registerWebDeployRoutes(
         const tx = await agentPaymentPublicClient.getTransaction({
           hash: txHash as `0x${string}`,
         });
-        assertWalletDeploySenderMatches(tx?.from, resolved.walletAddress);
+        assertWalletDeploySenderMatches(tx?.from, walletDeploySigner ?? resolved.walletAddress);
 
         const onchain = await completeWebWalletDeploy(agentPaymentPublicClient, {
           transactionHash: txHash,

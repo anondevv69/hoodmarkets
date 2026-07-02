@@ -234,8 +234,8 @@ export function LaunchTab() {
     }
 
     const defaultBuyEth = config?.initialBuyDefaultEth ?? '0.005';
-    const buyEth = feeTarget === 'self' ? initialBuyEth.trim() || defaultBuyEth : '0';
-    const needsWallet = feeTarget === 'self' && Boolean(config?.walletDeployEnabled);
+    const buyEth = initialBuyEth.trim() || defaultBuyEth;
+    const needsWallet = Boolean(config?.walletDeployEnabled);
 
     if (needsWallet && !wallet?.address) {
       setError(
@@ -482,12 +482,15 @@ export function LaunchTab() {
               </div>
             </div>
 
-            {feeTarget === 'self' && config?.walletDeployEnabled ? (
+            {config?.walletDeployEnabled ? (
               <div className="lp-card form-section">
                 <p className="section-label">Pool seed</p>
                 <p className="muted" style={{ fontSize: '0.82rem', margin: '0 0 0.75rem' }}>
                   You pay ~{config.initialBuyDefaultEth} ETH from your wallet to seed the pool.
                   hood.markets covers deployment gas — you sign one transaction.
+                  {feeTarget === 'other'
+                    ? ' Trading fees still go to the recipient you choose below.'
+                    : null}
                 </p>
                 <div className="initial-buy-row">
                   <button
