@@ -622,6 +622,17 @@ export const config = {
     skipCaptchaChannels: parseAgentChannelSet(
       process.env.AGENT_DEPLOY_SKIP_CAPTCHA_CHANNELS || 'x,twitter',
     ),
+    /**
+     * Free server-side launches via X/Bankr (`agentChannel: x`) per Eastern calendar day per wallet.
+     * `0` = unlimited. Env: `AGENT_X_MAX_DEPLOYS_PER_EASTERN_DAY` (default 1).
+     */
+    maxXDeploysPerEasternDay: (() => {
+      const raw = process.env.AGENT_X_MAX_DEPLOYS_PER_EASTERN_DAY;
+      if (raw === undefined || raw.trim() === '') return 1;
+      const n = parseInt(raw, 10);
+      if (!Number.isFinite(n)) return 1;
+      return n < 0 ? 0 : n;
+    })(),
   },
 
   /**
