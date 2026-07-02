@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 9
+version: 10
 ---
 
 # hood.markets — Bankr agent skill
@@ -65,7 +65,7 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
   1. use_skill("hoodmarkets")
   2. Read references/API-HOST.md — use ONLY https://api.hood.markets
   3. Resolve linked wallet → x-wallet-address header
-  4. **Deploy:** call `preflight-deploy` first — if blocked, reply with `replyHint` (ticker taken, daily limit, etc.)
+  4. **Deploy:** `preflight-deploy` first — **409 + `blocks[]` only** = do not deploy. **`warnings[]` with `canDeploy: true`** (e.g. 2nd launch in 24h → platform fees) = warn, then deploy after user confirms yes — never invent a wallet cooldown block.
   5. Call references/AGENT-API.md endpoint BEFORE replying
   6. Format reply locally — references/RESPONSE-SAFETY.md
   7. Deploy (X): extract `media_url_https` from tweet → `resolve-deploy-image` with `tweetId` + `tweetImageUrl` → `prepare-deploy` → `confirmReplyHint` → deploy after yes. **Never claim no image without calling API with tweetId first.**
@@ -207,7 +207,7 @@ GET https://api.hood.markets/api/agent/preflight-deploy?wallet=0x…&name=My+Tok
 ```
 
 - **409** + `blocks[]` → do not deploy; reply with `blocks[0].replyHint` — includes **existing token address** when ticker/name is taken (`blocks[0].existingToken`)
-- **200** + optional `warnings[]` → can deploy; warn if fees would route to burn
+- **200** + `canDeploy: true` + `warnings[]` → **deploy is allowed**. If `rate_limit_would_force_platform_fee`: user already launched in the last 24h — fees on **this** token go to the hood.markets platform (same as the website). Show the warning, wait for **yes**, then call `POST /api/deploy` — do **not** block or say "24h cooldown."
 - After deploy: post **`deployReplyHint`** from `/api/deploy` — no DexScreener/simple-mode footer
 
 See `streaming-hints.json` for V3 vs Pro detection and error codes.
