@@ -11,13 +11,19 @@ import {HoodMarketsV3LpLocker} from "../../src/v31/HoodMarketsV3LpLocker.sol";
 contract DeployHoodMarketsV3 is Script {
     function run() external {
         uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        address owner = vm.addr(deployerKey);
+        address deployer = vm.addr(deployerKey);
+        // Defaults to deployer; set HOODMARKETS_OWNER when owner should differ from broadcaster.
+        address owner = vm.envOr("HOODMARKETS_OWNER", deployer);
 
         address weth = vm.envAddress("WETH");
         address v3Factory = vm.envAddress("UNISWAP_V3_FACTORY");
         address positionManager = vm.envAddress("UNISWAP_V3_POSITION_MANAGER");
         address swapRouter = vm.envAddress("UNISWAP_V3_SWAP_ROUTER");
         address platformFeeRecipient = vm.envAddress("HOODMARKETS_PLATFORM_FEE_RECIPIENT");
+
+        console.log("Broadcast deployer:", deployer);
+        console.log("Contract owner:", owner);
+        console.log("Platform fee recipient (5%):", platformFeeRecipient);
 
         vm.startBroadcast(deployerKey);
 
@@ -41,6 +47,7 @@ contract DeployHoodMarketsV3 is Script {
         console.log("HoodMarketsV3 factory:", address(factory));
         console.log("HoodMarketsV3Vault:", address(vault));
         console.log("HoodMarketsV3LpLocker:", address(locker));
+        console.log("Owner:", owner);
         console.log("Platform fee recipient (5% of swap fees):", platformFeeRecipient);
     }
 }

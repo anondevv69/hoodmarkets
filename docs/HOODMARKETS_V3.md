@@ -20,7 +20,8 @@ The 5% platform wallet is set at locker deploy (`HOODMARKETS_PLATFORM_FEE_RECIPI
 | HoodMarketsV3 factory | `0xa77911C301b30283ca3dBc32812839AdF443b39f` |
 | HoodMarketsV3Vault | `0xcc4554b1C6b33b36A91a306dB3f8b13cBe92639E` |
 | HoodMarketsV3LpLocker | `0x8eB68121E5c7a5aAf440a5C66c0C66b828B96fA8` |
-| Platform fee recipient (5%) | `0xA558E3058050448f07Df73a2509f23B7912395Da` |
+| Platform fee recipient (5%) | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` (hoodfees treasury) |
+| Planned contract owner | `0xFA45A3b8d1662E3432D1B5bE3F37e4923D1b796C` (hoodmarkets admin) |
 
 Robinhood Uniswap V3 infra:
 
@@ -37,7 +38,8 @@ Robinhood Uniswap V3 infra:
 cd contracts
 # .env.robinhood: DEPLOYER_PRIVATE_KEY, ROBINHOOD_RPC_URL, WETH, plus:
 # UNISWAP_V3_FACTORY, UNISWAP_V3_POSITION_MANAGER, UNISWAP_V3_SWAP_ROUTER
-# HOODMARKETS_PLATFORM_FEE_RECIPIENT=<hood.markets fee wallet>
+# HOODMARKETS_PLATFORM_FEE_RECIPIENT=<hoodfees treasury — 5% of swap fees>
+# HOODMARKETS_OWNER=<admin wallet — defaults to deployer if unset>
 forge script script/robinhood/10_DeployHoodMarketsV3.s.sol:DeployHoodMarketsV3 \
   --rpc-url "$ROBINHOOD_RPC_URL" --broadcast --slow
 ```
@@ -70,3 +72,20 @@ HOODMARKETS_DEFAULT_LAUNCH_MODE=simple
 ## Claiming V3 fees
 
 Creators call `HoodMarketsV3LpLocker.collectRewards(positionId)` (or `HoodMarketsV3.claimRewards(token)`). UI claim flow for V3 is planned; use Blockscout write contract for now.
+
+## Move admin to a Gnosis Safe (later)
+
+All three V3 contracts use OpenZeppelin `Ownable`. After you deploy a Safe on Robinhood Chain (4663), transfer admin in one script:
+
+```bash
+# .env.robinhood: DEPLOYER_PRIVATE_KEY = current owner (0xFA45…)
+HOODMARKETS_V3_FACTORY=<deployed>
+HOODMARKETS_V3_VAULT=<deployed>
+HOODMARKETS_V3_LP_LOCKER=<deployed>
+HOODMARKETS_NEW_OWNER=<safe address on 4663>
+
+forge script script/robinhood/11_TransferOwnershipV3.s.sol:TransferOwnershipV3 \
+  --rpc-url "$ROBINHOOD_RPC_URL" --broadcast
+```
+
+The **5% fee wallet** (`HOODMARKETS_PLATFORM_FEE_RECIPIENT`) is separate from owner. To change it later without redeploying, the locker owner calls `updateTeamRecipient(newTreasury)`.
