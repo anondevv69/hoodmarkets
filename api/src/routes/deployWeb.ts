@@ -53,12 +53,11 @@ import { runAfterPriorWebSelfFeeWork } from '../lib/webSelfFeeQueue.js';
 import { runAfterPriorWebThirdPartyFeeWork } from '../lib/webThirdPartyFeeQueue.js';
 import { resolveAgentWalletAuth, normalizeAgentChannel } from '../lib/agentWalletDeployAuth.js';
 import { agentDeploySuccessReplyHint, resolveLaunchTweetUrl } from '../lib/agentDeployImage.js';
-import { verifyDeploySignature } from '../lib/agentWalletAuth.js';
 import {
-  buildAgentDeployCommitment,
-  verifyAgentDeployCommitment,
-} from '../lib/agentDeployCommitment.js';
-import { verifyAgentPaymentTransaction } from '../lib/agentDeployPaymentVerify.js';
+  buildAgentDeployPaymentRequiredResponse,
+  verifyAndReserveAgentDeployPayment,
+  agentDeployPaymentEnabled,
+} from '../lib/agentDeployPaymentFlow.js';
 import {
   webInitialBuyDefaultEth,
   parseWebInitialBuyWei,
@@ -67,7 +66,6 @@ import {
   WEB_INITIAL_BUY_PRESETS_ETH,
 } from '../lib/deployBondEnv.js';
 import {
-  tryReserveAgentPaymentTx,
   releaseAgentPaymentTx,
   listSelfFeeTokensForFeeRecipient,
   listThirdPartyFeeTokensForFeeRecipientRollingHours,
@@ -117,6 +115,8 @@ import {
 } from '../lib/webDeployRateLimit.js';
 import {
   agentXDeployLimitErrorOrNull,
+  agentXDeployLimitReplyHint,
+  agentXDeployPaymentReplyHint,
   isAgentXChannel,
 } from '../lib/agentXDeployLimit.js';
 
@@ -239,6 +239,10 @@ interface DeployWebBody {
   deploymentConfig?: SerializedDeploymentConfig;
   /** `simple` = HoodMarkets V3 (DexScreener). `pro` = HoodMarkets V4 hooks. */
   launchMode?: 'simple' | 'pro';
+  /** Paid X/Bankr deploy over daily free cap — from HTTP 402 `commitment`. */
+  deployCommitment?: string;
+  /** Robinhood ETH payment tx from agent wallet to treasury (402 flow). */
+  paymentTxHash?: string;
 }
 
 function normalizeAnonymousClientId(raw: unknown): string | null {
@@ -774,9 +778,49 @@ export function registerWebDeployRoutes(
 
       if (agentWalletDeploy && isAgentXChannel(agentChannel)) {
         const xLimitErr = await agentXDeployLimitErrorOrNull(userId);
-        if (xLimitErr) {
-          res.status(409).json({ error: xLimitErr });
-          return;
+        if (xLimitErr && agentVerifiedFee) {
+          const paymentTxHash =
+            typeof body.paymentTxHash === 'string' ? body.paymentTxHash.trim() : '';
+          const deployCommitment =
+            typeof body.deployCommitment === 'string' ? body.deployCommitment.trim() : '';
+
+          if (paymentTxHash && deployCommitment) {
+            try {
+              paymentTxToRelease = await verifyAndReserveAgentDeployPayment({
+                publicClient: agentPaymentPublicClient,
+                paymentTxHash,
+                deployCommitment,
+                commitmentInput: {
+                  name,
+                  symbol,
+                  agentFeeRecipient: agentVerifiedFee,
+                  description: userDescription,
+                  imageUrl,
+                },
+              });
+              agentAuthIsPayment = true;
+            } catch (e: unknown) {
+              const msg = e instanceof Error ? e.message : 'Payment verification failed';
+              res.status(402).json({ error: msg, payment_required: true });
+              return;
+            }
+          } else if (agentDeployPaymentEnabled()) {
+            res.status(402).json(
+              buildAgentDeployPaymentRequiredResponse({
+                name,
+                symbol,
+                agentFeeRecipient: agentVerifiedFee,
+                description: userDescription,
+                imageUrl,
+                limitMessage: xLimitErr,
+                replyHint: agentXDeployPaymentReplyHint(),
+              }),
+            );
+            return;
+          } else {
+            res.status(409).json({ error: xLimitErr, replyHint: agentXDeployLimitReplyHint() });
+            return;
+          }
         }
       } else if (config.webOnlyMode && (fee.kind === 'self' || agentWalletDeploy)) {
         const limited = await applyWebDeployRateLimit({

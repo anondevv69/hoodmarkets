@@ -32,8 +32,14 @@ import { deployRateLimitRollingHours } from './selfFeeLimit.js';
 import {
   agentXDeployLimitErrorOrNull,
   agentXDeployLimitReplyHint,
+  agentXDeployPaymentReplyHint,
   isAgentXChannel,
 } from './agentXDeployLimit.js';
+import {
+  agentDeployPaymentEnabled,
+  agentDeployPaymentMinWei,
+} from './agentDeployPaymentFlow.js';
+import { formatEther } from 'viem';
 export type AgentPreflightIssueCode =
   | 'invalid_name'
   | 'invalid_symbol'
@@ -47,6 +53,7 @@ export type AgentPreflightIssueCode =
   | 'rate_limit_would_force_burn'
   | 'rate_limit_would_force_platform_fee'
   | 'agent_x_daily_limit'
+  | 'agent_x_payment_required'
   | 'third_party_rolling_warning';
 
 export type AgentPreflightIssue = {
@@ -251,12 +258,22 @@ export async function runAgentDeployPreflight(
     if (isAgentXChannel(input.agentChannel)) {
       const xLimitErr = await agentXDeployLimitErrorOrNull(deployerId);
       if (xLimitErr) {
-        blocks.push({
-          code: 'agent_x_daily_limit',
-          severity: 'block',
-          message: xLimitErr,
-          replyHint: agentXDeployLimitReplyHint(),
-        });
+        if (agentDeployPaymentEnabled()) {
+          const eth = formatEther(agentDeployPaymentMinWei());
+          warnings.push({
+            code: 'agent_x_payment_required',
+            severity: 'warn',
+            message: xLimitErr,
+            replyHint: agentXDeployPaymentReplyHint(),
+          });
+        } else {
+          blocks.push({
+            code: 'agent_x_daily_limit',
+            severity: 'block',
+            message: xLimitErr,
+            replyHint: agentXDeployLimitReplyHint(),
+          });
+        }
       }
     } else {
       const limited = await applyWebDeployRateLimit({

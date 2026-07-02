@@ -687,22 +687,24 @@ export const config = {
   },
 
   /**
-   * Agent deploy without EIP-191: native ETH to this treasury on Base from `agentFeeRecipient`.
-   * When set, POST without `deploySignature` returns HTTP 402 with `commitment` until `paymentTxHash` is sent.
-   * Env: `AGENT_DEPLOY_PAYMENT_TREASURY`, optional `AGENT_DEPLOY_PAYMENT_WEI` (default `0.0001` ether).
+   * Agent deploy without EIP-191: native ETH to this treasury on **Robinhood Chain** from `agentFeeRecipient`.
+   * When set, X/Bankr launches over the daily free cap return HTTP 402 until `paymentTxHash` is sent.
+   * Env: `AGENT_DEPLOY_PAYMENT_TREASURY`, optional `AGENT_DEPLOY_PAYMENT_WEI` (default pool seed + gas buffer).
    */
   agentDeployPayment: {
     treasury: (process.env.AGENT_DEPLOY_PAYMENT_TREASURY || '').trim(),
     minWei: (() => {
       const raw = process.env.AGENT_DEPLOY_PAYMENT_WEI?.trim();
-      if (!raw) return parseEther('0.0001');
-      try {
-        if (/^\d+$/.test(raw)) return BigInt(raw);
-        if (raw.startsWith('0x')) return BigInt(raw);
-        return parseEther(raw);
-      } catch {
-        return parseEther('0.0001');
+      if (raw) {
+        try {
+          if (/^\d+$/.test(raw)) return BigInt(raw);
+          if (raw.startsWith('0x')) return BigInt(raw);
+          return parseEther(raw);
+        } catch {
+          /* fall through to default */
+        }
       }
+      return parseDeployBondWeiFromEnv() + parseEther('0.002');
     })(),
   },
 
