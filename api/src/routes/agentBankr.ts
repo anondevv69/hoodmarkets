@@ -13,6 +13,11 @@ import {
 } from '../lib/agentDeployPreflight.js';
 import { agentDeploySkipCaptchaForRequest, normalizeAgentChannel } from '../lib/agentWalletDeployAuth.js';
 import {
+  agentDeployPaymentEnabled,
+  buildAgentDeployPaymentRequiredResponse,
+} from '../lib/agentDeployPaymentFlow.js';
+import { agentXDeployPaymentReplyHint } from '../lib/agentXDeployLimit.js';
+import {
   agentDeployConfirmReplyHint,
   buildAgentDeployConfirmSummary,
   normalizeTweetStatusUrl,
@@ -434,6 +439,65 @@ export function registerAgentBankrRoutes(app: Express): void {
     const deployHeaders: Record<string, string> = { 'x-wallet-address': wallet };
     if (resolvedChannel) deployHeaders['x-agent-channel'] = resolvedChannel;
 
+    const paymentRequired = preflight.warnings.some((w) => w.code === 'agent_x_payment_required');
+    const paymentPreview =
+      paymentRequired && agentDeployPaymentEnabled()
+        ? buildAgentDeployPaymentRequiredResponse({
+            name,
+            symbol,
+            agentFeeRecipient: wallet,
+            description,
+            imageUrl: resolvedImage.imageUrl,
+            limitMessage:
+              preflight.warnings.find((w) => w.code === 'agent_x_payment_required')?.message ??
+              'Daily free X launch used.',
+            replyHint: agentXDeployPaymentReplyHint(),
+          })
+        : null;
+
+    const paidDeployStep = paymentPreview
+      ? {
+          step: 'deploy',
+          method: 'POST' as const,
+          url: `${API_BASE}/api/deploy`,
+          headers: deployHeaders,
+          body: {
+            ...deployBody,
+            deployCommitment: paymentPreview.commitment,
+            paymentTxHash: '<tx hash from pay_launch_fee>',
+          },
+          note:
+            'Retry deploy with deployCommitment from paymentPreview and paymentTxHash after Bankr payment confirms.',
+        }
+      : {
+          step: 'deploy',
+          method: 'POST' as const,
+          url: `${API_BASE}/api/deploy`,
+          headers: deployHeaders,
+          body: deployBody,
+          note:
+            resolvedChannel === 'x'
+              ? 'X channel — no haiku. User confirmed in-thread; pass linked wallet via x-wallet-address and agentChannel: x.'
+              : 'Captcha skipped for this agent channel. Pass linked wallet via x-wallet-address.',
+        };
+
+    const paymentStep = paymentPreview
+      ? [
+          {
+            step: 'pay_launch_fee',
+            method: 'POST' as const,
+            url: paymentPreview.bankrSubmitUrl,
+            body: {
+              chainId: paymentPreview.chainId,
+              transactions: paymentPreview.transactions,
+              waitForConfirmation: true,
+            },
+            note: `Free X launch used today — pay ${paymentPreview.minPaymentEth} ETH from Bankr wallet, then deploy with paymentTxHash.`,
+            replyHint: paymentPreview.replyHint,
+          },
+        ]
+      : [];
+
     const steps = skipCaptcha
       ? [
           ...(resolvedChannel === 'x'
@@ -448,17 +512,8 @@ export function registerAgentBankrRoutes(app: Express): void {
                 },
               ]
             : []),
-          {
-            step: 'deploy',
-            method: 'POST',
-            url: `${API_BASE}/api/deploy`,
-            headers: deployHeaders,
-            body: deployBody,
-            note:
-              resolvedChannel === 'x'
-                ? 'X channel — no haiku. User confirmed in-thread; pass linked wallet via x-wallet-address and agentChannel: x.'
-                : 'Captcha skipped for this agent channel. Pass linked wallet via x-wallet-address.',
-          },
+          ...paymentStep,
+          paidDeployStep,
         ]
       : [
           {
@@ -476,13 +531,8 @@ export function registerAgentBankrRoutes(app: Express): void {
               agentFeeRecipient: wallet,
             },
           },
-          {
-            step: 'deploy',
-            method: 'POST',
-            url: `${API_BASE}/api/deploy`,
-            headers: { 'X-Agent-Captcha-JWT': '<jwt from verify>' },
-            body: deployBody,
-          },
+          ...paymentStep,
+          paidDeployStep,
         ];
 
     res.json({
@@ -494,8 +544,22 @@ export function registerAgentBankrRoutes(app: Express): void {
         warnings: preflight.warnings,
         proceedNotice: preflight.proceedNotice,
       },
-      /** Server deploy — no Bankr /wallet/submit. Launcher pays gas + launch seed. */
-      deployMode: 'server',
+      /** Server deploy — Bankr pays launch fee when over daily free X cap, else launcher subsidizes. */
+      deployMode: paymentPreview ? 'server_paid' : 'server',
+      ...(paymentPreview
+        ? {
+            paymentRequired: true,
+            paymentPreview: {
+              commitment: paymentPreview.commitment,
+              treasury: paymentPreview.treasury,
+              minPaymentEth: paymentPreview.minPaymentEth,
+              minPaymentWei: paymentPreview.minPaymentWei,
+              chainId: paymentPreview.chainId,
+              bankrSubmitUrl: paymentPreview.bankrSubmitUrl,
+              transactions: paymentPreview.transactions,
+            },
+          }
+        : {}),
       captchaRequired: !skipCaptcha,
       agentChannel: resolvedChannel,
       confirmSummary,
