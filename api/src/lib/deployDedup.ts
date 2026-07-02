@@ -192,6 +192,19 @@ export async function loadCursor(key: string): Promise<string | null> {
   });
 }
 
+/** Remove a deploy attempt record when on-chain deploy fails after dedup insert. */
+export async function releaseDeployAttempt(hash: string): Promise<void> {
+  if (!db || !hash) return;
+  return new Promise((resolve) => {
+    db!.run('DELETE FROM deploy_attempts WHERE hash = ?', [hash], (err) => {
+      if (err) {
+        logger.warn('Deploy dedup release error:', err.message);
+      }
+      resolve();
+    });
+  });
+}
+
 /** Cleanup: delete old records (older than 7 days) to prevent database bloat. */
 export async function cleanupOldRecords(): Promise<void> {
   if (!db) return;
