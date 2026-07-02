@@ -11,6 +11,7 @@ import {
   type WebDeployConfig,
 } from '../api';
 import { readImageFileAsDataUrl, resolveLaunchImagePayload } from '../lib/imageUpload';
+import { openTokenPage } from '../lib/tokenRoute';
 import { LaunchSuccessLinks } from './TokenCard';
 import { tradingLinksFromApi } from '../lib/tradingLinks';
 import { ExistingTokenConflict } from './ExistingTokenConflict';
@@ -209,6 +210,7 @@ export function LaunchTab() {
       setRateLimitNotice(null);
       setLiveTickerConflict(null);
       setLiveNameConflict(null);
+      openTokenPage(out.tokenAddress);
     } catch (err) {
       if (err instanceof DeployApiError) {
         setError(err.message);
