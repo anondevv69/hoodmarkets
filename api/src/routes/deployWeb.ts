@@ -22,8 +22,13 @@ import {
   RATE_LIMIT_FORCED_DEAD_FEE_LABEL,
 } from '../lib/memeFeeRecipient.js';
 import {
+  deployerOtherFeeLimitProceedNotice,
   maxFeeRecipientDeploysPerEasternDay,
+  maxOtherFeeDeploysPerEasternDay,
   maxThirdPartyFeeToSameWalletPerRollingWindow,
+  shouldForceMemeDueToFeeRecipientLimit,
+  shouldForceMemeDueToOtherFeeLimit,
+  shouldForceMemeDueToThirdPartyWalletRateLimit,
   thirdPartyFeeRecipientLimitProceedNotice,
 } from '../lib/feeRecipientLimit.js';
 import { applyDeployRateLimitBurn } from '../lib/deployRateLimitBurn.js';
@@ -352,11 +357,20 @@ async function previewWebDeployRateLimit(
   });
 
   const burnForced = limited.rateLimitForcedBurn;
-  const notice = burnForced
-    ? fee.kind === 'other'
-      ? thirdPartyFeeRecipientLimitProceedNotice(deployRateLimitRollingHours())
-      : DEPLOY_LIMIT_MEME_PROCEED_USER_NOTICE
-    : null;
+  let notice: string | null = null;
+  if (burnForced && fee.kind === 'other') {
+    const limitKey = {
+      privyUserId: !anonymousNoDev && !agentWalletDeploy ? userId : null,
+      platform: 'web' as const,
+      deployerId: userId,
+    };
+    const forceDeployer = await shouldForceMemeDueToOtherFeeLimit(limitKey);
+    notice = forceDeployer
+      ? deployerOtherFeeLimitProceedNotice()
+      : thirdPartyFeeRecipientLimitProceedNotice(deployRateLimitRollingHours());
+  } else if (burnForced) {
+    notice = DEPLOY_LIMIT_MEME_PROCEED_USER_NOTICE;
+  }
 
   return {
     rateLimitForcedPlatformFee: burnForced,
@@ -389,6 +403,7 @@ export function registerWebDeployRoutes(
       deployRateLimitHours: deployRateLimitRollingHours(),
       maxFeeRecipientDeploysPerEasternDay: maxFeeRecipientDeploysPerEasternDay(),
       maxThirdPartyFeeToWalletPer24h: maxThirdPartyFeeToSameWalletPerRollingWindow(),
+      maxOtherFeeDeploysPerEasternDay: maxOtherFeeDeploysPerEasternDay(),
       thirdPartyFeeDeployEnabled: true,
       platformFeeBps: config.platformFeeBps,
       platformFeePercent: Number((config.platformFeeBps / 100).toFixed(2)),

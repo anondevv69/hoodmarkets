@@ -137,24 +137,34 @@ export function LaunchTab() {
   const deployHours = config?.deployRateLimitHours ?? 24;
   const recipientDayCap = config?.maxFeeRecipientDeploysPerEasternDay ?? 0;
   const recipientRollingCap = config?.maxThirdPartyFeeToWalletPer24h ?? 0;
+  const deployerOtherDayCap = config?.maxOtherFeeDeploysPerEasternDay ?? 0;
   const limitsNote = useMemo(() => {
-    const base = `1 token per user every ${deployHours}h · each name & symbol unique for ${cooldownHours}h`;
+    const base = `1 token for yourself every ${deployHours}h · each name & symbol unique for ${cooldownHours}h`;
     if (!config?.thirdPartyFeeDeployEnabled) return base;
-    const recipientParts: string[] = [];
-    if (recipientDayCap > 0) {
-      recipientParts.push(`${recipientDayCap} per Eastern day`);
+    const parts: string[] = [base];
+    if (deployerOtherDayCap > 0) {
+      parts.push(
+        `launch for someone else ${deployerOtherDayCap}× per Eastern day`,
+      );
     }
-    if (recipientRollingCap > 0) {
-      recipientParts.push(`${recipientRollingCap} per ${deployHours}h`);
+    if (recipientDayCap > 0 || recipientRollingCap > 0) {
+      const recipientParts: string[] = [];
+      if (recipientDayCap > 0) {
+        recipientParts.push(`${recipientDayCap} third-party receive per Eastern day`);
+      }
+      if (recipientRollingCap > 0) {
+        recipientParts.push(`${recipientRollingCap} per ${deployHours}h`);
+      }
+      parts.push(`recipients: ${recipientParts.join(', ')} (they can still launch for themselves)`);
     }
-    if (recipientParts.length === 0) return base;
-    return `${base} · fee recipients limited to ${recipientParts.join(' and ')}`;
+    return parts.join(' · ');
   }, [
     config?.thirdPartyFeeDeployEnabled,
     cooldownHours,
     deployHours,
     recipientDayCap,
     recipientRollingCap,
+    deployerOtherDayCap,
   ]);
 
   const blockingReserved = liveNameReserved ?? liveTickerReserved;
@@ -494,9 +504,13 @@ export function LaunchTab() {
                     required
                   />
                   <span className="muted" style={{ fontSize: '0.8rem' }}>
-                    Each wallet can receive fees for at most{' '}
-                    {recipientDayCap > 0 ? `${recipientDayCap} token per Eastern day` : '1 token per day'}
+                    Each wallet can receive at most{' '}
+                    {recipientDayCap > 0 ? `${recipientDayCap} launch from others per Eastern day` : '1 launch from others per day'}
                     {recipientRollingCap > 0 ? ` and ${recipientRollingCap} per ${deployHours}h` : ''}.
+                    They can still launch one token for themselves.
+                    {deployerOtherDayCap > 0
+                      ? ` You can launch for someone else ${deployerOtherDayCap}× per Eastern day.`
+                      : ''}
                   </span>
                 </label>
               ) : null}

@@ -71,6 +71,8 @@ export interface WebDeployConfig {
   maxFeeRecipientDeploysPerEasternDay: number;
   /** Rolling cap on third-party fee assigns to the same wallet (0 = off). */
   maxThirdPartyFeeToWalletPer24h: number;
+  /** Max launches per Eastern day where you assign fees to someone else (0 = unlimited). */
+  maxOtherFeeDeploysPerEasternDay: number;
   thirdPartyFeeDeployEnabled: boolean;
   platformFeeBps: number;
   platformFeePercent: number;
