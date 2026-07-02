@@ -22,7 +22,7 @@ function tokenLowerHex(address: string): string {
 
 function hoodmarketsUrl(tokenAddress: string): string {
   const addr = tokenLowerHex(tokenAddress);
-  return `https://hood.markets/?tab=tokens&token=${addr}`;
+  return `https://hood.markets/?token=${addr}`;
 }
 
 export function buildTradingLinks(tokenAddress: string): TradingLinks {
