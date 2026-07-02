@@ -48,11 +48,7 @@ import {
 } from '../lib/agentDeployCommitment.js';
 import { verifyAgentPaymentTransaction } from '../lib/agentDeployPaymentVerify.js';
 import {
-  parseWebInitialBuyWei,
-  WEB_INITIAL_BUY_PRESETS_ETH,
   webInitialBuyDefaultEth,
-  webInitialBuyMaxEth,
-  webInitialBuyMinEth,
 } from '../lib/deployBondEnv.js';
 import {
   tryReserveAgentPaymentTx,
@@ -171,8 +167,6 @@ interface DeployWebBody {
   recipientPaste?: string;
   /** `base` (default) or `ethereum` (Ethereum mainnet). Requires `ETHEREUM_DEPLOY_ENABLED=true`. */
   chain?: string;
-  /** Optional WETH seed at launch (ETH amount). Paid by launcher wallet; seeds pool liquidity. */
-  initialBuyEth?: number | string;
 }
 
 function normalizeAnonymousClientId(raw: unknown): string | null {
@@ -375,10 +369,8 @@ export function registerWebDeployRoutes(
       platformFeeBps: config.platformFeeBps,
       platformFeePercent: Number((config.platformFeeBps / 100).toFixed(2)),
       imageUploadEnabled: imageUploadService.isConfigured(),
-      initialBuyEthDefault: Number(webInitialBuyDefaultEth()),
-      initialBuyEthMin: Number(webInitialBuyMinEth()),
-      initialBuyEthMax: Number(webInitialBuyMaxEth()),
-      initialBuyEthPresets: WEB_INITIAL_BUY_PRESETS_ETH.map(Number),
+      /** Fixed WETH seed at launch — paid by launcher wallet (`DEPLOY_BOND_ETH`), not the user. */
+      platformSubsidizedInitialBuyEth: Number(webInitialBuyDefaultEth()),
     });
   });
 
@@ -816,14 +808,7 @@ export function registerWebDeployRoutes(
         return;
       }
 
-      let devBuyAmount: bigint;
-      try {
-        devBuyAmount = parseWebInitialBuyWei(body.initialBuyEth, config.deployBondWei);
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : 'Invalid initialBuyEth';
-        res.status(400).json({ error: msg });
-        return;
-      }
+      let devBuyAmount = config.deployBondWei;
 
       const deployReq: DeployRequest = {
         platform: 'web',
