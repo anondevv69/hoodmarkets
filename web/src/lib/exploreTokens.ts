@@ -16,7 +16,27 @@ export interface ExploreToken {
 }
 
 export const NEW_WINDOW_MS = 1000 * 60 * 60 * 24;
-export const TICKER_SLICE = 5;
+export const TICKER_SLICE = 8;
+
+export function formatTickerAge(createdAt: string): string {
+  const ms = Date.now() - new Date(createdAt).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return '—';
+  const mins = Math.floor(ms / 60_000);
+  if (mins < 1) return '<1m';
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  return `${Math.floor(hrs / 24)}d`;
+}
+
+/** Enough unique slots before the scroll loop repeats. */
+export function expandTickerSequence<T>(items: T[], minCount = 14): T[] {
+  if (items.length === 0) return [];
+  if (items.length >= minCount) return items;
+  const out: T[] = [];
+  while (out.length < minCount) out.push(...items);
+  return out;
+}
 
 export function toExploreTokens(
   deployments: Deployment[],
@@ -69,5 +89,12 @@ export function buildTickerItems(tokens: ExploreToken[]): Array<ExploreToken & {
     if (trending[i]) merged.push(trending[i]);
     if (fresh[i]) merged.push(fresh[i]);
   }
-  return merged;
+
+  const seen = new Set<string>();
+  return merged.filter((t) => {
+    const key = t.address.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
