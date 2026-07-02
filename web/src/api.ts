@@ -119,9 +119,22 @@ async function parseJson<T>(res: Response): Promise<T> {
 }
 
 export async function fetchDeployments(limit = 50, offset = 0): Promise<Deployment[]> {
+  const page = await fetchDeploymentsPage(limit, offset);
+  return page.deployments;
+}
+
+export async function fetchDeploymentsPage(
+  limit = 50,
+  offset = 0,
+): Promise<{ deployments: Deployment[]; total: number }> {
   const res = await fetch(`${API_BASE}/api/deployments?limit=${limit}&offset=${offset}`);
-  const data = await parseJson<{ deployments: Deployment[] }>(res);
-  return data.deployments ?? [];
+  const data = await parseJson<{ deployments: Deployment[]; total?: number }>(res);
+  const deployments = data.deployments ?? [];
+  const total =
+    typeof data.total === 'number' && Number.isFinite(data.total)
+      ? data.total
+      : deployments.length;
+  return { deployments, total };
 }
 
 export async function fetchDeploymentByAddress(tokenAddress: string): Promise<TokenDetail> {

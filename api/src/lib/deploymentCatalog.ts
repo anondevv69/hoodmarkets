@@ -1071,6 +1071,36 @@ export async function updateDeploymentCatalogLaunchSource(
 
 export type DeploymentCatalogClaimedFilter = 'any' | 'yes' | 'no';
 
+export async function countVisibleDeploymentCatalog(
+  claimed: DeploymentCatalogClaimedFilter = 'any',
+): Promise<number> {
+  if (!db) return 0;
+
+  let whereClaimed = '';
+  if (claimed === 'yes') {
+    whereClaimed = ' WHERE TRIM(COALESCE(dc.fee_claimed_at, \'\')) != \'\' ';
+  } else if (claimed === 'no') {
+    whereClaimed = ' WHERE TRIM(COALESCE(dc.fee_claimed_at, \'\')) = \'\' ';
+  }
+  const whereVisible =
+    whereClaimed === '' ? ` WHERE 1=1${visibleCatalogSql()}` : `${whereClaimed}${visibleCatalogSql()}`;
+
+  return new Promise((resolve) => {
+    db!.get(
+      `SELECT COUNT(*) AS c FROM deployment_catalog AS dc ${whereVisible}`,
+      [visibleCatalogParam()],
+      (err, row: { c: number } | undefined) => {
+        if (err) {
+          logger.warn('deploymentCatalog count failed:', err.message);
+          resolve(0);
+          return;
+        }
+        resolve(Number(row?.c ?? 0));
+      },
+    );
+  });
+}
+
 export async function listDeploymentCatalog(
   limit = 100,
   offset = 0,

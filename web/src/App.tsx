@@ -50,12 +50,12 @@ export default function App() {
   const showExploreChrome = !tokenAddress;
   const {
     tokens: exploreTokens,
+    catalog,
     metricsByAddress,
     loading,
+    loadingMetrics,
     error,
-    hasMore,
-    loadingMore,
-    loadMore,
+    ensureMetrics,
   } = useExploreTokens(showExploreChrome);
 
   return (
@@ -132,13 +132,12 @@ export default function App() {
             <TokenPage tokenAddress={tokenAddress} />
           ) : tab === 'tokens' ? (
             <TokensTab
-              exploreTokens={exploreTokens}
+              catalog={catalog}
               metricsByAddress={metricsByAddress}
               loading={loading}
+              loadingMetrics={loadingMetrics}
               error={error}
-              hasMore={hasMore}
-              loadingMore={loadingMore}
-              onLoadMore={loadMore}
+              onEnsureMetrics={ensureMetrics}
             />
           ) : tab === 'launch' ? (
             <LaunchTab />

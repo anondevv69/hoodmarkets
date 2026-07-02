@@ -43,7 +43,7 @@ export function LaunchTab() {
   const [xUrl, setXUrl] = useState('');
   const [feeTarget, setFeeTarget] = useState<'self' | 'other'>('self');
   const [feeRecipient, setFeeRecipient] = useState('');
-  const [initialBuyEth, setInitialBuyEth] = useState('0');
+  const [initialBuyEth, setInitialBuyEth] = useState('');
   const [rateLimitNotice, setRateLimitNotice] = useState<string | null>(null);
   const [config, setConfig] = useState<WebDeployConfig | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -66,6 +66,12 @@ export function LaunchTab() {
       .then((c) => setConfig(c))
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (config?.initialBuyDefaultEth) {
+      setInitialBuyEth(config.initialBuyDefaultEth);
+    }
+  }, [config?.initialBuyDefaultEth]);
 
   useEffect(() => {
     if (!authenticated) {
@@ -227,10 +233,14 @@ export function LaunchTab() {
       return;
     }
 
-    const buyEth = feeTarget === 'self' ? initialBuyEth.trim() || '0' : '0';
+    const defaultBuyEth = config?.initialBuyDefaultEth ?? '0.005';
+    const buyEth = feeTarget === 'self' ? initialBuyEth.trim() || defaultBuyEth : '0';
+    const needsWallet = feeTarget === 'self' && Boolean(config?.walletDeployEnabled);
 
-    if (buyEth !== '0' && !wallet?.address) {
-      setError('Connect your hood.markets wallet to pay the initial buy.');
+    if (needsWallet && !wallet?.address) {
+      setError(
+        `Connect your hood.markets wallet to pay the pool seed (~${defaultBuyEth} ETH).`,
+      );
       return;
     }
 
@@ -261,7 +271,7 @@ export function LaunchTab() {
           feeTarget,
           recipientPaste: feeTarget === 'other' ? feeRecipient.trim() : undefined,
         },
-        buyEth !== '0' && wallet
+        needsWallet && wallet
           ? {
               address: wallet.address,
               getEthereumProvider: () => wallet.getEthereumProvider(),
@@ -280,7 +290,7 @@ export function LaunchTab() {
       setXUrl('');
       setFeeTarget('self');
       setFeeRecipient('');
-      setInitialBuyEth('0');
+      setInitialBuyEth(config?.initialBuyDefaultEth ?? '0.005');
       setRateLimitNotice(null);
       setLiveTickerConflict(null);
       setLiveNameConflict(null);
@@ -474,21 +484,22 @@ export function LaunchTab() {
 
             {feeTarget === 'self' && config?.walletDeployEnabled ? (
               <div className="lp-card form-section">
-                <p className="section-label">Initial buy (optional)</p>
+                <p className="section-label">Pool seed</p>
                 <p className="muted" style={{ fontSize: '0.82rem', margin: '0 0 0.75rem' }}>
-                  Deployment is covered by hood.markets (~
-                  {config.platformSubsidizedInitialBuyEth} ETH pool seed). Add ETH from your wallet
-                  for a deeper launch buy — you sign one transaction.
+                  You pay ~{config.initialBuyDefaultEth} ETH from your wallet to seed the pool.
+                  hood.markets covers deployment gas — you sign one transaction.
                 </p>
                 <div className="initial-buy-row">
                   <button
                     type="button"
-                    className={`initial-buy-preset${initialBuyEth === '0' ? ' is-active' : ''}`}
-                    onClick={() => setInitialBuyEth('0')}
+                    className={`initial-buy-preset${initialBuyEth === config.initialBuyDefaultEth ? ' is-active' : ''}`}
+                    onClick={() => setInitialBuyEth(config.initialBuyDefaultEth)}
                   >
-                    None
+                    {config.initialBuyDefaultEth} ETH
                   </button>
-                  {(config.initialBuyPresetsEth ?? ['0.002', '0.01', '0.05']).map((preset) => (
+                  {(config.initialBuyPresetsEth ?? ['0.005', '0.01', '0.05'])
+                    .filter((preset) => preset !== config.initialBuyDefaultEth)
+                    .map((preset) => (
                     <button
                       key={preset}
                       type="button"
@@ -503,9 +514,9 @@ export function LaunchTab() {
                   Custom amount (ETH)
                   <input
                     className="lp-input"
-                    value={initialBuyEth === '0' ? '' : initialBuyEth}
-                    onChange={(e) => setInitialBuyEth(e.target.value.trim() || '0')}
-                    placeholder={`0 — platform seed only (max ${config.initialBuyMaxEth})`}
+                    value={initialBuyEth}
+                    onChange={(e) => setInitialBuyEth(e.target.value.trim())}
+                    placeholder={`Min ${config.initialBuyMinEth} — max ${config.initialBuyMaxEth}`}
                     inputMode="decimal"
                   />
                 </label>

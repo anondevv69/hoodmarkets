@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from 'express';
 import { getAddress } from 'viem';
 import {
+  countVisibleDeploymentCatalog,
   getDeploymentByTokenAddress,
   listDeploymentCatalog,
   listDeploymentCatalogByDeployerPlatformHandle,
@@ -129,7 +130,8 @@ export function registerDeploymentCatalogRoutes(app: Express): void {
         Number.isFinite(offset) ? offset : 0,
         claimed,
       );
-      res.json({ deployments });
+      const total = await countVisibleDeploymentCatalog(claimed);
+      res.json({ deployments, total });
     } catch {
       res.status(500).json({ error: 'Failed to load deployments.' });
     }

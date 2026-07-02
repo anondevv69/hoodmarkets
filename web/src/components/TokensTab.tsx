@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchDeploymentByAddress } from '../api';
 import { shortenAddress } from '../chain';
 import { formatUsdVol, fetchTokenMetricsFromDexscreener, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import type { ExploreToken } from '../lib/exploreTokens';
 import { toExploreTokens } from '../lib/exploreTokens';
 import { extractContractAddressFromSearch, looksLikeAddressSearch } from '../lib/exploreSearch';
+import { EXPLORE_PAGE_SIZE } from '../hooks/useExploreTokens';
 import { formatLaunchTimeEastern, parseCatalogCreatedAt } from '../lib/launchTime';
 import { openTokenPage } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
+import type { Deployment } from '../api';
 
 export type ExploreSort = 'mcap' | 'launch';
 
@@ -35,12 +37,33 @@ function sortExploreTokens(
   });
 }
 
+function pageForTokenIndex(index: number): number {
+  if (index < 0) return 1;
+  return Math.floor(index / EXPLORE_PAGE_SIZE) + 1;
+}
+
+function buildPageList(current: number, total: number): (number | 'gap')[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages = new Set<number>([1, total, current, current - 1, current + 1]);
+  const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out: (number | 'gap')[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i]! - sorted[i - 1]! > 1) out.push('gap');
+    out.push(sorted[i]!);
+  }
+  return out;
+}
+
 function ExploreRow({
   token,
   metrics,
+  highlight,
 }: {
   token: ExploreToken;
   metrics?: DexTokenMetrics;
+  highlight?: boolean;
 }) {
   const d = token.deployment;
   const sym = token.symbol;
@@ -63,7 +86,7 @@ function ExploreRow({
 
   return (
     <li
-      className="explore-row explore-row-clickable"
+      className={`explore-row explore-row-clickable${highlight ? ' explore-row-highlight' : ''}`}
       role="button"
       tabIndex={0}
       onClick={openDetails}
@@ -103,30 +126,30 @@ function ExploreRow({
 }
 
 export function TokensTab({
-  exploreTokens,
+  catalog,
   metricsByAddress,
   loading,
+  loadingMetrics = false,
   error,
-  hasMore = false,
-  loadingMore = false,
-  onLoadMore,
+  onEnsureMetrics,
 }: {
-  exploreTokens: ExploreToken[];
+  catalog: Deployment[];
   metricsByAddress: Record<string, DexTokenMetrics | undefined>;
   loading: boolean;
+  loadingMetrics?: boolean;
   error: string | null;
-  hasMore?: boolean;
-  loadingMore?: boolean;
-  onLoadMore?: () => void;
+  onEnsureMetrics?: (addresses: string[]) => void;
 }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ExploreSort>('mcap');
+  const [page, setPage] = useState(1);
   const [addressLookup, setAddressLookup] = useState<ExploreToken | null>(null);
   const [addressLookupMetrics, setAddressLookupMetrics] = useState<DexTokenMetrics | undefined>();
   const [addressLookupState, setAddressLookupState] = useState<'idle' | 'loading' | 'miss'>('idle');
+  const lastJumpAddressRef = useRef<string | null>(null);
 
   const fullAddressQuery = useMemo(() => extractContractAddressFromSearch(query), [query]);
-  const isSearching = query.trim().length > 0;
+  const isTextSearch = query.trim().length > 0 && !fullAddressQuery;
 
   useEffect(() => {
     if (!fullAddressQuery) {
@@ -136,10 +159,10 @@ export function TokensTab({
       return;
     }
 
-    const alreadyLoaded = exploreTokens.some(
-      (t) => t.address.toLowerCase() === fullAddressQuery,
+    const inCatalog = catalog.some(
+      (d) => d.tokenAddress.toLowerCase() === fullAddressQuery,
     );
-    if (alreadyLoaded) {
+    if (inCatalog) {
       setAddressLookup(null);
       setAddressLookupMetrics(undefined);
       setAddressLookupState('idle');
@@ -170,7 +193,7 @@ export function TokensTab({
     return () => {
       cancelled = true;
     };
-  }, [fullAddressQuery, exploreTokens]);
+  }, [fullAddressQuery, catalog]);
 
   const mergedMetrics = useMemo(() => {
     if (!addressLookup) return metricsByAddress;
@@ -180,22 +203,61 @@ export function TokensTab({
     };
   }, [addressLookup, addressLookupMetrics, metricsByAddress]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const base = q
-      ? exploreTokens.filter(
-          (t) =>
-            t.name.toLowerCase().includes(q) ||
-            t.symbol.toLowerCase().includes(q) ||
-            t.address.toLowerCase().includes(q),
-        )
-      : exploreTokens;
-    const sorted = sortExploreTokens(base, mergedMetrics, sort);
-    if (sorted.length === 0 && addressLookup) {
-      return [addressLookup];
+  const sortedTokens = useMemo(() => {
+    const base = toExploreTokens(catalog, mergedMetrics);
+    if (addressLookup && !base.some((t) => t.address.toLowerCase() === addressLookup.address.toLowerCase())) {
+      return sortExploreTokens([...base, addressLookup], mergedMetrics, sort);
     }
-    return sorted;
-  }, [exploreTokens, mergedMetrics, query, sort, addressLookup]);
+    return sortExploreTokens(base, mergedMetrics, sort);
+  }, [addressLookup, catalog, mergedMetrics, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedTokens.length / EXPLORE_PAGE_SIZE));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  useEffect(() => {
+    if (!fullAddressQuery || loading) return;
+    if (addressLookupState === 'loading') return;
+    if (addressLookupState === 'miss') return;
+
+    const idx = sortedTokens.findIndex(
+      (t) => t.address.toLowerCase() === fullAddressQuery,
+    );
+    if (idx < 0) return;
+    if (lastJumpAddressRef.current === fullAddressQuery) return;
+
+    lastJumpAddressRef.current = fullAddressQuery;
+    setPage(pageForTokenIndex(idx));
+  }, [addressLookupState, fullAddressQuery, loading, sortedTokens]);
+
+  useEffect(() => {
+    if (!fullAddressQuery) lastJumpAddressRef.current = null;
+  }, [fullAddressQuery]);
+
+  const displayTokens = useMemo(() => {
+    if (isTextSearch) {
+      const q = query.trim().toLowerCase();
+      return sortedTokens.filter(
+        (t) =>
+          t.name.toLowerCase().includes(q) ||
+          t.symbol.toLowerCase().includes(q) ||
+          t.address.toLowerCase().includes(q),
+      );
+    }
+    const start = (page - 1) * EXPLORE_PAGE_SIZE;
+    return sortedTokens.slice(start, start + EXPLORE_PAGE_SIZE);
+  }, [isTextSearch, page, query, sortedTokens]);
+
+  useEffect(() => {
+    if (!onEnsureMetrics || displayTokens.length === 0) return;
+    onEnsureMetrics(displayTokens.map((t) => t.address));
+  }, [displayTokens, onEnsureMetrics]);
+
+  const pageList = buildPageList(page, totalPages);
+  const showPagination = !isTextSearch && sortedTokens.length > EXPLORE_PAGE_SIZE;
+  const highlightAddress = fullAddressQuery;
 
   if (loading) return <p className="muted">Loading tokens…</p>;
   if (error) return <p className="error">{error}</p>;
@@ -214,7 +276,10 @@ export function TokensTab({
             type="button"
             className={`explore-sort-btn${sort === 'mcap' ? ' is-active' : ''}`}
             aria-pressed={sort === 'mcap'}
-            onClick={() => setSort('mcap')}
+            onClick={() => {
+              setSort('mcap');
+              setPage(1);
+            }}
           >
             Market cap
           </button>
@@ -222,15 +287,19 @@ export function TokensTab({
             type="button"
             className={`explore-sort-btn${sort === 'launch' ? ' is-active' : ''}`}
             aria-pressed={sort === 'launch'}
-            onClick={() => setSort('launch')}
+            onClick={() => {
+              setSort('launch');
+              setPage(1);
+            }}
           >
             Newest
           </button>
         </div>
-        {exploreTokens.length > 0 ? (
+        {sortedTokens.length > 0 ? (
           <p className="explore-count muted">
-            {exploreTokens.length} token{exploreTokens.length === 1 ? '' : 's'} loaded
-            {hasMore && !isSearching ? ' · more available' : ''}
+            {sortedTokens.length} token{sortedTokens.length === 1 ? '' : 's'}
+            {showPagination ? ` · page ${page} of ${totalPages}` : ''}
+            {loadingMetrics ? ' · updating market data…' : ''}
           </p>
         ) : null}
       </div>
@@ -241,20 +310,20 @@ export function TokensTab({
         </p>
       ) : null}
 
-      {filtered.length === 0 ? (
+      {displayTokens.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon" aria-hidden>
             🔍
           </div>
           <p className="empty-state-title">
-            {exploreTokens.length === 0
+            {catalog.length === 0
               ? 'No tokens launched yet'
               : addressLookupState === 'miss'
                 ? 'Token not in hood.markets catalog'
                 : 'No tokens match your search'}
           </p>
           <p className="muted empty-state-sub">
-            {exploreTokens.length === 0
+            {catalog.length === 0
               ? 'Be the first to launch on Robinhood Chain.'
               : addressLookupState === 'miss'
                 ? 'This contract may exist on-chain but was not launched through hood.markets, or the full 0x address is required.'
@@ -280,25 +349,54 @@ export function TokensTab({
             <span>Market cap</span>
           </div>
           <ul className="token-list">
-            {filtered.map((t) => (
+            {displayTokens.map((t) => (
               <ExploreRow
                 key={t.address}
                 token={t}
                 metrics={mergedMetrics[t.address]}
+                highlight={
+                  highlightAddress != null &&
+                  t.address.toLowerCase() === highlightAddress
+                }
               />
             ))}
           </ul>
-          {hasMore && !isSearching && onLoadMore ? (
-            <div className="explore-load-more">
+          {showPagination ? (
+            <nav className="explore-pagination" aria-label="Explore pages">
               <button
                 type="button"
-                className="btn btn-ghost"
-                disabled={loadingMore}
-                onClick={() => onLoadMore()}
+                className="explore-page-btn"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
-                {loadingMore ? 'Loading…' : 'Load more tokens'}
+                Prev
               </button>
-            </div>
+              {pageList.map((item, i) =>
+                item === 'gap' ? (
+                  <span key={`gap-${i}`} className="explore-page-gap" aria-hidden>
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={item}
+                    type="button"
+                    className={`explore-page-btn${item === page ? ' is-active' : ''}`}
+                    aria-current={item === page ? 'page' : undefined}
+                    onClick={() => setPage(item)}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+              <button
+                type="button"
+                className="explore-page-btn"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </button>
+            </nav>
           ) : null}
         </div>
       )}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchDeployments, type Deployment } from '../api';
+import { fetchDeploymentsPage, type Deployment } from '../api';
 import {
   fetchTokenMetricsFromDexscreener,
   type DexTokenMetrics,
@@ -7,71 +7,74 @@ import {
 import { toExploreTokens, type ExploreToken } from '../lib/exploreTokens';
 
 const POLL_MS = 30_000;
-export const EXPLORE_PAGE_SIZE = 100;
+const CATALOG_BATCH = 200;
+
+export const EXPLORE_PAGE_SIZE = 50;
+
+async function loadFullCatalog(): Promise<Deployment[]> {
+  const first = await fetchDeploymentsPage(CATALOG_BATCH, 0);
+  const rows = [...first.deployments];
+  while (rows.length < first.total) {
+    const batch = await fetchDeploymentsPage(CATALOG_BATCH, rows.length);
+    rows.push(...batch.deployments);
+    if (batch.deployments.length === 0) break;
+  }
+  return rows;
+}
 
 export function useExploreTokens(enabled: boolean) {
-  const [deployments, setDeployments] = useState<Deployment[]>([]);
+  const [catalog, setCatalog] = useState<Deployment[]>([]);
   const [metricsByAddress, setMetricsByAddress] = useState<
     Record<string, DexTokenMetrics | undefined>
   >({});
   const [loading, setLoading] = useState(enabled);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
+  const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const loadedCountRef = useRef(0);
+  const metricsRef = useRef(metricsByAddress);
+  const metricsInflightRef = useRef<Set<string>>(new Set());
+  metricsRef.current = metricsByAddress;
 
-  const applyPage = useCallback(
-    async (rows: Deployment[], append: boolean) => {
-      const addresses = rows.map((r) => r.tokenAddress);
-      const metrics =
-        addresses.length > 0 ? await fetchTokenMetricsFromDexscreener(addresses) : {};
+  const ensureMetrics = useCallback(async (addresses: string[]) => {
+    const missing = addresses.filter((a) => {
+      const key = a.toLowerCase();
+      return !(key in metricsRef.current) && !metricsInflightRef.current.has(key);
+    });
+    if (missing.length === 0) return;
 
-      setDeployments((prev) => (append ? [...prev, ...rows] : rows));
+    for (const a of missing) metricsInflightRef.current.add(a.toLowerCase());
+    setLoadingMetrics(true);
+    try {
+      const metrics = await fetchTokenMetricsFromDexscreener(missing);
       setMetricsByAddress((prev) => ({ ...prev, ...metrics }));
-      setHasMore(rows.length === EXPLORE_PAGE_SIZE);
-      loadedCountRef.current = append ? loadedCountRef.current + rows.length : rows.length;
-    },
-    [],
-  );
+    } finally {
+      for (const a of missing) metricsInflightRef.current.delete(a.toLowerCase());
+      setLoadingMetrics(false);
+    }
+  }, []);
 
-  const loadInitial = useCallback(async () => {
+  const loadCatalog = useCallback(async () => {
     if (!enabled) return;
     try {
-      const rows = await fetchDeployments(EXPLORE_PAGE_SIZE, 0);
-      await applyPage(rows, false);
+      const rows = await loadFullCatalog();
+      setCatalog(rows);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load tokens');
     } finally {
       setLoading(false);
     }
-  }, [applyPage, enabled]);
+  }, [enabled]);
 
   const refresh = useCallback(async () => {
     if (!enabled) return;
-    const limit = Math.max(loadedCountRef.current, EXPLORE_PAGE_SIZE);
     try {
-      const rows = await fetchDeployments(limit, 0);
-      await applyPage(rows, false);
+      const rows = await loadFullCatalog();
+      setCatalog(rows);
       setError(null);
     } catch {
       /* keep existing list on background refresh failure */
     }
-  }, [applyPage, enabled]);
-
-  const loadMore = useCallback(async () => {
-    if (!enabled || loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    try {
-      const rows = await fetchDeployments(EXPLORE_PAGE_SIZE, loadedCountRef.current);
-      await applyPage(rows, true);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load more tokens');
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [applyPage, enabled, hasMore, loadingMore]);
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled) {
@@ -79,23 +82,21 @@ export function useExploreTokens(enabled: boolean) {
       return;
     }
     setLoading(true);
-    loadedCountRef.current = 0;
-    void loadInitial();
+    void loadCatalog();
     const id = window.setInterval(() => void refresh(), POLL_MS);
     return () => window.clearInterval(id);
-  }, [enabled, loadInitial, refresh]);
+  }, [enabled, loadCatalog, refresh]);
 
-  const tokens: ExploreToken[] = toExploreTokens(deployments, metricsByAddress);
+  const tokens: ExploreToken[] = toExploreTokens(catalog, metricsByAddress);
 
   return {
+    catalog,
     tokens,
-    deployments,
     metricsByAddress,
     loading,
-    loadingMore,
-    hasMore,
+    loadingMetrics,
     error,
     refresh,
-    loadMore,
+    ensureMetrics,
   };
 }

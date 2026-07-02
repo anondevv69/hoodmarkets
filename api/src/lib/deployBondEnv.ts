@@ -3,7 +3,7 @@ export const DEFAULT_DEPLOY_BOND_ETH = '0.005';
 
 export const WEB_INITIAL_BUY_MIN_ETH = '0.001';
 export const WEB_INITIAL_BUY_MAX_ETH = '0.1';
-export const WEB_INITIAL_BUY_PRESETS_ETH = ['0.002', '0.01', '0.05'] as const;
+export const WEB_INITIAL_BUY_PRESETS_ETH = ['0.005', '0.01', '0.05'] as const;
 
 function parseEthAmountString(raw: string): number {
   const t = raw.trim();
@@ -36,6 +36,9 @@ export function parseDeployBondWeiFromEnv(): bigint {
 }
 
 export function webInitialBuyMinEth(): string {
+  if (process.env.WEB_ONLY_MODE === 'true') {
+    return webInitialBuyDefaultEth();
+  }
   return ethEnv('WEB_INITIAL_BUY_MIN_ETH', WEB_INITIAL_BUY_MIN_ETH);
 }
 
@@ -72,7 +75,7 @@ export function parseWebInitialBuyWei(raw: unknown, fallbackWei: bigint): bigint
   const max = parseEthAmountString(webInitialBuyMaxEth());
   if (eth < min || eth > max) {
     throw new Error(
-      `Initial buy must be between ${min} and ${max} ETH (or 0 to skip).`,
+      `Initial buy must be between ${min} and ${max} ETH.`,
     );
   }
 
