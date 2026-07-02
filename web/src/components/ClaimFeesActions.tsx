@@ -45,11 +45,11 @@ export function ClaimFeesActions({
 
   if (platformFees) {
     return (
-      <div className="lp-card claim-fees-card">
+      <div className="lp-card claim-fees-card claim-fees-card--platform">
         <p className="section-label">Trading fees</p>
-        <p className="muted">
-          {HOODMARKETS_PLATFORM_FEE_LABEL}. Trading fees on this launch go to hood.markets (24h deploy
-          limit).
+        <p className="muted claim-fees-platform-note">
+          {HOODMARKETS_PLATFORM_FEE_LABEL} — fees from this launch go to hood.markets during the
+          24h deploy limit.
         </p>
       </div>
     );
