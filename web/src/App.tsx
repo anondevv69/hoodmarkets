@@ -48,9 +48,8 @@ export default function App() {
 
   const copy = tokenAddress ? null : TAB_COPY[tab];
   const showExploreChrome = !tokenAddress;
-  const { tokens: exploreTokens, metricsByAddress, loading, error } = useExploreTokens(
-    showExploreChrome,
-  );
+  const { tokens: exploreTokens, metricsByAddress, loading, error, catalogTruncated } =
+    useExploreTokens(showExploreChrome);
 
   return (
     <div className="app lp-root">
@@ -130,6 +129,7 @@ export default function App() {
               metricsByAddress={metricsByAddress}
               loading={loading}
               error={error}
+              catalogTruncated={catalogTruncated}
             />
           ) : tab === 'launch' ? (
             <LaunchTab />
