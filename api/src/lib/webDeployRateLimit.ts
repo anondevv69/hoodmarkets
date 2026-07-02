@@ -3,8 +3,7 @@ import { config } from '../config.js';
 import { deployRateLimitRollingHours, shouldForceMemeDueToSelfFeeLimit } from './selfFeeLimit.js';
 
 /** Catalog label when a 24h self-fee limit routes trading fees to the platform wallet. */
-export const RATE_LIMIT_FORCED_PLATFORM_FEE_LABEL =
-  'Rate limit — trading fees routed to hoodmarkets platform';
+export const RATE_LIMIT_FORCED_PLATFORM_FEE_LABEL = 'Hood.markets is fee recipient';
 
 export function webDeployRateLimitPlatformNotice(): string {
   const h = deployRateLimitRollingHours() || 24;

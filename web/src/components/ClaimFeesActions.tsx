@@ -2,19 +2,28 @@ import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useState } from 'react';
 import { claimTradingFees, collectPoolFees } from '../api';
 import { txUrl } from '../chain';
+import {
+  HOODMARKETS_PLATFORM_FEE_LABEL,
+  isHoodmarketsPlatformFeeRecipient,
+} from '../lib/feeRecipientDisplay';
 
 export function ClaimFeesActions({
   tokenAddress,
   feeRecipientAddress,
+  feeRecipientLabel,
 }: {
   tokenAddress: string;
   feeRecipientAddress: string;
+  feeRecipientLabel?: string;
 }) {
   const { authenticated, getAccessToken, login } = usePrivy();
   const { wallets } = useWallets();
   const walletAddress = wallets[0]?.address?.toLowerCase();
+  const platformFees = isHoodmarketsPlatformFeeRecipient(feeRecipientLabel);
   const isFeeOwner =
-    walletAddress && feeRecipientAddress.toLowerCase() === walletAddress;
+    !platformFees &&
+    walletAddress &&
+    feeRecipientAddress.toLowerCase() === walletAddress;
 
   const [collecting, setCollecting] = useState(false);
   const [claiming, setClaiming] = useState(false);
@@ -30,6 +39,18 @@ export function ClaimFeesActions({
         <button type="button" className="btn btn-primary btn-sm" onClick={login} style={{ marginTop: '0.75rem' }}>
           Sign in to claim
         </button>
+      </div>
+    );
+  }
+
+  if (platformFees) {
+    return (
+      <div className="lp-card claim-fees-card">
+        <p className="section-label">Trading fees</p>
+        <p className="muted">
+          {HOODMARKETS_PLATFORM_FEE_LABEL}. Trading fees on this launch go to hood.markets (24h deploy
+          limit).
+        </p>
       </div>
     );
   }
@@ -87,6 +108,7 @@ export function ClaimFeesActions({
       <p className="section-label">Trading fees</p>
       <p className="muted" style={{ marginBottom: '0.75rem' }}>
         Pull pool fees into the locker, then claim WETH to your wallet. Gas is paid by hood.markets.
+        Fees only build up after others trade your pool.
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
         <button

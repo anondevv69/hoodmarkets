@@ -784,7 +784,7 @@ export function registerWebDeployRoutes(
         ((feeTarget === 'no_dev' || fee.kind === 'no_dev') && !isAgentWalletDeploy) ||
         rateLimitForcedBurn;
       const platformFeeNote = rateLimitForcedPlatformFee
-        ? 'Trading fees on this token go to the hoodmarkets platform (24h deploy limit).'
+        ? 'Trading fees on this token go to hood.markets (24h deploy limit).'
         : '';
       const fullDescription = [
         userDescription,
