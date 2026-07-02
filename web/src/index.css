@@ -1030,6 +1030,51 @@ label {
 }
 
 /* Token explore list */
+.explore-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.explore-search {
+  flex: 1 1 220px;
+  max-width: 420px;
+}
+
+.explore-sort {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.explore-sort-btn {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.explore-sort-btn + .explore-sort-btn {
+  border-left: 1px solid var(--border);
+}
+
+.explore-sort-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.explore-sort-btn.is-active {
+  color: var(--text);
+  background: var(--accent-glow);
+}
+
 .explore-card {
   overflow: hidden;
 }

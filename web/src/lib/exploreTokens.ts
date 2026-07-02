@@ -1,5 +1,6 @@
 import type { Deployment } from '../api';
 import type { DexTokenMetrics } from './dexscreenerVolume';
+import { parseCatalogCreatedAt } from './launchTime';
 
 /** Normalized shape for ticker + explore list. */
 export interface ExploreToken {
@@ -18,7 +19,7 @@ export interface ExploreToken {
 export const NEW_WINDOW_MS = 1000 * 60 * 60 * 24;
 
 export function formatTickerAge(createdAt: string): string {
-  const ms = Date.now() - new Date(createdAt).getTime();
+  const ms = Date.now() - parseCatalogCreatedAt(createdAt);
   if (!Number.isFinite(ms) || ms < 0) return '—';
   const mins = Math.floor(ms / 60_000);
   if (mins < 1) return '<1m';
@@ -59,7 +60,7 @@ export function toExploreTokens(
 }
 
 export function isNewLaunch(createdAt: string): boolean {
-  const ms = Date.now() - new Date(createdAt).getTime();
+  const ms = Date.now() - parseCatalogCreatedAt(createdAt);
   return Number.isFinite(ms) && ms >= 0 && ms < NEW_WINDOW_MS;
 }
 

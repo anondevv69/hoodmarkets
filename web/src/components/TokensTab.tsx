@@ -2,10 +2,35 @@ import { useMemo, useState } from 'react';
 import { shortenAddress } from '../chain';
 import { formatUsdVol, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import type { ExploreToken } from '../lib/exploreTokens';
+import { formatLaunchTimeEastern, parseCatalogCreatedAt } from '../lib/launchTime';
 import { openTokenPage } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
+
+export type ExploreSort = 'mcap' | 'launch';
+
+function mcapForToken(
+  token: ExploreToken,
+  metrics?: DexTokenMetrics,
+): number {
+  return metrics?.marketCapUsd ?? metrics?.fdvUsd ?? token.mcap ?? 0;
+}
+
+function sortExploreTokens(
+  tokens: ExploreToken[],
+  metricsByAddress: Record<string, DexTokenMetrics | undefined>,
+  sort: ExploreSort,
+): ExploreToken[] {
+  return [...tokens].sort((a, b) => {
+    if (sort === 'launch') {
+      return parseCatalogCreatedAt(b.createdAt) - parseCatalogCreatedAt(a.createdAt);
+    }
+    const diff = mcapForToken(b, metricsByAddress[b.address]) - mcapForToken(a, metricsByAddress[a.address]);
+    if (diff !== 0) return diff;
+    return parseCatalogCreatedAt(b.createdAt) - parseCatalogCreatedAt(a.createdAt);
+  });
+}
 
 function ExploreRow({
   token,
@@ -56,7 +81,7 @@ function ExploreRow({
               </span>
             </span>
             {' · '}
-            {new Date(d.createdAt).toLocaleString()}
+            {formatLaunchTimeEastern(d.createdAt)}
           </div>
           <div
             className="explore-social-slot"
@@ -86,6 +111,7 @@ export function TokensTab({
   error: string | null;
 }) {
   const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<ExploreSort>('mcap');
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -97,22 +123,39 @@ export function TokensTab({
             t.address.toLowerCase().includes(q),
         )
       : exploreTokens;
-    return [...base].sort((a, b) => (b.mcap ?? 0) - (a.mcap ?? 0));
-  }, [exploreTokens, query]);
+    return sortExploreTokens(base, metricsByAddress, sort);
+  }, [exploreTokens, metricsByAddress, query, sort]);
 
   if (loading) return <p className="muted">Loading tokens…</p>;
   if (error) return <p className="error">{error}</p>;
 
   return (
     <div className="lp-fade-in">
-      <div style={{ marginBottom: '1rem' }}>
+      <div className="explore-toolbar">
         <input
-          className="lp-input"
+          className="lp-input explore-search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by name or contract address"
-          style={{ width: '100%', maxWidth: 420 }}
         />
+        <div className="explore-sort" role="group" aria-label="Sort tokens">
+          <button
+            type="button"
+            className={`explore-sort-btn${sort === 'mcap' ? ' is-active' : ''}`}
+            aria-pressed={sort === 'mcap'}
+            onClick={() => setSort('mcap')}
+          >
+            Market cap
+          </button>
+          <button
+            type="button"
+            className={`explore-sort-btn${sort === 'launch' ? ' is-active' : ''}`}
+            aria-pressed={sort === 'launch'}
+            onClick={() => setSort('launch')}
+          >
+            Newest
+          </button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
