@@ -47,11 +47,14 @@ export interface Deployment {
   feeToSelf?: boolean;
   deployerLabel: string;
   chain: string;
+  clientKind?: string;
+  agentMetadata?: string;
 }
 
 export type TokenDetail = Deployment & {
   poolId?: string;
   platform?: string;
+  deployerId?: string;
 };
 
 export interface WebDeployConfig {

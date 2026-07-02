@@ -13,7 +13,7 @@ type Tab = 'tokens' | 'launch' | 'profile';
 const TAB_COPY: Record<Tab, { title: string; sub: string }> = {
   tokens: {
     title: 'Explore tokens',
-    sub: 'Market cap and volume from DexScreener — trade on DexScreener or Uniswap.',
+    sub: '',
   },
   launch: {
     title: 'Launch a token',
@@ -121,7 +121,7 @@ export default function App() {
       <main className="main-wrap">
         <div className="page-intro">
           <h1 className="lp-display page-title">{copy.title}</h1>
-          <p className="page-sub">{copy.sub}</p>
+          {copy.sub ? <p className="page-sub">{copy.sub}</p> : null}
         </div>
 
         <div className="panel">
@@ -141,7 +141,12 @@ export default function App() {
           )}
         </div>
 
-        <p className="footer-note">hood.markets · Robinhood Chain · trading fees go to your wallet</p>
+        <p className="footer-note">
+          hood.markets · Robinhood Chain · trading fees go to your wallet ·{' '}
+          <a href="/agent.md" target="_blank" rel="noreferrer">
+            agent.md
+          </a>
+        </p>
       </main>
     </div>
   );

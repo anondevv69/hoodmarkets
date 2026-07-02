@@ -1,0 +1,92 @@
+# hood.markets — Agent API
+
+> Robinhood Chain (4663) · API: `https://api.hood.markets` · Web: `https://hood.markets`
+
+Any agent with an EVM wallet can deploy tokens on Robinhood Chain through the hood.markets API. Bankr users: install the skill from [BankrBot/skills](https://github.com/BankrBot/skills) (`hoodmarkets`).
+
+## Step 1 — Solve haiku once, get a JWT (valid 8 hours)
+
+```
+GET https://api.hood.markets/api/agent-captcha/challenge
+```
+
+```
+POST https://api.hood.markets/api/agent-captcha/verify
+Content-Type: application/json
+
+{
+  "sessionId": "abc123",
+  "response": "Tokens rise at dawn\nOn Robinhood tokens flow\nAgents hold the key",
+  "agentFeeRecipient": "0xYOUR_WALLET"
+}
+```
+
+Returns `{ "jwt": "eyJ...", "walletAddress": "0x...", "expiresIn": 28800 }`
+
+> Haiku: exactly 3 lines separated by `\n`, must mention the topic word.
+
+---
+
+## Step 2a — Deploy a token
+
+```
+POST https://api.hood.markets/api/deploy
+X-Agent-Captcha-JWT: <jwt>
+Content-Type: application/json
+
+{
+  "name": "Token Name",
+  "symbol": "SYM",
+  "feeTarget": "agent_wallet",
+  "clientKind": "agent",
+  "agentProvider": "bankr",
+  "launchMode": "simple",
+  "imageUrl": "https://…"
+}
+```
+
+- `launchMode`: `"simple"` (Uniswap V3, DexScreener) or `"pro"` (V4 hooks)
+- Simple launches: **5%** hood.markets platform fee embedded in contract; **95%** to fee wallet
+
+Preflight checklist:
+
+```
+POST https://api.hood.markets/api/agent/prepare-deploy
+{ "wallet": "0x…", "name": "…", "symbol": "…", "launchMode": "simple" }
+```
+
+---
+
+## Step 2b — Buy / sell (Pro tokens)
+
+```
+POST https://api.hood.markets/api/agent/prepare-buy
+{ "wallet": "0x…", "tokenAddress": "0x…", "amountEth": "0.01" }
+
+POST https://api.hood.markets/api/agent/prepare-sell
+{ "wallet": "0x…", "tokenAddress": "0x…", "amount": "1000000" }
+```
+
+Simple (V3) tokens (`poolId` starts with `v3:`) → trade on Uniswap or DexScreener.
+
+---
+
+## Step 2c — Claim fees (launcher pays gas)
+
+```
+POST https://api.hood.markets/api/agent/claim
+X-Agent-Captcha-JWT: <jwt>
+Content-Type: application/json
+
+{ "tokenAddress": "0x…" }
+```
+
+---
+
+## Briefing
+
+```
+GET https://api.hood.markets/api/agent/briefing?wallet=0x…
+```
+
+Lists tokens where the wallet is fee recipient.

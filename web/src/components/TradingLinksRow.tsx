@@ -7,10 +7,7 @@ export function TradingLinksRow({ links }: { links: TradingLinks }) {
         DexScreener
       </a>
       <a href={links.uniswapSwap} target="_blank" rel="noreferrer">
-        Swap
-      </a>
-      <a href={links.explorer} target="_blank" rel="noreferrer">
-        Explorer
+        Uniswap
       </a>
     </div>
   );
