@@ -6,7 +6,8 @@ export type AgentDeployImageSource =
   | 'mediaUrl'
   | 'tweet_media'
   | 'tweetMedia'
-  | 'tweet_text';
+  | 'tweet_text'
+  | 'tweet_oembed';
 
 export type AgentDeployImageInput = {
   imageUrl?: unknown;
@@ -19,6 +20,8 @@ export type AgentDeployImageInput = {
   tweetText?: unknown;
   /** Twitter API tweet object (`extended_entities.media`, etc.). */
   tweet?: unknown;
+  /** Full X status URL — API resolves attached photo via oEmbed when Bankr cannot see media. */
+  tweetUrl?: unknown;
 };
 
 function normalizeHttpsImageUrl(raw: unknown): string | undefined {
@@ -74,6 +77,64 @@ export function resolveAgentDeployImageUrl(
   }
 
   return { imageUrl: undefined, imageSource: null };
+}
+
+const X_STATUS_URL_RE = /(?:twitter\.com|x\.com)\/\w+\/status\/\d+/i;
+
+/** Normalize an X/Twitter status URL for oEmbed lookup. */
+export function normalizeTweetStatusUrl(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed || !X_STATUS_URL_RE.test(trimmed)) return undefined;
+  try {
+    const withProto = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const u = new URL(withProto);
+    const host = u.hostname.replace(/^www\./i, '').toLowerCase();
+    if (host !== 'x.com' && host !== 'twitter.com') return undefined;
+    return u.toString().slice(0, 512);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Resolve attached photo from an X status URL via publish.twitter.com oEmbed. */
+export async function resolveTweetImageFromOembed(tweetUrl: string): Promise<string | undefined> {
+  const oembed = `https://publish.twitter.com/oembed?url=${encodeURIComponent(tweetUrl)}&omit_script=true&dnt=true`;
+  const res = await fetch(oembed, {
+    headers: { 'User-Agent': 'HoodMarkets/1.0' },
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!res.ok) return undefined;
+
+  const j = (await res.json()) as { thumbnail_url?: string; html?: string };
+  const thumb = normalizeHttpsImageUrl(j.thumbnail_url);
+  if (thumb) return thumb;
+
+  if (typeof j.html === 'string') {
+    const img = j.html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const fromHtml = normalizeHttpsImageUrl(img?.[1]);
+    if (fromHtml) return fromHtml;
+  }
+
+  return undefined;
+}
+
+/**
+ * Resolve token logo — sync fields first, then optional tweetUrl oEmbed (for Bankr on X).
+ */
+export async function resolveAgentDeployImageUrlAsync(
+  input: AgentDeployImageInput,
+): Promise<{ imageUrl: string | undefined; imageSource: AgentDeployImageSource | null }> {
+  const sync = resolveAgentDeployImageUrl(input);
+  if (sync.imageUrl && sync.imageSource) return sync;
+
+  const tweetUrl = normalizeTweetStatusUrl(input.tweetUrl);
+  if (tweetUrl) {
+    const fromOembed = await resolveTweetImageFromOembed(tweetUrl);
+    if (fromOembed) return { imageUrl: fromOembed, imageSource: 'tweet_oembed' };
+  }
+
+  return sync;
 }
 
 export type AgentDeployConfirmSummary = {

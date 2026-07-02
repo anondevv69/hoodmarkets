@@ -15,7 +15,8 @@ import { agentDeploySkipCaptchaForRequest } from '../lib/agentWalletDeployAuth.j
 import {
   agentDeployConfirmReplyHint,
   buildAgentDeployConfirmSummary,
-  resolveAgentDeployImageUrl,
+  normalizeTweetStatusUrl,
+  resolveAgentDeployImageUrlAsync,
 } from '../lib/agentDeployImage.js';
 import { ROBINHOOD_CHAIN_ID } from '../lib/robinhoodChain.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
@@ -216,9 +217,60 @@ export function registerAgentBankrRoutes(app: Express): void {
       launchMode,
     });
 
+    const resolvedImage = await resolveAgentDeployImageUrlAsync({
+      imageUrl: body.imageUrl,
+      tweetImageUrl: body.tweetImageUrl,
+      mediaUrl: body.mediaUrl,
+      tweetMedia: body.tweetMedia,
+      tweetText: body.tweetText,
+      tweet: body.tweet,
+      tweetUrl: body.tweetUrl,
+    });
+
     res.status(preflight.canDeploy ? 200 : 409).json({
       ...preflight,
       chainId: ROBINHOOD_CHAIN_ID,
+      ...(resolvedImage.imageUrl
+        ? { imageUrl: resolvedImage.imageUrl, imageSource: resolvedImage.imageSource }
+        : { imageRequired: true }),
+    });
+  });
+
+  app.options('/api/agent/resolve-deploy-image', (req, res) => {
+    cors(req, res);
+    res.status(204).end();
+  });
+
+  app.post('/api/agent/resolve-deploy-image', async (req: Request, res: Response) => {
+    cors(req, res);
+    const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const resolvedImage = await resolveAgentDeployImageUrlAsync({
+      imageUrl: body.imageUrl,
+      tweetImageUrl: body.tweetImageUrl,
+      mediaUrl: body.mediaUrl,
+      tweetMedia: body.tweetMedia,
+      tweetText: body.tweetText,
+      tweet: body.tweet,
+      tweetUrl: body.tweetUrl,
+    });
+
+    if (!resolvedImage.imageUrl || !resolvedImage.imageSource) {
+      const tweetUrl = normalizeTweetStatusUrl(body.tweetUrl);
+      res.status(400).json({
+        ok: false,
+        error: 'Could not resolve a token logo from the request.',
+        imageRequired: true,
+        replyHint: tweetUrl
+          ? 'No photo found on that tweet — reply with a photo attached or paste an image URL.'
+          : 'Pass tweetUrl (full X status URL), tweetImageUrl, or imageUrl.',
+      });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      imageUrl: resolvedImage.imageUrl,
+      imageSource: resolvedImage.imageSource,
     });
   });
 
@@ -299,13 +351,14 @@ export function registerAgentBankrRoutes(app: Express): void {
     const description = typeof body.description === 'string' ? body.description.trim() : '';
     const websiteUrl = typeof body.websiteUrl === 'string' ? body.websiteUrl.trim() : '';
     const xUrl = typeof body.xUrl === 'string' ? body.xUrl.trim() : '';
-    const resolvedImage = resolveAgentDeployImageUrl({
+    const resolvedImage = await resolveAgentDeployImageUrlAsync({
       imageUrl: body.imageUrl,
       tweetImageUrl: body.tweetImageUrl,
       mediaUrl: body.mediaUrl,
       tweetMedia: body.tweetMedia,
       tweetText: body.tweetText,
       tweet: body.tweet,
+      tweetUrl: body.tweetUrl,
     });
 
     const agentChannel =
@@ -322,8 +375,8 @@ export function registerAgentBankrRoutes(app: Express): void {
         imageRequired: true,
         replyHint:
           resolvedChannel === 'x'
-            ? 'Attach a photo to the tweet, or pass tweetImageUrl / imageUrl from the original post when calling prepare-deploy.'
-            : 'Pass imageUrl (HTTPS) or tweet media fields (tweetImageUrl, tweetMedia, tweet) on prepare-deploy.',
+            ? 'Pass tweetUrl (full X status URL of the launch tweet) — API resolves attached photos via oEmbed. Or attach a photo / pass tweetImageUrl / imageUrl.'
+            : 'Pass imageUrl (HTTPS), tweetUrl, or tweet media fields on prepare-deploy.',
       });
       return;
     }
