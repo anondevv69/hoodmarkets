@@ -1,3 +1,6 @@
+import { writeFile, unlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import lighthouse from '@lighthouse-web3/sdk';
 import sharp from 'sharp';
@@ -77,19 +80,31 @@ export class ImageUploadService {
   private async uploadToLighthouse(
     optimizedImage: Buffer,
     tokenName: string,
+    filename: string,
   ): Promise<string | undefined> {
     if (!config.lighthouse.apiKey) return undefined;
 
-    const res = await lighthouse.uploadBuffer(optimizedImage, config.lighthouse.apiKey, {
-      cidVersion: 1,
-      headers: {},
-    });
+    // uploadBuffer stores as application/octet-stream — use a named .png file so
+    // IPFS gateways serve image/png and browsers can render inline.
+    const tmpPath = join(tmpdir(), filename);
+    await writeFile(tmpPath, optimizedImage);
+
+    let res: { data?: unknown };
+    try {
+      res = await lighthouse.upload(tmpPath, config.lighthouse.apiKey, { cidVersion: 1 });
+    } finally {
+      await unlink(tmpPath).catch(() => undefined);
+    }
 
     const d = res?.data as Record<string, unknown> | string | undefined;
     let hash: string | undefined;
     if (d && typeof d === 'object' && !Array.isArray(d)) {
       const h = (d as { Hash?: string; hash?: string }).Hash ?? (d as { hash?: string }).hash;
       hash = typeof h === 'string' ? h : undefined;
+    }
+    if (!hash && Array.isArray(d) && d[0] && typeof d[0] === 'object') {
+      const row = d[0] as { Hash?: string; hash?: string };
+      hash = row.Hash ?? row.hash;
     }
     if (!hash) {
       logger.warn('Lighthouse upload: unexpected response shape', {
@@ -99,7 +114,10 @@ export class ImageUploadService {
       return undefined;
     }
 
-    const base = config.lighthouse.ipfsGatewayBase;
+    // Prefer a public gateway — lighthouse gateway often returns 402 without a paid plan.
+    const publicGateway =
+      process.env.LIGHTHOUSE_IPFS_GATEWAY_URL?.trim() || 'https://ipfs.io/ipfs';
+    const base = publicGateway.replace(/\/$/, '');
     const url = `${base}/${hash}`;
     logger.info('Image uploaded to Lighthouse (IPFS)', { token: tokenName, cid: hash, url });
     return url;
@@ -122,7 +140,7 @@ export class ImageUploadService {
 
       if (config.lighthouse.apiKey) {
         try {
-          const ipfsUrl = await this.uploadToLighthouse(optimizedImage, tokenName);
+          const ipfsUrl = await this.uploadToLighthouse(optimizedImage, tokenName, filename);
           if (ipfsUrl) return ipfsUrl;
           logger.error('Lighthouse image upload returned no IPFS URL', { token: tokenName });
           return undefined;

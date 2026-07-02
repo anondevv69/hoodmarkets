@@ -5,6 +5,10 @@ import {
   fetchTokenMetricsFromDexscreener,
   type DexTokenMetrics,
 } from '../lib/dexscreenerVolume';
+import {
+  feeRecipientHeadline,
+  isHoodmarketsPlatformFeeRecipient,
+} from '../lib/feeRecipientDisplay';
 import { buildTradingLinks } from '../lib/tradingLinks';
 import { closeTokenPage } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
@@ -59,9 +63,13 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   const sym = token.tokenSymbol.replace(/^\$/, '');
   const links = buildTradingLinks(token.tokenAddress);
   const feeLabel = token.feeRecipientLabel?.trim();
-  const feeNote = token.feeToSelf
-    ? 'Trading fees go to this wallet (launcher deploy).'
-    : feeLabel || 'Fees routed per launch settings (see label).';
+  const platformFees = isHoodmarketsPlatformFeeRecipient(feeLabel);
+  const feeHeadline = feeRecipientHeadline(token.feeRecipientAddress, feeLabel);
+  const feeNote = platformFees
+    ? 'Trading fees on this launch go to hood.markets (24h deploy limit).'
+    : token.feeToSelf
+      ? 'Trading fees go to this wallet (launcher deploy).'
+      : feeLabel || 'Fees routed per launch settings (see label).';
 
   return (
     <div className="token-page lp-fade-in">
@@ -104,17 +112,23 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
           <div>
             <dt>Fee recipient</dt>
             <dd>
-              <span className="mono">
-                <a
-                  href={tokenUrl(token.feeRecipientAddress)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {token.feeRecipientAddress}
-                </a>
-                <CopyButton text={token.feeRecipientAddress} />
-              </span>
-              {feeLabel ? <p className="muted token-fee-label">{feeLabel}</p> : null}
+              {platformFees ? (
+                <span className="lp-display">{feeHeadline}</span>
+              ) : (
+                <span className="mono">
+                  <a
+                    href={tokenUrl(token.feeRecipientAddress)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {token.feeRecipientAddress}
+                  </a>
+                  <CopyButton text={token.feeRecipientAddress} />
+                </span>
+              )}
+              {feeLabel && !platformFees ? (
+                <p className="muted token-fee-label">{feeLabel}</p>
+              ) : null}
               <p className="muted token-fee-note">{feeNote}</p>
             </dd>
           </div>
@@ -137,6 +151,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
       <ClaimFeesActions
         tokenAddress={token.tokenAddress}
         feeRecipientAddress={token.feeRecipientAddress}
+        feeRecipientLabel={token.feeRecipientLabel}
       />
     </div>
   );
