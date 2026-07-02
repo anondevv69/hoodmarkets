@@ -1,3 +1,4 @@
+import type { Express, Request, Response, NextFunction } from 'express';
 import { config } from '../config.js';
 
 /** Canonical origin for comparisons (handles trailing slashes / spacing in env). */
@@ -83,4 +84,45 @@ export function webDeployCorsHeadersSwap0x(origin: string | undefined): Record<s
     'Access-Control-Allow-Headers': 'Content-Type',
     Vary: 'Origin',
   };
+}
+
+/** Combined CORS headers for any /api/* route (GET + POST + preflight). */
+function webDeployCorsHeadersAll(origin: string | undefined): Record<string, string> {
+  if (!origin || !isWebDeployOriginAllowed(origin)) return {};
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Agent-Captcha-JWT',
+    Vary: 'Origin',
+  };
+}
+
+function applyCorsHeaders(res: Response, headers: Record<string, string>): void {
+  for (const [key, value] of Object.entries(headers)) {
+    res.setHeader(key, value);
+  }
+}
+
+/** Global middleware: CORS on all /api/* responses and OPTIONS preflight. */
+export function registerWebDeployCorsMiddleware(app: Express): void {
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (!req.path.startsWith('/api/')) {
+      next();
+      return;
+    }
+
+    const origin = req.headers.origin;
+    const corsHeaders =
+      req.path.startsWith('/api/swap/0x/')
+        ? webDeployCorsHeadersSwap0x(origin)
+        : webDeployCorsHeadersAll(origin);
+    applyCorsHeaders(res, corsHeaders);
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+
+    next();
+  });
 }

@@ -66,7 +66,16 @@ npm run dev
 
 ## Production
 
-See [docs/HOOD_MARKETS_SETUP.md](docs/HOOD_MARKETS_SETUP.md) for Railway (API) and Vercel (web) env vars.
+Deploy from this monorepo — no separate frontend repo.
+
+| Service | Host | Repo path | Root directory |
+|---------|------|-----------|----------------|
+| **API** | Railway → `api.hood.markets` | [`api/`](api/) | `api` |
+| **Web** | Vercel → `hood.markets` | [`web/`](web/) | `web` |
+
+**GitHub:** [github.com/anondevv69/hoodmarkets](https://github.com/anondevv69/hoodmarkets)
+
+See [docs/HOOD_MARKETS_SETUP.md](docs/HOOD_MARKETS_SETUP.md) for env vars, migration from `liquid-social-launcher`, and smoke tests.
 
 ## License
 

@@ -1,28 +1,63 @@
-# Hood.markets / hoodmarkets setup (web-only, Robinhood Chain)
+# Hood.markets production setup
 
-**hoodmarkets** (`hood.markets`) = Privy website + this API on Railway. No bots, no Neynar.
+**Repo:** [github.com/anondevv69/hoodmarkets](https://github.com/anondevv69/hoodmarkets)
 
-Token factory contract names on-chain: **`HoodMarkets`**, **`HoodMarketsFeeLocker`**, **`HoodMarketsHook*V2`**, etc. (`PROTOCOL = "hoodmarkets"`). After redeploy, set `HOODMARKETS_*` addresses on Railway (legacy `LIQUID_*` still works as fallback).
+Monorepo layout:
 
-## Repo strategy
+| Path | Deploy to | Root directory |
+|------|-----------|----------------|
+| [`api/`](../api/) | **Railway** (`api.hood.markets`) | `api` |
+| [`web/`](../web/) | **Vercel** (`hood.markets`) | `web` |
+| [`contracts/`](../contracts/) | Robinhood mainnet (Foundry, local/CI) | — |
 
-| Piece | Repo | Host |
-|--------|------|------|
-| **API** (this repo) | Same `liquid-social-launcher` repo | New **Railway** project |
-| **Website** (Privy + Vite) | **Separate** frontend repo (fork `privy-heart-landing`) | Vercel / Cloudflare → `hood.markets` |
-
-You do **not** need a separate API repo — use a new Railway service from this repo with different env vars (`WEB_ONLY_MODE=true`).
+Token factory on-chain: **`HoodMarkets`**, **`HoodMarketsFeeLocker`**, etc. Contract addresses live in [`contracts/deployed-robinhood-mainnet.json`](../contracts/deployed-robinhood-mainnet.json).
 
 ---
 
-## 1. Railway (API)
+## Migrate from `liquid-social-launcher`
 
-1. New Project → Deploy from GitHub → `liquid-social-launcher`
-2. Add volume: mount path `/app/.data` (deployment catalog DB)
-3. Set variables (copy from `.env.hood.example` in repo root)
-4. Deploy → note public URL e.g. `https://hood-markets-api.up.railway.app`
+If Railway/Vercel still point at the old repo, switch them to this monorepo:
 
-### Required Railway variables
+### Railway (API)
+
+1. Open your **api.hood.markets** service in [Railway](https://railway.app).
+2. **Settings → Source** → connect **GitHub repo** `anondevv69/hoodmarkets`.
+3. **Settings → Root Directory** → set to **`api`** (required — there is no `package.json` at repo root).
+4. **Settings → Volumes** → mount path **`/app/.data`** (SQLite deployment catalog).
+5. **Variables** → copy from [`api/.env.hood.example`](../api/.env.hood.example) (see below). Keep existing secrets (`DEPLOYER_PRIVATE_KEY`, `PRIVY_*`) from the old service.
+6. Remove legacy `LIQUID_*` vars after `HOODMARKETS_*` are set.
+7. **Deploy** → wait for build (`npm ci --include=dev` → `npm run build` → `npm start`).
+
+### Vercel (web)
+
+1. Open your Vercel project (e.g. `liquid-social-launcher` or `hood.markets`).
+2. **Settings → Git** → connect **GitHub repo** `anondevv69/hoodmarkets`.
+3. **Settings → General → Root Directory** → set to **`web`**.
+4. **Settings → Environment Variables** (Production + Preview):
+
+```env
+VITE_PRIVY_APP_ID=<same Privy app as Railway>
+VITE_API_URL=https://api.hood.markets
+```
+
+5. **Deploy** → connect custom domain `hood.markets` (+ `www`).
+
+### Privy
+
+In [dashboard.privy.io](https://dashboard.privy.io), allow domains:
+
+- `https://hood.markets`
+- `https://www.hood.markets`
+- `https://*.vercel.app` (or your specific Vercel URL while testing)
+- `http://localhost:5173` (local dev)
+
+Chains → **Robinhood Chain (4663)**.
+
+---
+
+## 1. Railway variables (required)
+
+Copy [`api/.env.hood.example`](../api/.env.hood.example):
 
 ```env
 WEB_ONLY_MODE=true
@@ -44,81 +79,60 @@ PRIVY_APP_SECRET=...
 
 WEB_DEPLOY_CORS_ORIGINS=https://hood.markets,https://www.hood.markets
 WEB_DEPLOY_CORS_ALLOW_LOVABLE=false
+WEB_DEPLOY_CORS_ALLOW_VERCEL=true
 LAUNCHER_WEB_URL=https://hood.markets
-
 HOODMARKETS_DEPLOY_CONTEXT_PLATFORM=hoodmarkets
 ```
 
-**Do not set** `NEYNAR_*`, `DISCORD_*`, `TELEGRAM_*` — not needed.
+**Do not set** `NEYNAR_*`, `DISCORD_*`, `TELEGRAM_*` for web-only mode.
 
-### Smoke test
+Optional: `LIGHTHOUSE_API_KEY` (logo uploads), `PLATFORM_FEE_RECIPIENT`, `PLATFORM_FEE_BPS`.
+
+---
+
+## 2. Smoke tests
+
+After Railway deploy:
 
 ```bash
-curl https://YOUR-RAILWAY-URL.up.railway.app/
-# expect: "webOnlyMode": true, "webDeploy": true
+# API must return JSON (not 502)
+curl https://api.hood.markets/
+# expect: "status":"ok", "webOnlyMode":true, "webDeploy":true
+
+# CORS from your Vercel origin
+curl -sI -H "Origin: https://hood.markets" https://api.hood.markets/api/web-deploy-config
+# expect: access-control-allow-origin: https://hood.markets
 ```
 
----
+If you see **502 Application failed to respond**, the Node process crashed on startup — check Railway **Logs** (missing env var, wrong root directory, or build failure). Browser console will show CORS errors even when the real issue is a 502.
 
-## 2. Privy (dashboard.privy.io)
+Common log errors:
 
-Create a **new app** for Hood.markets:
-
-1. **Chains** → add **Robinhood Chain** (chain ID **4663**)
-2. **Domains** → allow:
-   - `https://hood.markets`
-   - `https://www.hood.markets`
-   - (optional) `http://localhost:5173` for local dev
-3. Copy **App ID** + **App Secret** → Railway env above
+- `Missing required environment variable: DEPLOYER_PRIVATE_KEY`
+- `Missing required environment variable: PRIVY_APP_ID`
+- `HOODMARKETS_FACTORY (or LIQUID_FACTORY) is required`
+- `Cannot find module` → Root Directory is not set to `api`
 
 ---
 
-## 3. Frontend (separate repo)
-
-Fork or clone a Privy launcher frontend, e.g. [privy-heart-landing](https://github.com/anondevv69/privy-heart-landing).
-
-### Frontend env (Vercel / Cloudflare)
-
-```env
-VITE_PRIVY_APP_ID=your_privy_app_id
-VITE_API_URL=https://YOUR-RAILWAY-URL.up.railway.app
-VITE_CHAIN_ID=4663
-```
-
-Update the app to:
-
-- Default wallet chain = **Robinhood (4663)**
-- Branding = Hood.markets
-- Remove Base / multi-chain picker if present
-
-Deploy → connect custom domain **hood.markets** (and `www` CNAME).
-
----
-
-## 4. DNS (hood.markets)
-
-Typical layout:
+## 3. DNS
 
 | Record | Points to |
 |--------|-----------|
-| `hood.markets` | Vercel / Cloudflare (frontend) |
-| `www` | same as apex or redirect |
-| `api.hood.markets` | Railway (optional pretty API URL) |
+| `hood.markets` | Vercel (frontend) |
+| `www` | Vercel or redirect to apex |
+| `api.hood.markets` | Railway custom domain |
 
-If you use `api.hood.markets` for Railway, set `VITE_API_URL=https://api.hood.markets` and add that origin to `WEB_DEPLOY_CORS_ORIGINS`.
-
----
-
-## 5. Optional later
-
-- `ZEROX_API_KEY` — in-app swaps on Robinhood (if 0x supports 4663)
-- `SUPABASE_*` or `LIGHTHOUSE_API_KEY` — token images on IPFS
-- `PLATFORM_FEE_RECIPIENT` — take a % of LP fees
+Set `VITE_API_URL=https://api.hood.markets` on Vercel.
 
 ---
 
 ## Architecture
 
 ```
-hood.markets (Privy UI)  →  Railway API  →  Robinhood contracts (4663)
+hood.markets (Vercel web/)  →  api.hood.markets (Railway api/)  →  HoodMarkets contracts (4663)
+                                      ↑
+                         contracts/deployed-robinhood-mainnet.json
 ```
+
+See also: [`ROBINHOOD_DEPLOY.md`](ROBINHOOD_DEPLOY.md), [`api/RAILWAY_ENV_CHECKLIST.md`](../api/RAILWAY_ENV_CHECKLIST.md).

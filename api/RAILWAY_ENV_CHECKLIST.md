@@ -1,166 +1,87 @@
-# Railway Deployment Checklist
+# Railway deployment checklist (hood.markets API)
 
-## Issue: "Application failed to respond"
+Service: **api.hood.markets** · Repo: **anondevv69/hoodmarkets** · Root directory: **`api`**
 
-This happens when the bot crashes on startup, usually due to missing environment variables.
+## "Application failed to respond" (502)
 
-## Required Environment Variables
+The API process is not running. Browsers often report this as a **CORS error** — fix the 502 first.
 
-Check that ALL of these are set in Railway:
+### Step 1: Root directory
 
-### Core (Required)
-- [ ] `DEPLOYER_PRIVATE_KEY` - Your deployer wallet key
-- [ ] `NEYNAR_API_KEY` - Neynar API key
-- [ ] `NEYNAR_SIGNER_UUID` - Neynar signer UUID
-- [ ] `DISCORD_TOKEN` - Discord bot token
-- [ ] `DISCORD_CLIENT_ID` - Discord client ID
+In Railway → **Settings → Root Directory** → must be **`api`**.
 
-### Supabase (Optional but recommended)
-- [ ] `SUPABASE_URL` - Your Supabase URL
-- [ ] `SUPABASE_ANON_KEY` - Supabase anon key
-- [ ] `SUPABASE_BUCKET` - `token-images`
+The monorepo has no root `package.json`. Deploying from repo root will fail to build/start.
 
-### Discord Channels (Optional)
-- [ ] `DISCORD_DEBUG_CHANNEL_ID` - Debug channel ID (optional)
-- [ ] `DISCORD_FEED_CHANNEL_ID` - Feed channel ID (optional)
+### Step 2: Required variables (`WEB_ONLY_MODE=true`)
 
-### Other (Optional)
-- [ ] `BASE_RPC_URL` - RPC URL (defaults to Base mainnet)
-- [ ] `DEPLOY_BOND_ETH` - Deploy bond amount (defaults to 0.0001)
-- [ ] `PLATFORM_FEE_RECIPIENT` - Platform fee wallet (optional)
-- [ ] `PLATFORM_FEE_BPS` - Platform fee % (defaults to 200)
-- [ ] `MAX_FEE_RECIPIENT_DEPLOYS_PER_EASTERN_DAY` - Web deploy: max tokens per fee wallet per Eastern day (default `1`; `0` = unlimited)
-- [ ] `AGENT_DEPLOY_PAYMENT_TREASURY` - Base `0x` address to receive agent prepayment (enables HTTP 402 + ETH payment instead of EIP-191 deploy signature)
-- [ ] `AGENT_DEPLOY_PAYMENT_WEI` - Min wei (default `0.0001` ether); optional raw wei integer string
+- [ ] `WEB_ONLY_MODE=true`
+- [ ] `NODE_ENV=production`
+- [ ] `DEPLOYER_PRIVATE_KEY` — deployer wallet (0x + 64 hex chars)
+- [ ] `ROBINHOOD_RPC_URL` — `https://rpc.mainnet.chain.robinhood.com`
+- [ ] `HOODMARKETS_FACTORY` — from `contracts/deployed-robinhood-mainnet.json`
+- [ ] `HOODMARKETS_FEE_LOCKER`
+- [ ] `HOODMARKETS_HOOK_DYNAMIC_FEE_V2`
+- [ ] `HOODMARKETS_HOOK_STATIC_FEE_V2`
+- [ ] `HOODMARKETS_LP_LOCKER_FEE_CONVERSION`
+- [ ] `HOODMARKETS_SNIPER_AUCTION_V2`
+- [ ] `HOODMARKETS_UNIV4_ETH_DEV_BUY`
+- [ ] `PRIVY_APP_ID`
+- [ ] `PRIVY_APP_SECRET`
 
-## How to Fix "Application failed to respond"
+**Not required** for web-only: `NEYNAR_*`, `DISCORD_*`, `TELEGRAM_*`.
 
-### Step 1: Check Variables in Railway
+### Step 3: Volume
 
-1. Go to Railway dashboard
-2. Click your **Liquid Launcher** service
-3. Go to **Variables** tab
-4. Verify all REQUIRED variables are set (not empty)
+Mount path: **`/app/.data`** (persists deployment catalog SQLite DB).
 
-### Step 2: Check Logs
+### Step 4: CORS (browser deploys from Vercel)
 
-1. In Railway, go to **Logs** tab
-2. Scroll to bottom to see startup errors
-3. Common errors:
-   - `Missing required environment variable: DEPLOYER_PRIVATE_KEY`
-   - `Error: Cannot read properties of undefined`
-   - `NEYNAR: Invalid signer UUID`
+- [ ] `WEB_DEPLOY_CORS_ALLOW_VERCEL=true` (default — allows `https://*.vercel.app`)
+- [ ] `WEB_DEPLOY_CORS_ORIGINS=https://hood.markets,https://www.hood.markets`
+- [ ] `LAUNCHER_WEB_URL=https://hood.markets`
 
-### Step 3: Redeploy
+### Step 5: Logs and redeploy
 
-After fixing variables:
+1. Railway → **Logs** → scroll to startup error
+2. Fix variables → **Deployments → Redeploy**
+3. Wait for `🚀 Liquid Social Launcher running on port …` (or hood-markets-api in health JSON)
 
-1. Go to **Deployments** tab
-2. Click the failed deployment
-3. Click **"Redeploy"** button
-4. Wait for new build to complete (2-3 minutes)
-5. Check logs for "listening on port 8080" message
-
-### Step 4: Test Health Endpoint
-
-Once deployed, test:
+### Step 6: Health check
 
 ```bash
-curl https://liquid-social-launcher-production.up.railway.app/
-
-# Should return JSON like:
-# {
-#   "status": "ok",
-#   "service": "liquid-social-launcher",
-#   "platforms": { ... }
-# }
+curl https://api.hood.markets/
 ```
 
-## Variable Setup Guide
+Expected:
 
-### DEPLOYER_PRIVATE_KEY
-
-Your wallet's private key (pay for gas + deploy bond):
-
-```
-1. MetaMask / Web3 wallet
-2. Account details → Export private key
-3. Copy the hex string (starts with 0x)
-4. Paste into DEPLOYER_PRIVATE_KEY
+```json
+{
+  "status": "ok",
+  "service": "hood-markets-api",
+  "webOnlyMode": true,
+  "platforms": { "webDeploy": true }
+}
 ```
 
-### NEYNAR_API_KEY & NEYNAR_SIGNER_UUID
+CORS check:
 
-Get from Neynar:
-
-```
-1. Go to https://hub.neynar.com/
-2. Sign up / Log in
-3. Create API key → Copy NEYNAR_API_KEY
-4. Your account shows signer UUID → Copy NEYNAR_SIGNER_UUID
+```bash
+curl -sI -H "Origin: https://hood.markets" https://api.hood.markets/api/web-deploy-config
 ```
 
-### DISCORD_TOKEN & DISCORD_CLIENT_ID
+Expected header: `access-control-allow-origin: https://hood.markets`
 
-```
-1. Go to https://discord.com/developers/applications
-2. Create New Application
-3. Go to "Bot" tab → Add Bot
-4. Copy TOKEN → DISCORD_TOKEN
-5. Go to "General Information" → Copy CLIENT ID → DISCORD_CLIENT_ID
-6. Go to Bot → Privileged Gateway Intents → Toggle all ON
-```
+---
 
-### SUPABASE
+## Optional variables
 
-```
-1. Create project at https://supabase.com
-2. Settings → API → Copy Project URL → SUPABASE_URL
-3. Copy "Anon Public" key → SUPABASE_ANON_KEY
-4. Storage → Create bucket "token-images" → Toggle Public ON
-5. Set SUPABASE_BUCKET=token-images
-```
+- `LIGHTHOUSE_API_KEY` — IPFS logo uploads from Launch tab
+- `PLATFORM_FEE_RECIPIENT` / `PLATFORM_FEE_BPS` — platform LP fee share
+- `ZEROX_API_KEY` — in-app swaps (if supported on 4663)
+- `DEPLOY_BOND_ETH` — dev buy ETH (default ~0.0001)
 
-## Troubleshooting
+---
 
-### "Cannot read properties of undefined"
+## Full setup guide
 
-- Check all REQUIRED variables are set
-- Verify no typos in variable names
-- Make sure values aren't wrapped in quotes
-
-### "NEYNAR: Invalid API key"
-
-- Go to Neynar hub and regenerate if needed
-- Copy the ENTIRE key (no spaces)
-- Redeploy
-
-### "Discord token invalid"
-
-- Verify you copied DISCORD_TOKEN (not CLIENT_ID)
-- Check bot hasn't been reset
-- Generate new token if needed
-
-### Still failing?
-
-1. Delete all variables
-2. Re-add only REQUIRED ones
-3. Redeploy
-4. Check logs
-5. Add optional variables one by one
-
-## Quick Checklist
-
-Before Farcaster testing:
-
-- [ ] All REQUIRED env vars are set
-- [ ] No empty values (blank strings)
-- [ ] DEPLOYER_PRIVATE_KEY is valid hex (0x + 64 chars)
-- [ ] DISCORD_TOKEN exists and is fresh
-- [ ] NEYNAR_API_KEY and NEYNAR_SIGNER_UUID are correct
-- [ ] Redeployed after adding vars
-- [ ] Health endpoint returns JSON (not 500 error)
-- [ ] Logs show "listening on port 8080"
-
-Once all checks pass, webhook will work! 🚀
-
+See [`docs/HOOD_MARKETS_SETUP.md`](../docs/HOOD_MARKETS_SETUP.md) in the repo root.
