@@ -25,11 +25,6 @@ const TAB_COPY: Record<Tab, { title: string; sub: string }> = {
   },
 };
 
-const TOKEN_PAGE_COPY = {
-  title: 'Token',
-  sub: '',
-};
-
 function readTabFromUrl(): Tab {
   if (readTokenFromUrl()) return 'tokens';
   const t = new URLSearchParams(window.location.search).get('tab');
@@ -51,7 +46,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', sync);
   }, []);
 
-  const copy = tokenAddress ? TOKEN_PAGE_COPY : TAB_COPY[tab];
+  const copy = tokenAddress ? null : TAB_COPY[tab];
   const showExploreChrome = !tokenAddress;
   const { tokens: exploreTokens, metricsByAddress, loading, error } = useExploreTokens(
     showExploreChrome,
@@ -119,10 +114,12 @@ export default function App() {
       {showExploreChrome ? <TickerTape tokens={exploreTokens} /> : null}
 
       <main className="main-wrap">
-        <div className="page-intro">
-          <h1 className="lp-display page-title">{copy.title}</h1>
-          {copy.sub ? <p className="page-sub">{copy.sub}</p> : null}
-        </div>
+        {copy ? (
+          <div className="page-intro">
+            <h1 className="lp-display page-title">{copy.title}</h1>
+            {copy.sub ? <p className="page-sub">{copy.sub}</p> : null}
+          </div>
+        ) : null}
 
         <div className="panel">
           {tokenAddress ? (
