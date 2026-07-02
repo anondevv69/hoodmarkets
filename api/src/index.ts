@@ -15,6 +15,7 @@ import { initDedupDb, closeDedupDb, cleanupOldRecords } from './lib/deployDedup.
 import {
   initDeploymentCatalogDb,
   closeDeploymentCatalogDb,
+  runDeprecatedV3CatalogPurgeIfNeeded,
 } from './lib/deploymentCatalog.js';
 import { registerWebDeployRoutes } from './routes/deployWeb.js';
 import { registerResolveSourceRoutes } from './routes/resolveSource.js';
@@ -37,6 +38,11 @@ async function main() {
     // Initialize deploy dedup database + deployment catalog (same `.data` dir — use a volume in prod)
     initDedupDb();
     initDeploymentCatalogDb();
+    setTimeout(() => {
+      void runDeprecatedV3CatalogPurgeIfNeeded(config.chainRpcUrl).catch((e: unknown) =>
+        logger.warn('Deprecated V3 catalog purge failed:', e instanceof Error ? e.message : e),
+      );
+    }, 3000);
     void cleanupOldRecords().catch((e: any) =>
       logger.warn('Deploy dedup cleanup failed:', e?.message)
     );

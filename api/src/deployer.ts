@@ -268,6 +268,10 @@ export class LiquidDeployer {
       tokenXUrl: params.xUrl?.trim() || undefined,
       tokenDescription: params.tokenDescription?.trim() || undefined,
       chain,
+      factoryAddress:
+        launchMode === 'simple'
+          ? config.hoodmarketsV3.factory
+          : config.liquid.factory,
     });
 
     return result;

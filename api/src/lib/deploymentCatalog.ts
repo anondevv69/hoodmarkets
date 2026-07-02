@@ -8,6 +8,12 @@ import { BASE_DEAD_FEE_RECIPIENT } from './deadFeeWallet.js';
 import { getEasternDayRangeUtc, toSqliteUtc } from './easternDay.js';
 import { notifyTelegramDeploymentFeed } from './telegramFeed.js';
 import { resolveTokenImageUrl } from './tokenImageUrl.js';
+import {
+  catalogNotDeprecatedFactoryClause,
+  isDeprecatedV3CatalogPurgeComplete,
+  markDeprecatedV3CatalogPurgeComplete,
+  purgeDeprecatedV3CatalogEntries,
+} from './deprecatedV3Catalog.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '../../.data');
@@ -38,6 +44,8 @@ export interface DeploymentCatalogRow {
   feeRecipientAddress: string;
   /** `base` | `ethereum` | `robinhood` */
   chain: string;
+  /** HoodMarkets V3/V4 factory that created this token (empty on legacy rows). */
+  factoryAddress?: string;
   tokenName: string;
   tokenSymbol: string;
   tokenAddress: string;
@@ -109,9 +117,20 @@ export interface RecordDeploymentCatalogInput {
   tokenDescription?: string;
   /** `base` | `ethereum` | `robinhood`. */
   chain?: string;
+  /** Launch factory address (V3 simple or V4 pro). */
+  factoryAddress?: string;
 }
 
 const DEAD_FEE_LOWER = BASE_DEAD_FEE_RECIPIENT.toLowerCase();
+const VISIBLE_CATALOG = catalogNotDeprecatedFactoryClause('dc');
+
+function visibleCatalogSql(): string {
+  return VISIBLE_CATALOG.sql;
+}
+
+function visibleCatalogParam(): string {
+  return VISIBLE_CATALOG.param;
+}
 
 export type SelfFeeCountKey = {
   /** When set, counts all platforms for this Privy user (linked accounts share one bucket). */
@@ -668,6 +687,18 @@ export function initDeploymentCatalogDb(): void {
       },
     );
     db!.run(
+      `ALTER TABLE deployment_catalog ADD COLUMN factory_address TEXT NOT NULL DEFAULT ''`,
+      (err) => {
+        if (
+          err &&
+          !String(err.message).toLowerCase().includes('duplicate') &&
+          !String(err.message).toLowerCase().includes('already exists')
+        ) {
+          logger.warn('deploymentCatalog: factory_address column migration:', err.message);
+        }
+      },
+    );
+    db!.run(
       `CREATE TABLE IF NOT EXISTS agent_payment_tx (
         tx_hash TEXT PRIMARY KEY NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -753,6 +784,14 @@ export async function recordDeploymentCatalog(
       : input.chain === 'robinhood'
         ? 'robinhood'
         : 'base';
+  let factoryAddress = '';
+  if (input.factoryAddress?.trim()) {
+    try {
+      factoryAddress = getAddress(input.factoryAddress.trim());
+    } catch {
+      factoryAddress = '';
+    }
+  }
 
   return new Promise((resolve) => {
     db!.run(
@@ -760,8 +799,8 @@ export async function recordDeploymentCatalog(
         platform, deployer_id, deployer_label, fee_recipient_address,
         token_name, token_symbol, token_address, pool_id, transaction_hash, block_number, source_url,
         fee_recipient_label, fee_to_self, privy_user_id, client_kind, agent_metadata, chain, token_image_url,
-        token_website_url, token_x_url, token_description
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        token_website_url, token_x_url, token_description, factory_address
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.platform.slice(0, 64),
         input.deployerId.slice(0, 256),
@@ -784,6 +823,7 @@ export async function recordDeploymentCatalog(
         tokenWebsiteUrl,
         tokenXUrl,
         tokenDescription,
+        factoryAddress,
       ],
       (err) => {
         if (err) {
@@ -869,12 +909,15 @@ export async function listDeploymentCatalog(
   } else if (claimed === 'no') {
     whereClaimed = ' WHERE TRIM(COALESCE(dc.fee_claimed_at, \'\')) = \'\' ';
   }
+  const whereVisible =
+    whereClaimed === '' ? ` WHERE 1=1${visibleCatalogSql()}` : `${whereClaimed}${visibleCatalogSql()}`;
 
   return new Promise((resolve) => {
     db!.all(
       `SELECT dc.id, dc.created_at AS createdAt, dc.platform, dc.deployer_id AS deployerId, dc.deployer_label AS deployerLabel,
               dc.fee_recipient_address AS feeRecipientAddress,
               COALESCE(dc.chain, 'base') AS chain,
+              COALESCE(dc.factory_address, '') AS factoryAddress,
               dc.token_name AS tokenName, dc.token_symbol AS tokenSymbol,
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
@@ -896,10 +939,10 @@ export async function listDeploymentCatalog(
               (SELECT COUNT(*) FROM deployment_catalog d4
                WHERE d4.fee_recipient_address = dc.fee_recipient_address) AS feeRecipientDeploymentCount
        FROM deployment_catalog AS dc
-       ${whereClaimed}
+       ${whereVisible}
        ORDER BY dc.created_at DESC
        LIMIT ? OFFSET ?`,
-      [lim, off],
+      [visibleCatalogParam(), lim, off],
       (err, rows: DeploymentCatalogRow[]) => {
         if (err) {
           logger.warn('deploymentCatalog list failed:', err.message);
@@ -966,10 +1009,10 @@ export async function listDeploymentCatalogByFeeRecipient(
               (SELECT COUNT(*) FROM deployment_catalog d4
                WHERE d4.fee_recipient_address = dc.fee_recipient_address) AS feeRecipientDeploymentCount
        FROM deployment_catalog AS dc
-       WHERE lower(dc.fee_recipient_address) = ? ${whereClaimed}
+       WHERE lower(dc.fee_recipient_address) = ? ${whereClaimed}${visibleCatalogSql()}
        ORDER BY dc.created_at DESC
        LIMIT ? OFFSET ?`,
-      [addr, lim, off],
+      [addr, visibleCatalogParam(), lim, off],
       (err, rows: DeploymentCatalogRow[]) => {
         if (err) {
           logger.warn('deploymentCatalog listByFeeRecipient failed:', err.message);
@@ -1184,9 +1227,10 @@ export async function listDeploymentCatalogForUser(
        WHERE dc.deployer_id = ?
           OR (TRIM(COALESCE(dc.privy_user_id, '')) != '' AND dc.privy_user_id = ?)
           OR (? != '' AND lower(dc.fee_recipient_address) = ?)
+          ${visibleCatalogSql()}
        ORDER BY dc.created_at DESC
        LIMIT ? OFFSET ?`,
-      [id, id, id, id, addr, addr, lim, off],
+      [id, id, id, id, addr, addr, visibleCatalogParam(), lim, off],
       (err, rows: (DeploymentCatalogRow & { deployedByViewer?: number })[]) => {
         if (err) {
           logger.warn('deploymentCatalog listForUser failed:', err.message);
@@ -1206,6 +1250,7 @@ export async function listDeploymentCatalogForUser(
 const SELECT_DEPLOYMENT_ROW = `dc.id, dc.created_at AS createdAt, dc.platform, dc.deployer_id AS deployerId, dc.deployer_label AS deployerLabel,
               dc.fee_recipient_address AS feeRecipientAddress,
               COALESCE(dc.chain, 'base') AS chain,
+              COALESCE(dc.factory_address, '') AS factoryAddress,
               dc.token_name AS tokenName, dc.token_symbol AS tokenSymbol,
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
@@ -1350,10 +1395,10 @@ export async function getNewestDeploymentByTickerSymbol(
     db!.get(
       `SELECT ${SELECT_DEPLOYMENT_ROW}
        FROM deployment_catalog AS dc
-       WHERE upper(trim(replace(dc.token_symbol, '$', ''))) = ?
+       WHERE upper(trim(replace(dc.token_symbol, '$', ''))) = ?${visibleCatalogSql()}
        ORDER BY datetime(dc.created_at) DESC
        LIMIT 1`,
-      [sym],
+      [sym, visibleCatalogParam()],
       (err, row: DeploymentCatalogRow | undefined) => {
         if (err) {
           logger.warn('deploymentCatalog get by ticker failed:', err.message);
@@ -1381,9 +1426,9 @@ export async function getDeploymentByTokenAddress(
     db!.get(
       `SELECT ${SELECT_DEPLOYMENT_ROW}
        FROM deployment_catalog AS dc
-       WHERE lower(dc.token_address) = ?
+       WHERE lower(dc.token_address) = ?${visibleCatalogSql()}
        LIMIT 1`,
-      [tok],
+      [tok, visibleCatalogParam()],
       (err, row: DeploymentCatalogRow | undefined) => {
         if (err) {
           logger.warn('deploymentCatalog get by token failed:', err.message);
@@ -1710,8 +1755,12 @@ export async function hasGlobalTickerDeploymentInRollingHours(
       `SELECT 1 AS ok FROM deployment_catalog
        WHERE upper(trim(replace(token_symbol, '$', ''))) = ?
          AND datetime(created_at) >= datetime('now', ?)
+         AND (
+           TRIM(COALESCE(factory_address, '')) = ''
+           OR lower(factory_address) != lower(?)
+         )
        LIMIT 1`,
-      [sym, timeMod],
+      [sym, timeMod, visibleCatalogParam()],
       (err, row: { ok: number } | undefined) => {
         if (err) {
           logger.warn('deploymentCatalog global ticker check failed:', err.message);
@@ -1743,8 +1792,12 @@ export async function hasGlobalNameDeploymentInRollingHours(
       `SELECT 1 AS ok FROM deployment_catalog
        WHERE lower(trim(replace(replace(token_name, char(9), ' '), char(10), ' '))) = ?
          AND datetime(created_at) >= datetime('now', ?)
+         AND (
+           TRIM(COALESCE(factory_address, '')) = ''
+           OR lower(factory_address) != lower(?)
+         )
        LIMIT 1`,
-      [normalized, timeMod],
+      [normalized, timeMod, visibleCatalogParam()],
       (err, row: { ok: number } | undefined) => {
         if (err) {
           logger.warn('deploymentCatalog global name check failed:', err.message);
@@ -1939,5 +1992,91 @@ export function closeDeploymentCatalogDb(): void {
       }
     });
     db = null;
+  }
+}
+
+/** Rows with V3 pool ids — candidates for deprecated-factory purge. */
+export async function listV3CatalogRowsForPurge(): Promise<
+  import('./deprecatedV3Catalog.js').CatalogRowForPurge[]
+> {
+  if (!db) return [];
+  return new Promise((resolve) => {
+    db!.all(
+      `SELECT id, token_address AS tokenAddress, token_symbol AS tokenSymbol, pool_id AS poolId,
+              transaction_hash AS transactionHash, COALESCE(factory_address, '') AS factoryAddress
+       FROM deployment_catalog
+       WHERE pool_id LIKE 'v3:%' OR lower(COALESCE(factory_address, '')) = lower(?)`,
+      [visibleCatalogParam()],
+      (err, rows) => {
+        if (err) {
+          logger.warn('deploymentCatalog listV3CatalogRowsForPurge failed:', err.message);
+          resolve([]);
+          return;
+        }
+        resolve((rows ?? []) as import('./deprecatedV3Catalog.js').CatalogRowForPurge[]);
+      },
+    );
+  });
+}
+
+export async function deleteDeploymentCatalogByTokenAddresses(
+  tokenAddresses: string[],
+): Promise<number> {
+  if (!db || tokenAddresses.length === 0) return 0;
+  const lowered = [
+    ...new Set(
+      tokenAddresses
+        .map((a) => {
+          try {
+            return getAddress(a).toLowerCase();
+          } catch {
+            return '';
+          }
+        })
+        .filter(Boolean),
+    ),
+  ];
+  if (lowered.length === 0) return 0;
+
+  const placeholders = lowered.map(() => '?').join(', ');
+  return new Promise((resolve) => {
+    db!.run(
+      `DELETE FROM deployment_catalog WHERE lower(token_address) IN (${placeholders})`,
+      lowered,
+      function (this: { changes: number }, err) {
+        if (err) {
+          logger.warn('deploymentCatalog deleteByTokenAddresses failed:', err.message);
+          resolve(0);
+          return;
+        }
+        resolve(this.changes);
+      },
+    );
+  });
+}
+
+/** One-time purge of test tokens from the deprecated V3 factory (idempotent marker in `.data`). */
+export async function runDeprecatedV3CatalogPurgeIfNeeded(rpcUrl: string): Promise<void> {
+  if (isDeprecatedV3CatalogPurgeComplete()) return;
+  if (!db) return;
+
+  try {
+    const result = await purgeDeprecatedV3CatalogEntries(rpcUrl, {
+      listV3CatalogRows: listV3CatalogRowsForPurge,
+      deleteByTokenAddresses: deleteDeploymentCatalogByTokenAddresses,
+    });
+    markDeprecatedV3CatalogPurgeComplete();
+    if (result.removed.length > 0) {
+      logger.info('Removed deprecated V3 factory tokens from catalog', {
+        count: result.removed.length,
+        tokens: result.removed,
+      });
+    } else {
+      logger.info('Deprecated V3 factory catalog purge complete (no rows removed)', {
+        scanned: result.scanned,
+      });
+    }
+  } catch (err: unknown) {
+    logger.warn('Deprecated V3 catalog purge failed:', err instanceof Error ? err.message : err);
   }
 }
