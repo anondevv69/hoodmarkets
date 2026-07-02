@@ -1,4 +1,4 @@
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   checkDeployCooldown,
@@ -30,6 +30,8 @@ function useDebounced<T>(value: T, ms: number): T {
 
 export function LaunchTab() {
   const { ready, authenticated, login, getAccessToken } = usePrivy();
+  const { wallets } = useWallets();
+  const wallet = wallets[0];
   const [name, setName] = useState('');
   const [symbol, setSymbol] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -41,6 +43,7 @@ export function LaunchTab() {
   const [xUrl, setXUrl] = useState('');
   const [feeTarget, setFeeTarget] = useState<'self' | 'other'>('self');
   const [feeRecipient, setFeeRecipient] = useState('');
+  const [initialBuyEth, setInitialBuyEth] = useState('0');
   const [rateLimitNotice, setRateLimitNotice] = useState<string | null>(null);
   const [config, setConfig] = useState<WebDeployConfig | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -224,7 +227,12 @@ export function LaunchTab() {
       return;
     }
 
-    const buyEth = '0';
+    const buyEth = feeTarget === 'self' ? initialBuyEth.trim() || '0' : '0';
+
+    if (buyEth !== '0' && !wallet?.address) {
+      setError('Connect your hood.markets wallet to pay the initial buy.');
+      return;
+    }
 
     if (rateLimitNotice) {
       const ok = window.confirm(`${rateLimitNotice}\n\nLaunch anyway?`);
@@ -253,6 +261,12 @@ export function LaunchTab() {
           feeTarget,
           recipientPaste: feeTarget === 'other' ? feeRecipient.trim() : undefined,
         },
+        buyEth !== '0' && wallet
+          ? {
+              address: wallet.address,
+              getEthereumProvider: () => wallet.getEthereumProvider(),
+            }
+          : undefined,
       );
       setLaunchedMeta({ name: name.trim(), symbol: symbol.trim().toUpperCase() });
       setResult(out);
@@ -266,6 +280,7 @@ export function LaunchTab() {
       setXUrl('');
       setFeeTarget('self');
       setFeeRecipient('');
+      setInitialBuyEth('0');
       setRateLimitNotice(null);
       setLiveTickerConflict(null);
       setLiveNameConflict(null);
@@ -456,6 +471,46 @@ export function LaunchTab() {
                 </label>
               </div>
             </div>
+
+            {feeTarget === 'self' && config?.walletDeployEnabled ? (
+              <div className="lp-card form-section">
+                <p className="section-label">Initial buy (optional)</p>
+                <p className="muted" style={{ fontSize: '0.82rem', margin: '0 0 0.75rem' }}>
+                  Deployment is covered by hood.markets (~
+                  {config.platformSubsidizedInitialBuyEth} ETH pool seed). Add ETH from your wallet
+                  for a deeper launch buy — you sign one transaction.
+                </p>
+                <div className="initial-buy-row">
+                  <button
+                    type="button"
+                    className={`initial-buy-preset${initialBuyEth === '0' ? ' is-active' : ''}`}
+                    onClick={() => setInitialBuyEth('0')}
+                  >
+                    None
+                  </button>
+                  {(config.initialBuyPresetsEth ?? ['0.002', '0.01', '0.05']).map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className={`initial-buy-preset${initialBuyEth === preset ? ' is-active' : ''}`}
+                      onClick={() => setInitialBuyEth(preset)}
+                    >
+                      {preset} ETH
+                    </button>
+                  ))}
+                </div>
+                <label style={{ marginTop: '0.75rem' }}>
+                  Custom amount (ETH)
+                  <input
+                    className="lp-input"
+                    value={initialBuyEth === '0' ? '' : initialBuyEth}
+                    onChange={(e) => setInitialBuyEth(e.target.value.trim() || '0')}
+                    placeholder={`0 — platform seed only (max ${config.initialBuyMaxEth})`}
+                    inputMode="decimal"
+                  />
+                </label>
+              </div>
+            ) : null}
 
             <div className="lp-card form-section">
               <p className="section-label">Trading fees</p>

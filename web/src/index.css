@@ -352,6 +352,29 @@ label {
   margin-bottom: 0.25rem;
 }
 
+.initial-buy-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.initial-buy-preset {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.initial-buy-preset.is-active {
+  color: var(--text);
+  border-color: var(--accent-dim);
+  background: var(--accent-glow);
+}
+
 .launch-mode-row {
   display: flex;
   flex-direction: column;

@@ -87,6 +87,7 @@ export interface WebDeployConfig {
   initialBuyMinEth: string;
   initialBuyMaxEth: string;
   initialBuyDefaultEth: string;
+  initialBuyPresetsEth: string[];
   walletDeployEnabled: boolean;
 }
 
@@ -159,6 +160,8 @@ export async function checkDeployCooldown(
   return parseJson<CooldownCheckResult>(res);
 }
 
+import type { WalletDeployPrepare } from './lib/walletDeploy';
+
 export interface LaunchPayload {
   name: string;
   symbol: string;
@@ -176,15 +179,7 @@ export interface LaunchPayload {
   recipientAddress?: string;
 }
 
-export type WalletDeployPrepare = {
-  mode: 'wallet';
-  factory: `0x${string}`;
-  deploymentConfig: import('./lib/deploymentConfigJson').SerializedDeploymentConfig;
-  msgValueWei: string;
-  gas: string;
-  chainId: number;
-  imageUrl: string;
-};
+export type { WalletDeployPrepare } from './lib/walletDeploy';
 
 export interface DeployPreviewResult {
   rateLimitForcedPlatformFee: boolean;
@@ -280,6 +275,8 @@ export async function deployToken(
       throw new Error('Server did not return wallet deploy preparation.');
     }
 
+    const walletPrepare = prepare as WalletDeployPrepare;
+
     const provider = await wallet.getEthereumProvider();
     const { signWalletDeployToken } = await import('./lib/walletDeploy');
     const { ensureRobinhoodChainInWallet } = await import('./lib/ensureRobinhoodChain');
@@ -288,7 +285,7 @@ export async function deployToken(
     );
 
     const txHash = await signWalletDeployToken({
-      prepare,
+      prepare: walletPrepare,
       walletProvider: provider as Parameters<typeof signWalletDeployToken>[0]['walletProvider'],
       account: wallet.address as `0x${string}`,
     });
