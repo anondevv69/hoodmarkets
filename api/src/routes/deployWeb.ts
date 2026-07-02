@@ -900,22 +900,16 @@ export function registerWebDeployRoutes(
       }
 
       const useWalletDeploy =
-        (launchMode === 'pro' || launchMode === 'simple') &&
-        (feeTarget === 'self' || feeTarget === 'other') &&
-        !anonymousNoDev &&
-        !agentWalletDeploy &&
-        !rateLimitForcedBurn &&
-        !rateLimitForcedPlatformFee &&
+        deployerPaysPoolSeed &&
         userInitialBuyWei > 0n &&
         deployerWallet != null;
 
-      const walletDeploySigner =
-        feeTarget === 'other' ? deployerWallet : resolved.walletAddress;
+      const walletDeploySigner = deployerWallet ?? resolved.walletAddress;
 
-      if (deployerPaysPoolSeed && userInitialBuyWei > 0n && !walletDeploySigner) {
+      if (deployerPaysPoolSeed && !useWalletDeploy) {
         res.status(400).json({
           error:
-            'Connect your hood.markets wallet to pay the pool seed (~0.005 ETH). Deployment gas is still covered by hood.markets.',
+            'Connect your hood.markets embedded wallet with enough ETH for the pool seed plus gas. hood.markets does not pay deployment costs on the website.',
         });
         return;
       }
@@ -982,11 +976,16 @@ export function registerWebDeployRoutes(
         return;
       }
 
+      if (deployerPaysPoolSeed) {
+        res.status(400).json({
+          error: 'Wallet-signed deploy did not complete. Try launching again.',
+        });
+        return;
+      }
+
       let devBuyAmount = 0n;
       if (anonymousNoDev || agentWalletDeploy) {
         devBuyAmount = userInitialBuyWei > 0n ? 0n : config.deployBondWei;
-      } else if (!useWalletDeploy) {
-        devBuyAmount = config.deployBondWei;
       }
 
       const deployReq: DeployRequest = {

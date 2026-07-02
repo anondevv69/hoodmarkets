@@ -12,6 +12,7 @@ import {
 } from '../api';
 import { readImageFileAsDataUrl, resolveLaunchImagePayload } from '../lib/imageUpload';
 import { looksLikeFeeRecipientInput } from '../lib/feeRecipientInput';
+import { pickPrivyEmbeddedWallet } from '../lib/privyWallet';
 import { openTokenPage } from '../lib/tokenRoute';
 import { LaunchSuccessLinks } from './TokenCard';
 import { tradingLinksFromApi } from '../lib/tradingLinks';
@@ -31,7 +32,7 @@ function useDebounced<T>(value: T, ms: number): T {
 export function LaunchTab() {
   const { ready, authenticated, login, getAccessToken } = usePrivy();
   const { wallets } = useWallets();
-  const wallet = wallets[0];
+  const wallet = useMemo(() => pickPrivyEmbeddedWallet(wallets), [wallets]);
   const [name, setName] = useState('');
   const [symbol, setSymbol] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -239,7 +240,7 @@ export function LaunchTab() {
 
     if (needsWallet && !wallet?.address) {
       setError(
-        `Connect your hood.markets wallet to pay the pool seed (~${defaultBuyEth} ETH).`,
+        `Connect your hood.markets embedded wallet to pay the pool seed (~${defaultBuyEth} ETH) plus gas.`,
       );
       return;
     }
@@ -486,8 +487,8 @@ export function LaunchTab() {
               <div className="lp-card form-section">
                 <p className="section-label">Pool seed</p>
                 <p className="muted" style={{ fontSize: '0.82rem', margin: '0 0 0.75rem' }}>
-                  You pay ~{config.initialBuyDefaultEth} ETH from your wallet to seed the pool.
-                  hood.markets covers deployment gas — you sign one transaction.
+                  You pay ~{config.initialBuyDefaultEth} ETH plus gas from your hood.markets wallet to
+                  deploy and seed the pool. hood.markets does not cover website deployment costs.
                   {feeTarget === 'other'
                     ? ' Trading fees still go to the recipient you choose below.'
                     : null}
