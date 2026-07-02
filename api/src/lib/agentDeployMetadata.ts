@@ -10,6 +10,10 @@ export interface AgentDeployMetadataBody {
   agentId?: unknown;
   /** `signature` (EIP-191), `payment` (treasury ETH), `captcha` (haiku JWT), or `x_confirm` (X in-thread confirm). */
   auth?: unknown;
+  /** Original X launch request (status URL). Stored in catalog `source_url` when set. */
+  tweetUrl?: unknown;
+  tweet_url?: unknown;
+  launchTweetUrl?: unknown;
   /** Extra key/value hints; keys [a-zA-Z0-9_-], values trimmed. */
   agentMetadata?: unknown;
 }
@@ -29,6 +33,11 @@ export function serializeAgentDeployMetadata(body: AgentDeployMetadataBody): str
   set('walletKind', body.walletKind, 64);
   set('agentId', body.agentId, 64);
   set('auth', body.auth, 16);
+  set(
+    'launchTweetUrl',
+    body.launchTweetUrl ?? body.tweetUrl ?? body.tweet_url,
+    512,
+  );
 
   if (body.agentMetadata && typeof body.agentMetadata === 'object' && !Array.isArray(body.agentMetadata)) {
     for (const [k, v] of Object.entries(body.agentMetadata as Record<string, unknown>)) {

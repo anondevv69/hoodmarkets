@@ -50,6 +50,8 @@ export interface Deployment {
   chain: string;
   clientKind?: string;
   agentMetadata?: string;
+  /** Original post URL (X tweet, Warpcast cast, etc.) when stored at deploy. */
+  sourceUrl?: string;
 }
 
 export type TokenDetail = Deployment & {

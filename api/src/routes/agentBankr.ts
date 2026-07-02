@@ -16,6 +16,7 @@ import {
   agentDeployConfirmReplyHint,
   buildAgentDeployConfirmSummary,
   normalizeTweetStatusUrl,
+  resolveLaunchTweetUrl,
   resolveAgentDeployImageUrlAsync,
 } from '../lib/agentDeployImage.js';
 import { ROBINHOOD_CHAIN_ID } from '../lib/robinhoodChain.js';
@@ -388,6 +389,8 @@ export function registerAgentBankrRoutes(app: Express): void {
       return;
     }
 
+    const launchTweetUrl = resolveLaunchTweetUrl(body);
+
     const deployBody = {
       name,
       symbol,
@@ -402,6 +405,7 @@ export function registerAgentBankrRoutes(app: Express): void {
       wallet,
       agentFeeRecipient: wallet,
       ...(resolvedChannel ? { agentChannel: resolvedChannel } : {}),
+      ...(launchTweetUrl ? { tweetUrl: launchTweetUrl, sourceUrl: launchTweetUrl } : {}),
     };
 
     const confirmSummary = buildAgentDeployConfirmSummary({

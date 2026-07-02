@@ -16,6 +16,7 @@ import {
   markLegacyTestCatalogPurgeComplete,
   purgeDeprecatedV3CatalogEntries,
 } from './deprecatedV3Catalog.js';
+import { parseAgentMetadataJson } from './agentDeployMetadata.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '../../.data');
@@ -773,9 +774,37 @@ export function initDeploymentCatalogDb(): void {
       )`,
       (err) => {
         if (err) logger.error('agent_payment_tx table create failed:', err.message);
+        else void runBackfillLaunchTweetSources();
       },
     );
   });
+}
+
+/** Known Bankr-on-X launches missing `source_url` before tweet persistence shipped. */
+const BACKFILL_LAUNCH_TWEET_SOURCES: { tokenAddress: string; sourceUrl: string }[] = [
+  {
+    tokenAddress: '0xA04914F30eC1C3d83DF000c8cB77F136348D4C69',
+    sourceUrl: 'https://x.com/Rayblancoeth/status/2072721381633016095',
+  },
+];
+
+async function runBackfillLaunchTweetSources(): Promise<void> {
+  for (const row of BACKFILL_LAUNCH_TWEET_SOURCES) {
+    try {
+      const updated = await updateDeploymentCatalogLaunchSource(row.tokenAddress, row.sourceUrl);
+      if (updated) {
+        logger.info('deploymentCatalog: backfilled launch tweet source', {
+          tokenAddress: row.tokenAddress,
+          sourceUrl: row.sourceUrl,
+        });
+      }
+    } catch (err) {
+      logger.warn('deploymentCatalog: launch tweet backfill failed', {
+        tokenAddress: row.tokenAddress,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 }
 
 /** Reserve agent payment tx (one deploy per payment). Returns false if tx already used. */
@@ -954,6 +983,50 @@ export async function markDeploymentFeeClaimed(tokenAddress: string, txHash: str
           logger.warn('markDeploymentFeeClaimed: no rows updated — token may not be in catalog', { tokenAddress });
         }
         resolve();
+      },
+    );
+  });
+}
+
+/**
+ * Set launch tweet / post URL on a catalog row (idempotent when source already set).
+ * Merges `launchTweetUrl` into agent_metadata when present.
+ */
+export async function updateDeploymentCatalogLaunchSource(
+  tokenAddress: string,
+  sourceUrl: string,
+): Promise<boolean> {
+  if (!db) return false;
+  let tok: string;
+  try {
+    tok = getAddress(tokenAddress).toLowerCase();
+  } catch {
+    return false;
+  }
+  const url = sourceUrl.trim().slice(0, 1024);
+  if (!url) return false;
+
+  const existing = await getDeploymentByTokenAddress(tok);
+  if (!existing) return false;
+  if (existing.sourceUrl?.trim()) return false;
+
+  const meta = parseAgentMetadataJson(existing.agentMetadata) ?? {};
+  meta.launchTweetUrl = url;
+  const agentMetadataJson = JSON.stringify(meta).slice(0, 1024);
+
+  return new Promise((resolve) => {
+    db!.run(
+      `UPDATE deployment_catalog
+       SET source_url = ?, agent_metadata = ?
+       WHERE lower(token_address) = ? AND TRIM(COALESCE(source_url, '')) = ''`,
+      [url, agentMetadataJson, tok],
+      function (this: { changes: number }, err) {
+        if (err) {
+          logger.warn('updateDeploymentCatalogLaunchSource failed:', err.message);
+          resolve(false);
+          return;
+        }
+        resolve(this.changes > 0);
       },
     );
   });

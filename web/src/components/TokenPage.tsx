@@ -21,6 +21,8 @@ import { DexScreenerEmbed } from './TokenListingStatus';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 import { TradingLinksRow } from './TradingLinksRow';
+import { LaunchTweetEmbed } from './LaunchTweetEmbed';
+import { resolveTokenLaunchTweetUrl } from '../lib/launchTweet';
 
 export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   const [token, setToken] = useState<TokenDetail | null>(null);
@@ -95,6 +97,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
     agentMetadata: token.agentMetadata,
     deployerId: token.deployerId,
   });
+  const launchTweetUrl = resolveTokenLaunchTweetUrl(token);
 
   return (
     <div className="token-page lp-fade-in">
@@ -118,6 +121,8 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
       </div>
 
       <DexScreenerEmbed tokenAddress={token.tokenAddress} metrics={metrics} />
+
+      {launchTweetUrl ? <LaunchTweetEmbed tweetUrl={launchTweetUrl} /> : null}
 
       <div className="lp-card token-page-details">
         <p className="section-label">Launch details</p>

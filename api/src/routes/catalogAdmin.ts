@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from 'express';
 import { getAddress } from 'viem';
 import { config } from '../config.js';
-import { deleteDeploymentCatalogByTokenAddresses } from '../lib/deploymentCatalog.js';
+import { deleteDeploymentCatalogByTokenAddresses, updateDeploymentCatalogLaunchSource } from '../lib/deploymentCatalog.js';
 import { logger } from '../logger.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 
@@ -36,6 +36,56 @@ export function registerCatalogAdminRoutes(app: Express): void {
     const h = webDeployCorsHeaders(req.headers.origin);
     for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
     res.status(204).end();
+  });
+
+  app.options('/api/admin/catalog/patch-source', (req, res) => {
+    const h = webDeployCorsHeaders(req.headers.origin);
+    for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
+    res.status(204).end();
+  });
+
+  app.post('/api/admin/catalog/patch-source', async (req: Request, res: Response) => {
+    const h = webDeployCorsHeaders(req.headers.origin);
+    for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
+
+    if (!isAuthorized(req)) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const rawToken =
+      typeof req.body?.tokenAddress === 'string' ? req.body.tokenAddress.trim() : '';
+    const rawSource =
+      typeof req.body?.sourceUrl === 'string'
+        ? req.body.sourceUrl.trim()
+        : typeof req.body?.tweetUrl === 'string'
+          ? req.body.tweetUrl.trim()
+          : '';
+
+    if (!rawToken || !rawSource) {
+      res.status(400).json({ error: 'tokenAddress and sourceUrl (or tweetUrl) required' });
+      return;
+    }
+
+    let tokenAddress: string;
+    try {
+      tokenAddress = getAddress(rawToken);
+    } catch {
+      res.status(400).json({ error: 'Invalid tokenAddress' });
+      return;
+    }
+
+    const updated = await updateDeploymentCatalogLaunchSource(tokenAddress, rawSource);
+    if (!updated) {
+      res.status(404).json({
+        error: 'Token not found in catalog, or sourceUrl already set.',
+        tokenAddress,
+      });
+      return;
+    }
+
+    logger.info('Catalog admin patch-source', { tokenAddress, sourceUrl: rawSource });
+    res.json({ ok: true, tokenAddress, sourceUrl: rawSource });
   });
 
   app.post('/api/admin/catalog/delete', async (req: Request, res: Response) => {
