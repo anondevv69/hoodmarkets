@@ -13,7 +13,7 @@ type Tab = 'tokens' | 'launch' | 'profile';
 const TAB_COPY: Record<Tab, { title: string; sub: string }> = {
   tokens: {
     title: 'Explore tokens',
-    sub: 'Every token launched on Robinhood Chain.',
+    sub: 'Market cap and volume from DexScreener — trade on DexScreener or Uniswap.',
   },
   launch: {
     title: 'Launch a token',
@@ -27,7 +27,7 @@ const TAB_COPY: Record<Tab, { title: string; sub: string }> = {
 
 const TOKEN_PAGE_COPY = {
   title: 'Token',
-  sub: 'Launch details, fee recipient, and trading links.',
+  sub: 'Chart, market data, and trading links from DexScreener.',
 };
 
 function readTabFromUrl(): Tab {
@@ -62,6 +62,32 @@ export default function App() {
       <header className="site-header">
         <div className="header-inner">
           <div className="logo lp-display" aria-label="hood.markets">
+            <svg className="logo-mark" width="34" height="34" viewBox="0 0 64 64" aria-hidden>
+              <rect width="64" height="64" rx="16" fill="#00e676" />
+              <path
+                d="M20 14 C 12 32, 12 32, 20 50"
+                stroke="#04140a"
+                strokeWidth="3.4"
+                fill="none"
+                strokeLinecap="round"
+              />
+              <line x1="19" y1="32" x2="46" y2="32" stroke="#04140a" strokeWidth="3.4" strokeLinecap="round" />
+              <path
+                d="M38 22 L 50 32 L 38 42"
+                stroke="#04140a"
+                strokeWidth="3.4"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M19 32 L 26 27 M19 32 L 26 37"
+                stroke="#04140a"
+                strokeWidth="3.4"
+                fill="none"
+                strokeLinecap="round"
+              />
+            </svg>
             <span className="logo-hood">hood</span>
             <span className="logo-markets">.markets</span>
           </div>

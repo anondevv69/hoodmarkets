@@ -1,4 +1,4 @@
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { usePrivy } from '@privy-io/react-auth';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   checkDeployCooldown,
@@ -29,8 +29,6 @@ function useDebounced<T>(value: T, ms: number): T {
 
 export function LaunchTab() {
   const { ready, authenticated, login, getAccessToken } = usePrivy();
-  const { wallets } = useWallets();
-  const wallet = wallets[0];
   const [name, setName] = useState('');
   const [symbol, setSymbol] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -40,8 +38,6 @@ export function LaunchTab() {
   const [description, setDescription] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [xUrl, setXUrl] = useState('');
-  const [yourBuyEth, setYourBuyEth] = useState('0.005');
-  const [launchMode, setLaunchMode] = useState<'simple' | 'pro'>('simple');
   const [rateLimitNotice, setRateLimitNotice] = useState<string | null>(null);
   const [config, setConfig] = useState<WebDeployConfig | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -60,15 +56,7 @@ export function LaunchTab() {
 
   useEffect(() => {
     fetchWebDeployConfig()
-      .then((c) => {
-        setConfig(c);
-        if (c.initialBuyDefaultEth) {
-          setYourBuyEth(c.initialBuyDefaultEth);
-        }
-        if (c.defaultLaunchMode) {
-          setLaunchMode(c.defaultLaunchMode);
-        }
-      })
+      .then((c) => setConfig(c))
       .catch(() => undefined);
   }, []);
 
@@ -135,12 +123,7 @@ export function LaunchTab() {
   }, [debouncedSymbol, debouncedName]);
 
   const cooldownHours = config?.globalTickerCooldownHours ?? 24;
-  const platformFeePct = config?.platformFeePercent ?? 2;
-  const v3PlatformFeePct = config?.v3PlatformFeePercent ?? 5;
-  const limitsNote =
-    launchMode === 'simple'
-      ? `1 token per user every ${config?.deployRateLimitHours ?? 24}h · each name & symbol unique for ${cooldownHours}h · ${v3PlatformFeePct}% hood.markets fee (embedded on-chain) · trades on Uniswap V3 / DexScreener`
-      : `1 token per user every ${config?.deployRateLimitHours ?? 24}h · each name & symbol unique for ${cooldownHours}h · platform fee ${platformFeePct}%`;
+  const limitsNote = `1 token per user every ${config?.deployRateLimitHours ?? 24}h · each name & symbol unique for ${cooldownHours}h`;
 
   const blockingReserved = liveNameReserved ?? liveTickerReserved;
 
@@ -155,7 +138,12 @@ export function LaunchTab() {
   const previewName = name.trim() || 'Your Token';
   const previewImage = imageDataUrl || (imageUrl.trim().startsWith('http') ? imageUrl.trim() : null);
   const hasImage = !!resolveLaunchImagePayload(imageDataUrl, imageUrl);
-  const platformSeedEth = config?.platformSubsidizedInitialBuyEth ?? 0.002;
+
+  useEffect(() => {
+    fetchWebDeployConfig()
+      .then((c) => setConfig(c))
+      .catch(() => undefined);
+  }, []);
 
   async function onPickLogo(file: File | null) {
     if (!file) return;
@@ -192,11 +180,7 @@ export function LaunchTab() {
       return;
     }
 
-    const buyEth = launchMode === 'simple' ? '0' : yourBuyEth.trim();
-    if (buyEth !== '0' && buyEth !== '' && !wallet?.address) {
-      setError('Connect a wallet to include your initial buy in the launch transaction.');
-      return;
-    }
+    const buyEth = '0';
 
     if (rateLimitNotice) {
       const ok = window.confirm(`${rateLimitNotice}\n\nLaunch anyway?`);
@@ -220,15 +204,9 @@ export function LaunchTab() {
           websiteUrl: websiteUrl.trim() || undefined,
           xUrl: xUrl.trim() || undefined,
           description: description.trim() || undefined,
-          initialBuyEth: buyEth || '0',
-          launchMode,
+          initialBuyEth: buyEth,
+          launchMode: 'simple',
         },
-        buyEth !== '0' && wallet
-          ? {
-              address: wallet.address,
-              getEthereumProvider: () => wallet.getEthereumProvider(),
-            }
-          : undefined,
       );
       setLaunchedMeta({ name: name.trim(), symbol: symbol.trim().toUpperCase() });
       setResult(out);
@@ -312,40 +290,6 @@ export function LaunchTab() {
           </div>
         ) : (
           <form className="form" onSubmit={onSubmit}>
-            <div className="lp-card form-section">
-              <p className="section-label">Launch type</p>
-              <div className="launch-mode-row">
-                <label className={`launch-mode-option${launchMode === 'simple' ? ' active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="launchMode"
-                    value="simple"
-                    checked={launchMode === 'simple'}
-                    disabled={config?.v3LaunchEnabled === false}
-                    onChange={() => setLaunchMode('simple')}
-                  />
-                  <span className="launch-mode-title">Simple (recommended)</span>
-                  <span className="muted launch-mode-desc">
-                    Uniswap V3 · DexScreener &amp; Uniswap app · {v3PlatformFeePct}% hood.markets fee locked in contract
-                  </span>
-                </label>
-                <label className={`launch-mode-option${launchMode === 'pro' ? ' active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="launchMode"
-                    value="pro"
-                    checked={launchMode === 'pro'}
-                    disabled={config?.proLaunchEnabled === false}
-                    onChange={() => setLaunchMode('pro')}
-                  />
-                  <span className="launch-mode-title">Pro</span>
-                  <span className="muted launch-mode-desc">
-                    Uniswap V4 hooks · one-click buy/sell on hood.markets · MEV protection
-                  </span>
-                </label>
-              </div>
-            </div>
-
             <div className="lp-card form-section">
               <p className="section-label">Token details</p>
               <div className="name-symbol-row">
@@ -432,7 +376,9 @@ export function LaunchTab() {
                 </p>
               ) : null}
               <label>
-                Description <span className="muted">(optional)</span>
+                <span className="field-label">
+                  Description <span className="field-label__optional">(optional)</span>
+                </span>
                 <textarea
                   className="lp-input"
                   value={description}
@@ -442,7 +388,9 @@ export function LaunchTab() {
               </label>
               <div className="name-symbol-row">
                 <label>
-                  Website <span className="muted">(optional)</span>
+                  <span className="field-label">
+                    Website <span className="field-label__optional">(optional)</span>
+                  </span>
                   <input
                     className="lp-input"
                     value={websiteUrl}
@@ -452,7 +400,9 @@ export function LaunchTab() {
                   />
                 </label>
                 <label>
-                  X <span className="muted">(optional)</span>
+                  <span className="field-label">
+                    X <span className="field-label__optional">(optional)</span>
+                  </span>
                   <input
                     className="lp-input"
                     value={xUrl}
@@ -461,44 +411,6 @@ export function LaunchTab() {
                   />
                 </label>
               </div>
-
-              {launchMode === 'pro' ? (
-              <div className="lp-card form-section initial-buy-section">
-                <p className="section-label">Your initial buy</p>
-                <p className="muted initial-buy-note">
-                  {yourBuyEth === '0' ? (
-                    <>
-                      Skip your buy — hood.markets seeds{' '}
-                      <strong>{platformSeedEth} ETH</strong> into the pool from our launcher wallet.
-                    </>
-                  ) : (
-                    <>
-                      Your buy is bundled into the <strong>same launch transaction</strong> as token
-                      deployment (Univ4EthDevBuy). You&apos;ll confirm one MetaMask tx on Robinhood
-                      Chain with{' '}
-                      <strong>{yourBuyEth || config?.initialBuyDefaultEth || '0.005'} ETH</strong>.
-                    </>
-                  )}
-                </p>
-                <div className="initial-buy-presets">
-                  {['0', '0.001', '0.005', '0.01', '0.02'].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      className={`btn btn-ghost btn-sm${yourBuyEth === preset ? ' filter-chip--active' : ''}`}
-                      onClick={() => setYourBuyEth(preset)}
-                    >
-                      {preset === '0' ? 'Skip' : `${preset} ETH`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              ) : (
-                <p className="muted initial-buy-note">
-                  Simple launch seeds <strong>{platformSeedEth} ETH</strong> from the hood.markets launcher wallet. Trading fees:{' '}
-                  <strong>{v3PlatformFeePct}%</strong> hood.markets (contract-locked) · <strong>95%</strong> to your fee wallet.
-                </p>
-              )}
             </div>
 
             <button
@@ -507,9 +419,7 @@ export function LaunchTab() {
               disabled={submitting || cannotLaunch || !hasImage}
             >
               {submitting
-                ? launchMode === 'pro' && yourBuyEth !== '0'
-                  ? 'Confirm in wallet…'
-                  : 'Launching…'
+                ? 'Launching…'
                 : !hasImage
                   ? 'Add a logo to launch'
                   : blockingReserved
