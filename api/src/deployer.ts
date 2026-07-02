@@ -8,8 +8,7 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { config } from './config.js';
-import { imageUploadService } from './lib/imageUpload.js';
-import { resolveTokenImageUrl } from './lib/tokenImageUrl.js';
+import { buildWebDeployArtifacts } from './lib/webDeployArtifacts.js';
 import {
   deployTokenOnchain,
   assertValidTokenAdmin,
@@ -18,27 +17,6 @@ import { recordDeploymentCatalog } from './lib/deploymentCatalog.js';
 import { hoodmarketsTokenUrl, launcherAppLaunchesTokenUrl } from './lib/launcherAppUrl.js';
 import type { DeployChain } from './lib/deployChain.js';
 import { robinhood, robinhoodTokenUrl } from './lib/robinhoodChain.js';
-
-/** On-chain `context.interface`: surface the user deployed from (discord, x, web, …). */
-function liquidDeployContextInterface(
-  params: Pick<TokenDeploymentParams, 'platform' | 'clientKind'>,
-): string {
-  if (params.platform === 'web' && params.clientKind === 'agent') {
-    return 'agent';
-  }
-  const p = params.platform?.trim().toLowerCase();
-  if (!p) return config.liquidDeployContextInterfaceFallback;
-  switch (p) {
-    case 'x':
-    case 'telegram':
-    case 'discord':
-    case 'farcaster':
-    case 'web':
-      return p;
-    default:
-      return config.liquidDeployContextInterfaceFallback;
-  }
-}
 
 export interface TokenDeploymentParams {
   name: string;
@@ -190,54 +168,16 @@ export class LiquidDeployer {
 
     const tokenAdmin = assertValidTokenAdmin(params.walletAddress);
 
-    let image = params.imageUrl ?? '';
-
-    if (image && imageUploadService.isConfigured()) {
-      const uploadedUrl = await imageUploadService.uploadTokenImage(image, params.name);
-      if (uploadedUrl) {
-        image = uploadedUrl;
-      }
-    }
-    image = resolveTokenImageUrl(image) ?? image;
-    if (image.startsWith('data:')) {
-      throw new Error(
-        'Token image could not be stored. Use a public HTTPS image URL, or set LIGHTHOUSE_API_KEY on the server for logo uploads.',
-      );
-    }
-
-    const metadataPayload: Record<string, string | number> = {
+    const { image, metadata, context } = await buildWebDeployArtifacts({
       name: params.name,
       symbol: params.symbol,
-    };
-    if (params.description?.trim()) {
-      metadataPayload.description = params.description.trim();
-    }
-    if (image) {
-      metadataPayload.image = image;
-    }
-    if (params.websiteUrl?.trim()) {
-      metadataPayload.external_url = params.websiteUrl.trim();
-    }
-    if (params.xUrl?.trim()) {
-      metadataPayload.twitter = params.xUrl.trim();
-    }
-    if (config.platformFeeBps > 0) {
-      metadataPayload.platformFeeBps = config.platformFeeBps;
-      metadataPayload.platformFeePercent = Number((config.platformFeeBps / 100).toFixed(2));
-    }
-    const metadata = JSON.stringify(metadataPayload);
-
-    const contextPayload: Record<string, string | number> = {
-      interface: liquidDeployContextInterface(params),
-      platform: config.liquidDeployContextPlatform,
-    };
-    if (config.platformFeeBps > 0) {
-      contextPayload.platformFeeBps = config.platformFeeBps;
-    }
-    if (config.platformFeeRecipient) {
-      contextPayload.platformFeeRecipient = config.platformFeeRecipient;
-    }
-    const context = JSON.stringify(contextPayload);
+      description: params.description,
+      imageUrl: params.imageUrl,
+      websiteUrl: params.websiteUrl,
+      xUrl: params.xUrl,
+      platform: params.platform,
+      clientKind: params.clientKind,
+    });
 
     const onchain = await deployTokenOnchain(
       this.publicClient,

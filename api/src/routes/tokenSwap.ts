@@ -53,6 +53,8 @@ export function registerTokenSwapRoutes(app: Express): void {
     }
 
     const { weth, universalRouter, hookStatic } = swapAddresses();
+    const permit2 = (process.env.PERMIT2?.trim() ||
+      '0x000000000022D473030F116dDEE9F6B43aC78BA3') as `0x${string}`;
     if (!hookStatic) {
       res.status(503).json({ error: 'Swap is not configured (missing hook address).' });
       return;
@@ -68,6 +70,7 @@ export function registerTokenSwapRoutes(app: Express): void {
       poolKey,
       weth,
       universalRouter,
+      permit2,
       /** ETH → token: WETH is tokenIn. */
       zeroForOne,
       pairedToken: weth,

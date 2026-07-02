@@ -22,9 +22,15 @@ export class DeployApiError extends Error {
   }
 }
 
-export const API_BASE =
-  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ||
-  'http://localhost:3000';
+export const API_BASE = (() => {
+  const fromEnv = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '');
+  if (fromEnv) return fromEnv;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3000';
+  }
+  return 'https://api.hood.markets';
+})();
 
 export interface Deployment {
   id: number;
@@ -58,8 +64,12 @@ export interface WebDeployConfig {
   platformFeeBps: number;
   platformFeePercent: number;
   imageUploadEnabled: boolean;
-  /** WETH seeded at launch from hood.markets launcher wallet (`DEPLOY_BOND_ETH`). */
+  /** WETH seeded at launch from hood.markets launcher wallet (`DEPLOY_BOND_ETH`) when you skip your buy. */
   platformSubsidizedInitialBuyEth: number;
+  initialBuyMinEth: string;
+  initialBuyMaxEth: string;
+  initialBuyDefaultEth: string;
+  walletDeployEnabled: boolean;
 }
 
 export interface DeployResult {
@@ -138,7 +148,19 @@ export interface LaunchPayload {
   websiteUrl?: string;
   xUrl?: string;
   description?: string;
+  /** ETH bundled into deployToken via Univ4EthDevBuy (`0` = server-only deploy). */
+  initialBuyEth?: string;
 }
+
+export type WalletDeployPrepare = {
+  mode: 'wallet';
+  factory: `0x${string}`;
+  deploymentConfig: import('./lib/deploymentConfigJson').SerializedDeploymentConfig;
+  msgValueWei: string;
+  gas: string;
+  chainId: number;
+  imageUrl: string;
+};
 
 export interface DeployPreviewResult {
   rateLimitForcedPlatformFee: boolean;
@@ -159,7 +181,14 @@ export async function fetchDeployPreview(
   return parseJson<DeployPreviewResult>(res);
 }
 
-export async function deployToken(token: string, payload: LaunchPayload): Promise<DeployResult> {
+async function postDeploy(
+  token: string,
+  payload: LaunchPayload & {
+    walletDeployPhase?: 'prepare' | 'complete';
+    transactionHash?: string;
+    deploymentConfig?: WalletDeployPrepare['deploymentConfig'];
+  },
+): Promise<DeployResult & WalletDeployPrepare> {
   const res = await fetch(`${API_BASE}/api/deploy`, {
     method: 'POST',
     headers: {
@@ -173,16 +202,85 @@ export async function deployToken(token: string, payload: LaunchPayload): Promis
     }),
   });
 
-  const data = (await res.json()) as DeployResult & {
-    error?: string;
-    conflict?: DeployCooldownConflict;
-  };
+  const data = (await res.json()) as DeployResult &
+    WalletDeployPrepare & {
+      error?: string;
+      conflict?: DeployCooldownConflict;
+    };
 
   if (!res.ok) {
     throw new DeployApiError(data.error || res.statusText || 'Launch failed', data.conflict);
   }
 
   return data;
+}
+
+export async function deployToken(
+  token: string,
+  payload: LaunchPayload,
+  wallet?: {
+    address: string;
+    getEthereumProvider: () => Promise<unknown>;
+  },
+): Promise<DeployResult> {
+  const initialBuy = payload.initialBuyEth?.trim() ?? '';
+  const useWalletDeploy = initialBuy !== '' && initialBuy !== '0';
+
+  if (useWalletDeploy) {
+    if (!wallet?.address) {
+      throw new Error('Connect a wallet to include your initial buy in the launch transaction.');
+    }
+
+    const prepare = await postDeploy(token, {
+      ...payload,
+      initialBuyEth: initialBuy,
+      walletDeployPhase: 'prepare',
+    });
+
+    if (prepare.mode !== 'wallet') {
+      throw new Error('Server did not return wallet deploy preparation.');
+    }
+
+    const provider = await wallet.getEthereumProvider();
+    const { signWalletDeployToken } = await import('./lib/walletDeploy');
+    const { ensureRobinhoodChainInWallet } = await import('./lib/ensureRobinhoodChain');
+    await ensureRobinhoodChainInWallet(
+      provider as Parameters<typeof ensureRobinhoodChainInWallet>[0],
+    );
+
+    const txHash = await signWalletDeployToken({
+      prepare,
+      walletProvider: provider as Parameters<typeof signWalletDeployToken>[0]['walletProvider'],
+      account: wallet.address as `0x${string}`,
+    });
+
+    const complete = await postDeploy(token, {
+      ...payload,
+      initialBuyEth: initialBuy,
+      walletDeployPhase: 'complete',
+      transactionHash: txHash,
+      deploymentConfig: prepare.deploymentConfig,
+    });
+
+    return {
+      ok: complete.ok,
+      tokenAddress: complete.tokenAddress,
+      transactionHash: complete.transactionHash,
+      feeWallet: complete.feeWallet,
+      imageUrl: complete.imageUrl ?? prepare.imageUrl,
+      links: complete.links,
+    };
+  }
+
+  const out = await postDeploy(token, payload);
+  return {
+    ok: out.ok,
+    tokenAddress: out.tokenAddress,
+    transactionHash: out.transactionHash,
+    feeWallet: out.feeWallet,
+    imageUrl: out.imageUrl,
+    links: out.links,
+  };
 }
 
 export interface ClaimFeesResult {

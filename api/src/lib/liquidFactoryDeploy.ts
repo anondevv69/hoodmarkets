@@ -39,7 +39,7 @@ export function liquidMevModule(): `0x${string}` {
 /** `deployToken` + dev-buy extension can exceed 5M gas on Base; BaseScan shows OOG at exactly 5M. */
 const DEFAULT_DEPLOY_TOKEN_GAS_WITH_VALUE = 12_000_000n;
 
-function deployTokenGasLimitWithValue(): bigint {
+export function deployTokenGasLimitWithValue(): bigint {
   const raw = process.env.DEPLOY_TOKEN_GAS?.trim();
   if (raw) {
     const n = BigInt(raw);
@@ -152,7 +152,7 @@ export type OnchainDeployResult = {
   blockNumber: bigint;
 };
 
-function buildDeploymentConfig(
+export function buildDeploymentConfig(
   input: DeployTokenArgs,
   platformFeeRecipient?: `0x${string}`,
   platformFeeBps?: number
@@ -463,14 +463,26 @@ export async function deployTokenOnchain(
     );
   }
 
-  const factoryHex = input.factory.toLowerCase();
+  const created = parseTokenCreatedFromReceipt(receipt, input.factory);
+  return {
+    ...created,
+    transactionHash: hash,
+    blockNumber: receipt.blockNumber,
+  };
+}
+
+export function parseTokenCreatedFromReceipt(
+  receipt: { logs: readonly { address: Address; data: Hex; topics: readonly Hex[] }[] },
+  factory: Address,
+): { tokenAddress: `0x${string}`; poolId: `0x${string}` } {
+  const factoryHex = factory.toLowerCase();
   for (const log of receipt.logs) {
     if (log.address.toLowerCase() !== factoryHex) continue;
     try {
       const decoded = decodeEventLog({
         abi: LIQUID_FACTORY_ABI,
         data: log.data,
-        topics: log.topics,
+        topics: log.topics as [Hex, ...Hex[]],
       });
       if (decoded.eventName !== 'TokenCreated') continue;
       const args = decoded.args as {
@@ -480,15 +492,11 @@ export async function deployTokenOnchain(
       return {
         tokenAddress: getAddress(args.tokenAddress),
         poolId: args.poolId,
-        transactionHash: hash,
-        blockNumber: receipt.blockNumber,
       };
     } catch {
       continue;
     }
   }
 
-  throw new Error(
-    `TokenCreated event not found in receipt for transaction ${hash}`
-  );
+  throw new Error('TokenCreated event not found in transaction receipt.');
 }

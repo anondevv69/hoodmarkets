@@ -49,6 +49,9 @@ import {
 import { verifyAgentPaymentTransaction } from '../lib/agentDeployPaymentVerify.js';
 import {
   webInitialBuyDefaultEth,
+  parseWebInitialBuyWei,
+  webInitialBuyMinEth,
+  webInitialBuyMaxEth,
 } from '../lib/deployBondEnv.js';
 import {
   tryReserveAgentPaymentTx,
@@ -73,6 +76,17 @@ import {
 } from '../lib/deployChain.js';
 import { formatDeployError } from '../lib/formatDeployError.js';
 import { imageUploadService } from '../lib/imageUpload.js';
+import {
+  buildWebWalletDeployPrepare,
+  completeWebWalletDeploy,
+  assertWalletDeploySenderMatches,
+} from '../lib/webWalletDeploy.js';
+import {
+  deploymentConfigMsgValueWei,
+  deserializeDeploymentConfig,
+  type SerializedDeploymentConfig,
+} from '../lib/deploymentConfigJson.js';
+import { recordDeploymentCatalog } from '../lib/deploymentCatalog.js';
 import {
   applyWebDeployRateLimit,
   RATE_LIMIT_FORCED_PLATFORM_FEE_LABEL,
@@ -167,6 +181,12 @@ interface DeployWebBody {
   recipientPaste?: string;
   /** `base` (default) or `ethereum` (Ethereum mainnet). Requires `ETHEREUM_DEPLOY_ENABLED=true`. */
   chain?: string;
+  /** ETH for bundled Univ4EthDevBuy in wallet-signed deploy (min/max from env). `0` = server deploy only. */
+  initialBuyEth?: string | number;
+  /** `prepare` returns factory calldata; `complete` records after user signs `deployToken`. */
+  walletDeployPhase?: 'prepare' | 'complete';
+  transactionHash?: string;
+  deploymentConfig?: SerializedDeploymentConfig;
 }
 
 function normalizeAnonymousClientId(raw: unknown): string | null {
@@ -371,6 +391,10 @@ export function registerWebDeployRoutes(
       imageUploadEnabled: imageUploadService.isConfigured(),
       /** Fixed WETH seed at launch — paid by launcher wallet (`DEPLOY_BOND_ETH`), not the user. */
       platformSubsidizedInitialBuyEth: Number(webInitialBuyDefaultEth()),
+      initialBuyMinEth: webInitialBuyMinEth(),
+      initialBuyMaxEth: webInitialBuyMaxEth(),
+      initialBuyDefaultEth: webInitialBuyDefaultEth(),
+      walletDeployEnabled: true,
     });
   });
 
@@ -808,6 +832,56 @@ export function registerWebDeployRoutes(
         return;
       }
 
+      let userInitialBuyWei = 0n;
+      try {
+        userInitialBuyWei = parseWebInitialBuyWei(body.initialBuyEth, 0n);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Invalid initial buy amount';
+        res.status(400).json({ error: msg });
+        return;
+      }
+
+      const useWalletDeploy =
+        feeTarget === 'self' &&
+        !anonymousNoDev &&
+        !agentWalletDeploy &&
+        !rateLimitForcedBurn &&
+        !rateLimitForcedPlatformFee &&
+        userInitialBuyWei > 0n;
+
+      const walletPhase =
+        body.walletDeployPhase === 'complete'
+          ? 'complete'
+          : body.walletDeployPhase === 'prepare'
+            ? 'prepare'
+            : null;
+
+      if (useWalletDeploy && walletPhase === 'prepare') {
+        const prepare = await buildWebWalletDeployPrepare({
+          name,
+          symbol,
+          tokenAdmin: resolved.walletAddress,
+          devBuyAmount: userInitialBuyWei,
+          description: fullDescription,
+          imageUrl,
+          websiteUrl,
+          xUrl,
+          feesToPlatformOnly: rateLimitForcedPlatformFee,
+          platform: 'web',
+          clientKind: webClientKind,
+        });
+        res.json(prepare);
+        return;
+      }
+
+      if (useWalletDeploy && walletPhase !== 'complete') {
+        res.status(400).json({
+          error:
+            'Wallet initial buy requires walletDeployPhase "prepare" then "complete" after you sign deployToken in your wallet.',
+        });
+        return;
+      }
+
       let devBuyAmount = config.deployBondWei;
 
       const deployReq: DeployRequest = {
@@ -870,7 +944,77 @@ export function registerWebDeployRoutes(
           ? `Agent${agentProviderForLabel ? ` · ${agentProviderForLabel}` : ''} · ${resolved.walletAddress.slice(0, 6)}…${resolved.walletAddress.slice(-4)}`
           : resolved.feeRecipientLabel;
 
-      const result = await deployer.deployToken({
+      let result: Awaited<ReturnType<LiquidDeployer['deployToken']>>;
+
+      if (useWalletDeploy && walletPhase === 'complete') {
+        const txHash = typeof body.transactionHash === 'string' ? body.transactionHash.trim() : '';
+        if (!/^0x[a-fA-F0-9]{64}$/i.test(txHash)) {
+          res.status(400).json({ error: 'Valid transactionHash required for wallet deploy complete.' });
+          return;
+        }
+        if (!body.deploymentConfig || typeof body.deploymentConfig !== 'object') {
+          res.status(400).json({ error: 'deploymentConfig from prepare is required.' });
+          return;
+        }
+
+        const cfg = deserializeDeploymentConfig(body.deploymentConfig);
+        if (cfg.tokenConfig.name !== name || cfg.tokenConfig.symbol !== symbol) {
+          res.status(400).json({ error: 'Deployment config does not match token name or symbol.' });
+          return;
+        }
+        if (getAddress(cfg.tokenConfig.tokenAdmin) !== getAddress(resolved.walletAddress)) {
+          res.status(400).json({ error: 'Deployment config fee wallet mismatch.' });
+          return;
+        }
+        if (deploymentConfigMsgValueWei(cfg) !== userInitialBuyWei) {
+          res.status(400).json({ error: 'Deployment config initial buy mismatch.' });
+          return;
+        }
+
+        const tx = await agentPaymentPublicClient.getTransaction({
+          hash: txHash as `0x${string}`,
+        });
+        assertWalletDeploySenderMatches(tx?.from, resolved.walletAddress);
+
+        const onchain = await completeWebWalletDeploy(agentPaymentPublicClient, {
+          transactionHash: txHash,
+          expectedTokenAdmin: resolved.walletAddress,
+          deploymentConfig: body.deploymentConfig,
+        });
+
+        const catalogImage = cfg.tokenConfig.image || undefined;
+        await recordDeploymentCatalog({
+          platform: 'web',
+          deployerId: userId,
+          deployerLabel,
+          feeRecipientAddress: resolved.walletAddress,
+          feeRecipientLabel: feeRecipientLabelForCatalog,
+          tokenName: name,
+          tokenSymbol: symbol,
+          tokenAddress: onchain.tokenAddress,
+          poolId: onchain.poolId,
+          transactionHash: onchain.transactionHash,
+          blockNumber: onchain.blockNumber,
+          feeToSelf: feeToSelfEffective,
+          privyUserId: userId,
+          clientKind: webClientKind,
+          tokenImageUrl: catalogImage,
+          tokenWebsiteUrl: websiteUrl,
+          tokenXUrl: xUrl,
+          chain: deployChain,
+        });
+
+        result = {
+          tokenAddress: onchain.tokenAddress,
+          poolId: onchain.poolId,
+          transactionHash: onchain.transactionHash,
+          blockNumber: onchain.blockNumber,
+          timestamp: Date.now(),
+          chain: deployChain,
+          ...(catalogImage ? { imageUrl: catalogImage } : {}),
+        };
+      } else {
+        result = await deployer.deployToken({
         name,
         symbol,
         walletAddress: resolved.walletAddress,
@@ -892,6 +1036,7 @@ export function registerWebDeployRoutes(
         ...(agentWalletDeploy && agentMetadataJson ? { agentMetadataJson } : {}),
         chain: deployChain,
       });
+      }
 
       const links = deployer.generateTokenLinks(result.tokenAddress, result.chain);
 

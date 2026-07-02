@@ -1,4 +1,4 @@
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   checkDeployCooldown,
@@ -29,6 +29,8 @@ function useDebounced<T>(value: T, ms: number): T {
 
 export function LaunchTab() {
   const { ready, authenticated, login, getAccessToken } = usePrivy();
+  const { wallets } = useWallets();
+  const wallet = wallets[0];
   const [name, setName] = useState('');
   const [symbol, setSymbol] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -57,7 +59,12 @@ export function LaunchTab() {
 
   useEffect(() => {
     fetchWebDeployConfig()
-      .then(setConfig)
+      .then((c) => {
+        setConfig(c);
+        if (c.initialBuyDefaultEth) {
+          setYourBuyEth(c.initialBuyDefaultEth);
+        }
+      })
       .catch(() => undefined);
   }, []);
 
@@ -177,6 +184,12 @@ export function LaunchTab() {
       return;
     }
 
+    const buyEth = yourBuyEth.trim();
+    if (buyEth !== '0' && buyEth !== '' && !wallet?.address) {
+      setError('Connect a wallet to include your initial buy in the launch transaction.');
+      return;
+    }
+
     if (rateLimitNotice) {
       const ok = window.confirm(`${rateLimitNotice}\n\nLaunch anyway?`);
       if (!ok) return;
@@ -190,14 +203,24 @@ export function LaunchTab() {
 
     setSubmitting(true);
     try {
-      const out = await deployToken(token, {
-        name: name.trim(),
-        symbol: symbol.trim().toUpperCase(),
-        imageUrl: resolvedImage,
-        websiteUrl: websiteUrl.trim() || undefined,
-        xUrl: xUrl.trim() || undefined,
-        description: description.trim() || undefined,
-      });
+      const out = await deployToken(
+        token,
+        {
+          name: name.trim(),
+          symbol: symbol.trim().toUpperCase(),
+          imageUrl: resolvedImage,
+          websiteUrl: websiteUrl.trim() || undefined,
+          xUrl: xUrl.trim() || undefined,
+          description: description.trim() || undefined,
+          initialBuyEth: buyEth || '0',
+        },
+        buyEth !== '0' && wallet
+          ? {
+              address: wallet.address,
+              getEthereumProvider: () => wallet.getEthereumProvider(),
+            }
+          : undefined,
+      );
       setLaunchedMeta({ name: name.trim(), symbol: symbol.trim().toUpperCase() });
       setResult(out);
       setName('');
@@ -211,7 +234,7 @@ export function LaunchTab() {
       setRateLimitNotice(null);
       setLiveTickerConflict(null);
       setLiveNameConflict(null);
-      openTokenPage(out.tokenAddress, { buyEth: yourBuyEth.trim() || undefined });
+      openTokenPage(out.tokenAddress);
     } catch (err) {
       if (err instanceof DeployApiError) {
         setError(err.message);
@@ -397,12 +420,21 @@ export function LaunchTab() {
               </div>
 
               <div className="lp-card form-section initial-buy-section">
-                <p className="section-label">Your first buy (optional)</p>
+                <p className="section-label">Your initial buy</p>
                 <p className="muted initial-buy-note">
-                  hood.markets seeds <strong>{platformSeedEth} ETH</strong> into the pool from our
-                  launcher wallet. You can also buy from <strong>your wallet</strong> right after
-                  launch — this adds liquidity and gives you tokens (Uniswap&apos;s app can&apos;t
-                  route hood.markets pools yet).
+                  {yourBuyEth === '0' ? (
+                    <>
+                      Skip your buy — hood.markets seeds{' '}
+                      <strong>{platformSeedEth} ETH</strong> into the pool from our launcher wallet.
+                    </>
+                  ) : (
+                    <>
+                      Your buy is bundled into the <strong>same launch transaction</strong> as token
+                      deployment (Univ4EthDevBuy). You&apos;ll confirm one MetaMask tx on Robinhood
+                      Chain with{' '}
+                      <strong>{yourBuyEth || config?.initialBuyDefaultEth || '0.005'} ETH</strong>.
+                    </>
+                  )}
                 </p>
                 <div className="initial-buy-presets">
                   {['0', '0.001', '0.005', '0.01', '0.02'].map((preset) => (
@@ -425,7 +457,9 @@ export function LaunchTab() {
               disabled={submitting || cannotLaunch || !hasImage}
             >
               {submitting
-                ? 'Launching…'
+                ? yourBuyEth !== '0'
+                  ? 'Confirm in wallet…'
+                  : 'Launching…'
                 : !hasImage
                   ? 'Add a logo to launch'
                   : blockingReserved
