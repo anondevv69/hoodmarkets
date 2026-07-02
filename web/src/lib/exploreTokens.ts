@@ -16,7 +16,6 @@ export interface ExploreToken {
 }
 
 export const NEW_WINDOW_MS = 1000 * 60 * 60 * 24;
-export const TICKER_SLICE = 8;
 
 export function formatTickerAge(createdAt: string): string {
   const ms = Date.now() - new Date(createdAt).getTime();
@@ -59,42 +58,21 @@ export function toExploreTokens(
   });
 }
 
-export type TickerCategory = 'hot' | 'trending' | 'new';
+export function isNewLaunch(createdAt: string): boolean {
+  const ms = Date.now() - new Date(createdAt).getTime();
+  return Number.isFinite(ms) && ms >= 0 && ms < NEW_WINDOW_MS;
+}
 
-/** Interleaved hot / trending / new items for the scrolling ticker. */
-export function buildTickerItems(tokens: ExploreToken[]): Array<ExploreToken & { category: TickerCategory }> {
-  const sorted = [...tokens];
-
-  const hot = [...sorted]
-    .sort((a, b) => b.volume24h - a.volume24h)
-    .slice(0, TICKER_SLICE)
-    .map((t) => ({ ...t, category: 'hot' as const }));
-
-  const trending = [...sorted]
-    .sort((a, b) => (b.change24h ?? -Infinity) - (a.change24h ?? -Infinity))
-    .filter((t) => typeof t.change24h === 'number')
-    .slice(0, TICKER_SLICE)
-    .map((t) => ({ ...t, category: 'trending' as const }));
-
-  const fresh = [...sorted]
-    .filter((t) => t.createdAt && Date.now() - new Date(t.createdAt).getTime() < NEW_WINDOW_MS)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, TICKER_SLICE)
-    .map((t) => ({ ...t, category: 'new' as const }));
-
-  const merged: Array<ExploreToken & { category: TickerCategory }> = [];
-  const max = Math.max(hot.length, trending.length, fresh.length);
-  for (let i = 0; i < max; i++) {
-    if (hot[i]) merged.push(hot[i]);
-    if (trending[i]) merged.push(trending[i]);
-    if (fresh[i]) merged.push(fresh[i]);
-  }
-
-  const seen = new Set<string>();
-  return merged.filter((t) => {
-    const key = t.address.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+/** Tokens for the header ticker — one row per token, newest and movers first. */
+export function buildTickerItems(tokens: ExploreToken[]): ExploreToken[] {
+  return [...tokens]
+    .sort((a, b) => {
+      const aNew = isNewLaunch(a.createdAt);
+      const bNew = isNewLaunch(b.createdAt);
+      if (aNew !== bNew) return aNew ? -1 : 1;
+      const chg = (b.change24h ?? -Infinity) - (a.change24h ?? -Infinity);
+      if (chg !== 0) return chg;
+      return (b.mcap ?? 0) - (a.mcap ?? 0);
+    })
+    .slice(0, 24);
 }

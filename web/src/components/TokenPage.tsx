@@ -11,6 +11,7 @@ import {
 } from '../lib/feeRecipientDisplay';
 import { isV3PoolId } from '../lib/poolId';
 import { buildTradingLinks } from '../lib/tradingLinks';
+import { formatDeploySource } from '../lib/deploySourceDisplay';
 import { closeTokenPage } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
 import { ClaimFeesActions } from './ClaimFeesActions';
@@ -77,6 +78,14 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
         ? feeLabel
         : null;
 
+  const deploySource = formatDeploySource({
+    platform: token.platform,
+    deployerLabel: token.deployerLabel,
+    clientKind: token.clientKind,
+    agentMetadata: token.agentMetadata,
+    deployerId: token.deployerId,
+  });
+
   return (
     <div className="token-page lp-fade-in">
       <button type="button" className="btn btn-ghost token-page-back" onClick={closeTokenPage}>
@@ -129,8 +138,13 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
             <dd>{new Date(token.createdAt).toLocaleString()}</dd>
           </div>
           <div>
-            <dt>Deployed by</dt>
-            <dd>{token.deployerLabel || 'Unknown'}</dd>
+            <dt>Launched via</dt>
+            <dd>
+              <span className="lp-display">{deploySource.title}</span>
+              {deploySource.detail ? (
+                <p className="muted token-fee-note">{deploySource.detail}</p>
+              ) : null}
+            </dd>
           </div>
           <div className="token-detail-span-2">
             <dt>Fee recipient</dt>
@@ -151,7 +165,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               )}
               {feeNote ? <p className="muted token-fee-note">{feeNote}</p> : null}
               <div className="token-trade-links">
-                <p className="muted token-trade-links-label">Buy / track</p>
                 <TradingLinksRow links={links} />
               </div>
             </dd>

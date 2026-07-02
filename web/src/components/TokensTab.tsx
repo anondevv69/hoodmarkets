@@ -1,11 +1,9 @@
 import { useMemo, useState } from 'react';
 import { shortenAddress } from '../chain';
-import type { DexTokenMetrics } from '../lib/dexscreenerVolume';
+import { formatUsdVol, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import type { ExploreToken } from '../lib/exploreTokens';
 import { openTokenPage } from '../lib/tokenRoute';
-import { buildTradingLinks } from '../lib/tradingLinks';
 import { CopyButton } from './CopyButton';
-import { DexMetricsStrip } from './DexMetricsStrip';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 
@@ -18,7 +16,7 @@ function ExploreRow({
 }) {
   const d = token.deployment;
   const sym = token.symbol;
-  const links = buildTradingLinks(d.tokenAddress, metrics);
+  const mcap = metrics?.marketCapUsd ?? metrics?.fdvUsd ?? token.mcap;
 
   function openDetails() {
     openTokenPage(d.tokenAddress);
@@ -66,21 +64,7 @@ function ExploreRow({
         </div>
       </div>
       <div className="explore-market-cell">
-        <DexMetricsStrip metrics={metrics} />
-      </div>
-      <div className="explore-links" onClick={stopRowClick} onKeyDown={stopRowClick}>
-        <button type="button" className="btn btn-primary btn-sm" onClick={openDetails}>
-          View
-        </button>
-        <a
-          className="btn btn-ghost btn-sm"
-          href={links.dexscreener}
-          target="_blank"
-          rel="noreferrer"
-          onClick={stopRowClick}
-        >
-          Trade
-        </a>
+        <span className="lp-mono explore-mcap">{formatUsdVol(mcap)}</span>
       </div>
     </li>
   );
@@ -145,8 +129,7 @@ export function TokensTab({
         <div className="lp-card explore-card">
           <div className="explore-head">
             <span>Token</span>
-            <span>Market</span>
-            <span style={{ justifySelf: 'end' }}>Links</span>
+            <span>Market cap</span>
           </div>
           <ul className="token-list">
             {filtered.map((t) => (
