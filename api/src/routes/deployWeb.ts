@@ -21,6 +21,11 @@ import {
   MEME_TOKEN_DESCRIPTION_TAGLINE,
   RATE_LIMIT_FORCED_DEAD_FEE_LABEL,
 } from '../lib/memeFeeRecipient.js';
+import {
+  maxFeeRecipientDeploysPerEasternDay,
+  maxThirdPartyFeeToSameWalletPerRollingWindow,
+  thirdPartyFeeRecipientLimitProceedNotice,
+} from '../lib/feeRecipientLimit.js';
 import { applyDeployRateLimitBurn } from '../lib/deployRateLimitBurn.js';
 import {
   formatDeployCooldownConflictMessage,
@@ -346,9 +351,16 @@ async function previewWebDeployRateLimit(
     privyUserId: !anonymousNoDev && !agentWalletDeploy ? userId : null,
   });
 
+  const burnForced = limited.rateLimitForcedBurn;
+  const notice = burnForced
+    ? fee.kind === 'other'
+      ? thirdPartyFeeRecipientLimitProceedNotice(deployRateLimitRollingHours())
+      : DEPLOY_LIMIT_MEME_PROCEED_USER_NOTICE
+    : null;
+
   return {
-    rateLimitForcedPlatformFee: limited.rateLimitForcedBurn,
-    notice: limited.rateLimitForcedBurn ? DEPLOY_LIMIT_MEME_PROCEED_USER_NOTICE : null,
+    rateLimitForcedPlatformFee: burnForced,
+    notice,
   };
 }
 
@@ -375,6 +387,9 @@ export function registerWebDeployRoutes(
       globalTickerCooldownHours: globalTickerCooldownHours(),
       maxSelfFeeDeploysPer24h: maxSelfFeeDeploysPerRollingWindow(),
       deployRateLimitHours: deployRateLimitRollingHours(),
+      maxFeeRecipientDeploysPerEasternDay: maxFeeRecipientDeploysPerEasternDay(),
+      maxThirdPartyFeeToWalletPer24h: maxThirdPartyFeeToSameWalletPerRollingWindow(),
+      thirdPartyFeeDeployEnabled: true,
       platformFeeBps: config.platformFeeBps,
       platformFeePercent: Number((config.platformFeeBps / 100).toFixed(2)),
       /** Embedded in HoodMarkets V3 LpLocker when using simple launch. */

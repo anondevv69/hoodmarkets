@@ -67,6 +67,11 @@ export interface WebDeployConfig {
   globalTickerCooldownHours: number;
   maxSelfFeeDeploysPer24h: number;
   deployRateLimitHours: number;
+  /** Max tokens that can pay fees to the same wallet per Eastern day (0 = unlimited). */
+  maxFeeRecipientDeploysPerEasternDay: number;
+  /** Rolling cap on third-party fee assigns to the same wallet (0 = off). */
+  maxThirdPartyFeeToWalletPer24h: number;
+  thirdPartyFeeDeployEnabled: boolean;
   platformFeeBps: number;
   platformFeePercent: number;
   /** HoodMarkets V3 locker embeds 5% to platform wallet (not configurable per token). */
@@ -163,6 +168,10 @@ export interface LaunchPayload {
   initialBuyEth?: string;
   /** `simple` = Uniswap V3 (DexScreener). `pro` = HoodMarkets V4 hooks. */
   launchMode?: 'simple' | 'pro';
+  /** `self` = your Privy wallet (default). `other` = fees go to pasted wallet / @handle. */
+  feeTarget?: 'self' | 'other';
+  recipientPaste?: string;
+  recipientAddress?: string;
 }
 
 export type WalletDeployPrepare = {
@@ -180,8 +189,24 @@ export interface DeployPreviewResult {
   notice: string | null;
 }
 
+function deployFeeBody(payload: Pick<LaunchPayload, 'feeTarget' | 'recipientPaste' | 'recipientAddress'>) {
+  const feeTarget = payload.feeTarget === 'other' ? 'other' : 'self';
+  if (feeTarget === 'self') {
+    return { feeTarget: 'self' as const, chain: 'robinhood' as const };
+  }
+  const paste = payload.recipientPaste?.trim();
+  const addr = payload.recipientAddress?.trim();
+  return {
+    feeTarget: 'other' as const,
+    chain: 'robinhood' as const,
+    ...(paste ? { recipientPaste: paste } : {}),
+    ...(addr ? { recipientAddress: addr } : {}),
+  };
+}
+
 export async function fetchDeployPreview(
   token: string,
+  payload: Pick<LaunchPayload, 'feeTarget' | 'recipientPaste' | 'recipientAddress'> = {},
 ): Promise<DeployPreviewResult> {
   const res = await fetch(`${API_BASE}/api/deploy-preview`, {
     method: 'POST',
@@ -189,7 +214,7 @@ export async function fetchDeployPreview(
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ feeTarget: 'self', chain: 'robinhood' }),
+    body: JSON.stringify(deployFeeBody(payload)),
   });
   return parseJson<DeployPreviewResult>(res);
 }
@@ -210,8 +235,7 @@ async function postDeploy(
     },
     body: JSON.stringify({
       ...payload,
-      feeTarget: 'self',
-      chain: 'robinhood',
+      ...deployFeeBody(payload),
     }),
   });
 

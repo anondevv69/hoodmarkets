@@ -393,7 +393,9 @@ export const config = {
    */
   maxFeeRecipientDeploysPerEasternDay: (() => {
     const raw = process.env.MAX_FEE_RECIPIENT_DEPLOYS_PER_EASTERN_DAY;
-    if (raw === undefined || raw.trim() === '') return 0;
+    if (raw === undefined || raw.trim() === '') {
+      return process.env.WEB_ONLY_MODE === 'true' ? 1 : 0;
+    }
     const n = parseInt(raw, 10);
     if (!Number.isFinite(n)) return 0;
     return n < 0 ? 0 : n;
@@ -443,7 +445,9 @@ export const config = {
    */
   maxThirdPartyFeeToSameWalletPerRollingWindow: (() => {
     const raw = process.env.MAX_THIRD_PARTY_FEE_TO_WALLET_PER_24H;
-    if (raw === undefined || raw.trim() === '') return 0;
+    if (raw === undefined || raw.trim() === '') {
+      return process.env.WEB_ONLY_MODE === 'true' ? 1 : 0;
+    }
     const n = parseInt(raw, 10);
     if (!Number.isFinite(n)) return 0;
     return n < 0 ? 0 : n;
