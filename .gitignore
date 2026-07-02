@@ -19,3 +19,5 @@ contracts/lib/
 
 web/.env
 web/dist/
+.vercel
+.env*.local
