@@ -45,6 +45,7 @@ export interface DeploymentCatalogRow {
   tokenImageUrl?: string;
   tokenWebsiteUrl?: string;
   tokenXUrl?: string;
+  tokenDescription?: string;
   poolId: string;
   transactionHash: string;
   blockNumber: string;
@@ -105,6 +106,7 @@ export interface RecordDeploymentCatalogInput {
   tokenImageUrl?: string;
   tokenWebsiteUrl?: string;
   tokenXUrl?: string;
+  tokenDescription?: string;
   /** `base` | `ethereum` | `robinhood`. */
   chain?: string;
 }
@@ -654,6 +656,18 @@ export function initDeploymentCatalogDb(): void {
       },
     );
     db!.run(
+      `ALTER TABLE deployment_catalog ADD COLUMN token_description TEXT NOT NULL DEFAULT ''`,
+      (err) => {
+        if (
+          err &&
+          !String(err.message).toLowerCase().includes('duplicate') &&
+          !String(err.message).toLowerCase().includes('already exists')
+        ) {
+          logger.warn('deploymentCatalog: token_description column migration:', err.message);
+        }
+      },
+    );
+    db!.run(
       `CREATE TABLE IF NOT EXISTS agent_payment_tx (
         tx_hash TEXT PRIMARY KEY NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -732,6 +746,7 @@ export async function recordDeploymentCatalog(
   const tokenImageUrl = resolveTokenImageUrl(rawImage)?.slice(0, 1024) ?? rawImage;
   const tokenWebsiteUrl = (input.tokenWebsiteUrl ?? '').trim().slice(0, 1024);
   const tokenXUrl = (input.tokenXUrl ?? '').trim().slice(0, 1024);
+  const tokenDescription = (input.tokenDescription ?? '').trim().slice(0, 2000);
   const chain =
     input.chain === 'ethereum'
       ? 'ethereum'
@@ -745,8 +760,8 @@ export async function recordDeploymentCatalog(
         platform, deployer_id, deployer_label, fee_recipient_address,
         token_name, token_symbol, token_address, pool_id, transaction_hash, block_number, source_url,
         fee_recipient_label, fee_to_self, privy_user_id, client_kind, agent_metadata, chain, token_image_url,
-        token_website_url, token_x_url
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        token_website_url, token_x_url, token_description
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.platform.slice(0, 64),
         input.deployerId.slice(0, 256),
@@ -768,6 +783,7 @@ export async function recordDeploymentCatalog(
         tokenImageUrl,
         tokenWebsiteUrl,
         tokenXUrl,
+        tokenDescription,
       ],
       (err) => {
         if (err) {
@@ -863,6 +879,7 @@ export async function listDeploymentCatalog(
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
               COALESCE(dc.token_x_url, '') AS tokenXUrl,
+              COALESCE(dc.token_description, '') AS tokenDescription,
               dc.token_address AS tokenAddress, dc.pool_id AS poolId, dc.transaction_hash AS transactionHash,
               dc.block_number AS blockNumber,
               COALESCE(dc.source_url, '') AS sourceUrl,
@@ -932,6 +949,7 @@ export async function listDeploymentCatalogByFeeRecipient(
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
               COALESCE(dc.token_x_url, '') AS tokenXUrl,
+              COALESCE(dc.token_description, '') AS tokenDescription,
               dc.token_address AS tokenAddress, dc.pool_id AS poolId, dc.transaction_hash AS transactionHash,
               dc.block_number AS blockNumber,
               COALESCE(dc.source_url, '') AS sourceUrl,
@@ -1016,6 +1034,7 @@ export async function listDeploymentCatalogByDeployerPlatformHandle(
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
               COALESCE(dc.token_x_url, '') AS tokenXUrl,
+              COALESCE(dc.token_description, '') AS tokenDescription,
               dc.token_address AS tokenAddress, dc.pool_id AS poolId, dc.transaction_hash AS transactionHash,
               dc.block_number AS blockNumber,
               COALESCE(dc.source_url, '') AS sourceUrl,
@@ -1080,6 +1099,7 @@ export async function listDeploymentCatalogByDeployer(
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
               COALESCE(dc.token_x_url, '') AS tokenXUrl,
+              COALESCE(dc.token_description, '') AS tokenDescription,
               dc.token_address AS tokenAddress, dc.pool_id AS poolId, dc.transaction_hash AS transactionHash,
               dc.block_number AS blockNumber,
               COALESCE(dc.source_url, '') AS sourceUrl,
@@ -1144,6 +1164,7 @@ export async function listDeploymentCatalogForUser(
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
               COALESCE(dc.token_x_url, '') AS tokenXUrl,
+              COALESCE(dc.token_description, '') AS tokenDescription,
               dc.token_address AS tokenAddress, dc.pool_id AS poolId, dc.transaction_hash AS transactionHash,
               dc.block_number AS blockNumber,
               COALESCE(dc.source_url, '') AS sourceUrl,
@@ -1189,6 +1210,7 @@ const SELECT_DEPLOYMENT_ROW = `dc.id, dc.created_at AS createdAt, dc.platform, d
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
               COALESCE(dc.token_x_url, '') AS tokenXUrl,
+              COALESCE(dc.token_description, '') AS tokenDescription,
               dc.token_address AS tokenAddress, dc.pool_id AS poolId, dc.transaction_hash AS transactionHash,
               dc.block_number AS blockNumber,
               COALESCE(dc.source_url, '') AS sourceUrl,

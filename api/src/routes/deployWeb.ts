@@ -1022,6 +1022,7 @@ export function registerWebDeployRoutes(
           tokenImageUrl: catalogImage,
           tokenWebsiteUrl: websiteUrl,
           tokenXUrl: xUrl,
+          tokenDescription: userDescription || undefined,
           chain: deployChain,
         });
 
@@ -1056,6 +1057,7 @@ export function registerWebDeployRoutes(
         ...(!anonymousNoDev && !agentWalletDeploy ? { privyUserId: userId } : {}),
         clientKind: webClientKind,
         ...(agentWalletDeploy && agentMetadataJson ? { agentMetadataJson } : {}),
+        tokenDescription: userDescription || undefined,
         chain: deployChain,
       });
       }
