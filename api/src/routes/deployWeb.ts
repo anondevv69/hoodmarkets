@@ -51,7 +51,7 @@ import {
 } from '../lib/selfFeeLimit.js';
 import { runAfterPriorWebSelfFeeWork } from '../lib/webSelfFeeQueue.js';
 import { runAfterPriorWebThirdPartyFeeWork } from '../lib/webThirdPartyFeeQueue.js';
-import { resolveAgentWalletAuth } from '../lib/agentWalletDeployAuth.js';
+import { resolveAgentWalletAuth, normalizeAgentChannel } from '../lib/agentWalletDeployAuth.js';
 import { agentDeploySuccessReplyHint, resolveLaunchTweetUrl } from '../lib/agentDeployImage.js';
 import { verifyDeploySignature } from '../lib/agentWalletAuth.js';
 import {
@@ -115,6 +115,10 @@ import {
   RATE_LIMIT_FORCED_PLATFORM_FEE_LABEL,
   webDeployRateLimitPlatformNotice,
 } from '../lib/webDeployRateLimit.js';
+import {
+  agentXDeployLimitErrorOrNull,
+  isAgentXChannel,
+} from '../lib/agentXDeployLimit.js';
 
 function walletCompleteResultFromCatalogRow(
   row: DeploymentCatalogRow,
@@ -638,11 +642,15 @@ export function registerWebDeployRoutes(
       let agentMetadataJson: string | undefined;
       let agentProviderForLabel = '';
       let agentAuthIsPayment = false;
+      let agentChannel: string | null = null;
 
       if (isAgentWalletDeploy) {
         webClientKind = 'agent';
         const agentAuth = await resolveAgentWalletAuth(req.headers as any, body);
         agentVerifiedFee = agentAuth.walletAddress;
+        agentChannel =
+          agentAuth.agentChannel ??
+          normalizeAgentChannel(req.headers as any, body);
         agentMetadataJson = serializeAgentDeployMetadata({
           ...body,
           ...(launchTweetUrl ? { launchTweetUrl } : {}),
@@ -764,7 +772,13 @@ export function registerWebDeployRoutes(
       let rateLimitForcedPlatformFee = false;
       let rateLimitForcedBurn = false;
 
-      if (config.webOnlyMode && (fee.kind === 'self' || agentWalletDeploy)) {
+      if (agentWalletDeploy && isAgentXChannel(agentChannel)) {
+        const xLimitErr = await agentXDeployLimitErrorOrNull(userId);
+        if (xLimitErr) {
+          res.status(409).json({ error: xLimitErr });
+          return;
+        }
+      } else if (config.webOnlyMode && (fee.kind === 'self' || agentWalletDeploy)) {
         const limited = await applyWebDeployRateLimit({
           walletAddress: resolved.walletAddress,
           feeRecipientLabel: resolved.feeRecipientLabel,

@@ -29,6 +29,11 @@ import {
   webDeployRateLimitPlatformNotice,
 } from './webDeployRateLimit.js';
 import { deployRateLimitRollingHours } from './selfFeeLimit.js';
+import {
+  agentXDeployLimitErrorOrNull,
+  agentXDeployLimitReplyHint,
+  isAgentXChannel,
+} from './agentXDeployLimit.js';
 export type AgentPreflightIssueCode =
   | 'invalid_name'
   | 'invalid_symbol'
@@ -41,6 +46,7 @@ export type AgentPreflightIssueCode =
   | 'launch_mode_unavailable'
   | 'rate_limit_would_force_burn'
   | 'rate_limit_would_force_platform_fee'
+  | 'agent_x_daily_limit'
   | 'third_party_rolling_warning';
 
 export type AgentPreflightIssue = {
@@ -59,6 +65,8 @@ export type AgentDeployPreflightInput = {
   name: string;
   symbol: string;
   launchMode?: 'simple' | 'pro';
+  /** `x` for Bankr/X thread launches — subject to daily free-launch cap. */
+  agentChannel?: string | null;
 };
 
 export type AgentDeployPreflightResult = {
@@ -240,20 +248,32 @@ export async function runAgentDeployPreflight(
   }
 
   if (config.webOnlyMode) {
-    const limited = await applyWebDeployRateLimit({
-      walletAddress: wallet,
-      feeToSelf: true,
-      deployerId,
-      privyUserId: null,
-    });
-    if (limited.rateLimitForcedPlatformFee) {
-      const notice = webDeployRateLimitPlatformNotice();
-      warnings.push({
-        code: 'rate_limit_would_force_platform_fee',
-        severity: 'warn',
-        message: notice,
-        replyHint: notice,
+    if (isAgentXChannel(input.agentChannel)) {
+      const xLimitErr = await agentXDeployLimitErrorOrNull(deployerId);
+      if (xLimitErr) {
+        blocks.push({
+          code: 'agent_x_daily_limit',
+          severity: 'block',
+          message: xLimitErr,
+          replyHint: agentXDeployLimitReplyHint(),
+        });
+      }
+    } else {
+      const limited = await applyWebDeployRateLimit({
+        walletAddress: wallet,
+        feeToSelf: true,
+        deployerId,
+        privyUserId: null,
       });
+      if (limited.rateLimitForcedPlatformFee) {
+        const notice = webDeployRateLimitPlatformNotice();
+        warnings.push({
+          code: 'rate_limit_would_force_platform_fee',
+          severity: 'warn',
+          message: notice,
+          replyHint: notice,
+        });
+      }
     }
   } else {
     const limited = await applyDeployRateLimitBurn({

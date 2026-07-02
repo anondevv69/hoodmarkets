@@ -11,7 +11,7 @@ import {
   resolveAgentTokenLookup,
   runAgentDeployPreflight,
 } from '../lib/agentDeployPreflight.js';
-import { agentDeploySkipCaptchaForRequest } from '../lib/agentWalletDeployAuth.js';
+import { agentDeploySkipCaptchaForRequest, normalizeAgentChannel } from '../lib/agentWalletDeployAuth.js';
 import {
   agentDeployConfirmReplyHint,
   buildAgentDeployConfirmSummary,
@@ -74,6 +74,13 @@ function agentImageInputFromBody(body: Record<string, unknown>) {
     tweetId: body.tweetId ?? body.tweet_id ?? body.statusId ?? body.status_id,
     tweetUrl: body.tweetUrl ?? body.tweet_url,
   };
+}
+
+function agentChannelFromRequest(req: Request, body?: Record<string, unknown>): string | null {
+  return normalizeAgentChannel(
+    req.headers as { [k: string]: string | string[] | undefined },
+    body ?? (req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {}),
+  );
 }
 
 function launchTypeFromPoolId(poolId: string | undefined): 'simple' | 'pro' | 'unknown' {
@@ -194,6 +201,7 @@ export function registerAgentBankrRoutes(app: Express): void {
       name,
       symbol: symbolRaw,
       launchMode,
+      agentChannel: agentChannelFromRequest(req),
     });
 
     res.status(preflight.canDeploy ? 200 : 409).json({
@@ -229,6 +237,7 @@ export function registerAgentBankrRoutes(app: Express): void {
       name,
       symbol,
       launchMode,
+      agentChannel: agentChannelFromRequest(req, body),
     });
 
     const resolvedImage = await resolveAgentDeployImageUrlAsync(agentImageInputFromBody(body));
@@ -377,6 +386,7 @@ export function registerAgentBankrRoutes(app: Express): void {
       name,
       symbol,
       launchMode,
+      agentChannel: resolvedChannel,
     });
 
     if (!preflight.canDeploy) {
