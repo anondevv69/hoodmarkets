@@ -104,11 +104,13 @@ export function TokensTab({
   metricsByAddress,
   loading,
   error,
+  catalogTruncated = false,
 }: {
   exploreTokens: ExploreToken[];
   metricsByAddress: Record<string, DexTokenMetrics | undefined>;
   loading: boolean;
   error: string | null;
+  catalogTruncated?: boolean;
 }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ExploreSort>('mcap');
@@ -156,6 +158,14 @@ export function TokensTab({
             Newest
           </button>
         </div>
+        {exploreTokens.length > 0 ? (
+          <p className="explore-count muted">
+            {exploreTokens.length} token{exploreTokens.length === 1 ? '' : 's'}
+            {catalogTruncated
+              ? ' shown (oldest hidden — search by contract if you need a specific token)'
+              : ''}
+          </p>
+        ) : null}
       </div>
 
       {filtered.length === 0 ? (

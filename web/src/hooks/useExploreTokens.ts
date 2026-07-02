@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchDeployments, type Deployment } from '../api';
+import { fetchAllDeploymentsForExplore, type Deployment } from '../api';
 import {
   fetchTokenMetricsFromDexscreener,
   type DexTokenMetrics,
@@ -15,12 +15,14 @@ export function useExploreTokens(enabled: boolean) {
   >({});
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
+  const [catalogTruncated, setCatalogTruncated] = useState(false);
 
   const load = useCallback(async () => {
     if (!enabled) return;
     try {
-      const rows = await fetchDeployments(50, 0);
+      const { deployments: rows, truncated } = await fetchAllDeploymentsForExplore();
       setDeployments(rows);
+      setCatalogTruncated(truncated);
       const addresses = rows.map((r) => r.tokenAddress);
       if (addresses.length > 0) {
         const metrics = await fetchTokenMetricsFromDexscreener(addresses);
@@ -49,5 +51,5 @@ export function useExploreTokens(enabled: boolean) {
 
   const tokens: ExploreToken[] = toExploreTokens(deployments, metricsByAddress);
 
-  return { tokens, deployments, metricsByAddress, loading, error, refresh: load };
+  return { tokens, deployments, metricsByAddress, loading, error, catalogTruncated, refresh: load };
 }

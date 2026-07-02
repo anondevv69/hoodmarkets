@@ -1075,6 +1075,12 @@ label {
   background: var(--accent-glow);
 }
 
+.explore-count {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.78rem;
+}
+
 .explore-card {
   overflow: hidden;
 }
