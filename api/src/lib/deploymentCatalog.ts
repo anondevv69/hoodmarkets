@@ -9,9 +9,11 @@ import { getEasternDayRangeUtc, toSqliteUtc } from './easternDay.js';
 import { notifyTelegramDeploymentFeed } from './telegramFeed.js';
 import { resolveTokenImageUrl } from './tokenImageUrl.js';
 import {
-  catalogNotDeprecatedFactoryClause,
+  catalogProductionVisibleClause,
   isDeprecatedV3CatalogPurgeComplete,
+  isLegacyTestCatalogPurgeComplete,
   markDeprecatedV3CatalogPurgeComplete,
+  markLegacyTestCatalogPurgeComplete,
   purgeDeprecatedV3CatalogEntries,
 } from './deprecatedV3Catalog.js';
 
@@ -122,7 +124,7 @@ export interface RecordDeploymentCatalogInput {
 }
 
 const DEAD_FEE_LOWER = BASE_DEAD_FEE_RECIPIENT.toLowerCase();
-const VISIBLE_CATALOG = catalogNotDeprecatedFactoryClause('dc');
+const VISIBLE_CATALOG = catalogProductionVisibleClause('dc');
 
 function visibleCatalogSql(): string {
   return VISIBLE_CATALOG.sql;
@@ -1755,10 +1757,8 @@ export async function hasGlobalTickerDeploymentInRollingHours(
       `SELECT 1 AS ok FROM deployment_catalog
        WHERE upper(trim(replace(token_symbol, '$', ''))) = ?
          AND datetime(created_at) >= datetime('now', ?)
-         AND (
-           TRIM(COALESCE(factory_address, '')) = ''
-           OR lower(factory_address) != lower(?)
-         )
+         AND TRIM(COALESCE(factory_address, '')) != ''
+         AND lower(factory_address) != lower(?)
        LIMIT 1`,
       [sym, timeMod, visibleCatalogParam()],
       (err, row: { ok: number } | undefined) => {
@@ -1792,10 +1792,8 @@ export async function hasGlobalNameDeploymentInRollingHours(
       `SELECT 1 AS ok FROM deployment_catalog
        WHERE lower(trim(replace(replace(token_name, char(9), ' '), char(10), ' '))) = ?
          AND datetime(created_at) >= datetime('now', ?)
-         AND (
-           TRIM(COALESCE(factory_address, '')) = ''
-           OR lower(factory_address) != lower(?)
-         )
+         AND TRIM(COALESCE(factory_address, '')) != ''
+         AND lower(factory_address) != lower(?)
        LIMIT 1`,
       [normalized, timeMod, visibleCatalogParam()],
       (err, row: { ok: number } | undefined) => {
@@ -2053,6 +2051,60 @@ export async function deleteDeploymentCatalogByTokenAddresses(
       },
     );
   });
+}
+
+/** One-time purge of pre-production catalog rows (empty factory_address — V4 tests, etc.). */
+export async function runLegacyTestCatalogPurgeIfNeeded(): Promise<void> {
+  if (isLegacyTestCatalogPurgeComplete()) return;
+  if (!db) return;
+
+  try {
+    const removed = await deleteLegacyTestCatalogRows();
+    markLegacyTestCatalogPurgeComplete();
+    logger.info('Legacy test catalog purge complete', { removed });
+  } catch (err: unknown) {
+    logger.warn('Legacy test catalog purge failed:', err instanceof Error ? err.message : err);
+  }
+}
+
+export async function deleteLegacyTestCatalogRows(): Promise<number> {
+  if (!db) return 0;
+  return new Promise((resolve) => {
+    db!.run(
+      `DELETE FROM deployment_catalog WHERE TRIM(COALESCE(factory_address, '')) = ''`,
+      function (this: { changes: number }, err) {
+        if (err) {
+          logger.warn('deploymentCatalog deleteLegacyTestCatalogRows failed:', err.message);
+          resolve(0);
+          return;
+        }
+        resolve(this.changes);
+      },
+    );
+  });
+}
+
+export async function countLegacyTestCatalogRows(): Promise<number> {
+  if (!db) return 0;
+  return new Promise((resolve) => {
+    db!.get(
+      `SELECT COUNT(*) AS c FROM deployment_catalog WHERE TRIM(COALESCE(factory_address, '')) = ''`,
+      (err, row: { c: number } | undefined) => {
+        if (err) {
+          logger.warn('deploymentCatalog countLegacyTestCatalogRows failed:', err.message);
+          resolve(0);
+          return;
+        }
+        resolve(Number(row?.c ?? 0));
+      },
+    );
+  });
+}
+
+/** Run all one-time catalog purges (deprecated V3 factory, then legacy test rows). */
+export async function runCatalogPurgesIfNeeded(rpcUrl: string): Promise<void> {
+  await runDeprecatedV3CatalogPurgeIfNeeded(rpcUrl);
+  await runLegacyTestCatalogPurgeIfNeeded();
 }
 
 /** One-time purge of test tokens from the deprecated V3 factory (idempotent marker in `.data`). */

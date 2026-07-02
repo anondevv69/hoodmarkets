@@ -9,6 +9,7 @@ import { robinhood } from './robinhoodChain.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '../../.data');
 const purgeMarkerPath = path.join(dataDir, 'deprecated-v3-catalog-purged.marker');
+const legacyPurgeMarkerPath = path.join(dataDir, 'legacy-test-catalog-purged.marker');
 
 /** Previous HoodMarketsV3 factory — test launches before 2026-07 cutover. */
 export const DEPRECATED_HOODMARKETS_V3_FACTORY =
@@ -18,17 +19,22 @@ export function deprecatedV3FactoryAddress(): Address {
   return getAddress(DEPRECATED_HOODMARKETS_V3_FACTORY);
 }
 
-/** SQL fragment + bind param to hide rows tagged with the deprecated V3 factory. */
-export function catalogNotDeprecatedFactoryClause(
+/** SQL fragment: only catalog rows with a known factory, excluding deprecated V3. */
+export function catalogProductionVisibleClause(
   tableAlias = 'dc',
 ): { sql: string; param: string } {
   return {
-    sql: ` AND (
-      TRIM(COALESCE(${tableAlias}.factory_address, '')) = ''
-      OR lower(${tableAlias}.factory_address) != lower(?)
-    ) `,
+    sql: ` AND TRIM(COALESCE(${tableAlias}.factory_address, '')) != ''
+           AND lower(${tableAlias}.factory_address) != lower(?) `,
     param: DEPRECATED_HOODMARKETS_V3_FACTORY,
   };
+}
+
+/** @deprecated Use {@link catalogProductionVisibleClause}. */
+export function catalogNotDeprecatedFactoryClause(
+  tableAlias = 'dc',
+): { sql: string; param: string } {
+  return catalogProductionVisibleClause(tableAlias);
 }
 
 export function isDeprecatedV3CatalogPurgeComplete(): boolean {
@@ -37,6 +43,14 @@ export function isDeprecatedV3CatalogPurgeComplete(): boolean {
 
 export function markDeprecatedV3CatalogPurgeComplete(): void {
   writeFileSync(purgeMarkerPath, new Date().toISOString(), 'utf8');
+}
+
+export function isLegacyTestCatalogPurgeComplete(): boolean {
+  return existsSync(legacyPurgeMarkerPath);
+}
+
+export function markLegacyTestCatalogPurgeComplete(): void {
+  writeFileSync(legacyPurgeMarkerPath, new Date().toISOString(), 'utf8');
 }
 
 /** True when the deploy tx emitted TokenCreated from the deprecated V3 factory. */
