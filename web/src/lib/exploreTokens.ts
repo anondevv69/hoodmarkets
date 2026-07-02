@@ -11,6 +11,7 @@ export interface ExploreToken {
   change24h?: number;
   mcap?: number;
   liquidityUsd?: number;
+  txns24h?: number;
   deployment: Deployment;
 }
 
@@ -30,7 +31,8 @@ export function toExploreTokens(
       createdAt: d.createdAt,
       volume24h: m?.volumeH24Usd ?? 0,
       change24h: m?.change24hPct,
-      mcap: m?.fdvUsd,
+      mcap: m?.marketCapUsd ?? m?.fdvUsd,
+      txns24h: m?.txnsH24,
       liquidityUsd: m?.liquidityUsd,
       deployment: d,
     };

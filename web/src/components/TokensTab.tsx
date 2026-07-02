@@ -3,6 +3,7 @@ import { shortenAddress } from '../chain';
 import { formatUsdVol, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import type { ExploreToken } from '../lib/exploreTokens';
 import { openTokenPage } from '../lib/tokenRoute';
+import { buildTradingLinks } from '../lib/tradingLinks';
 import { CopyButton } from './CopyButton';
 import { DexMetricsStrip } from './DexMetricsStrip';
 import { TokenAvatar } from './TokenAvatar';
@@ -17,7 +18,9 @@ function ExploreRow({
 }) {
   const d = token.deployment;
   const sym = token.symbol;
-  const mc = metrics?.fdvUsd;
+  const mc = metrics?.marketCapUsd ?? metrics?.fdvUsd ?? token.mcap;
+  const chg = metrics?.change24hPct ?? token.change24h;
+  const links = buildTradingLinks(d.tokenAddress, metrics);
 
   function openDetails() {
     openTokenPage(d.tokenAddress);
@@ -50,9 +53,11 @@ function ExploreRow({
             {d.tokenName} <span className="lp-mono muted">${sym}</span>
           </div>
           <div className="explore-metrics">
-            <span className="lp-mono">{shortenAddress(d.tokenAddress)}</span>
-            <span onClick={stopRowClick} onKeyDown={stopRowClick}>
-              <CopyButton text={d.tokenAddress} />
+            <span className="token-address-row">
+              <span className="lp-mono">{shortenAddress(d.tokenAddress)}</span>
+              <span onClick={stopRowClick} onKeyDown={stopRowClick}>
+                <CopyButton text={d.tokenAddress} />
+              </span>
             </span>
             {' · '}
             {new Date(d.createdAt).toLocaleString()}
@@ -63,22 +68,37 @@ function ExploreRow({
         </div>
       </div>
       <div>
-        <div className="lp-mono" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+        <div className="lp-mono explore-mcap" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
           {mc && mc > 0 ? formatUsdVol(mc) : '—'}
         </div>
+        {typeof chg === 'number' ? (
+          <div
+            className="lp-mono"
+            style={{
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              color: chg >= 0 ? 'var(--accent)' : 'var(--danger)',
+            }}
+          >
+            {chg >= 0 ? '+' : ''}
+            {chg.toFixed(1)}% 24h
+          </div>
+        ) : null}
         <DexMetricsStrip metrics={metrics} />
       </div>
       <div className="explore-links" onClick={stopRowClick} onKeyDown={stopRowClick}>
         <button type="button" className="btn btn-primary btn-sm" onClick={openDetails}>
           View
         </button>
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          onClick={() => openTokenPage(d.tokenAddress, { buyEth: '0.005' })}
+        <a
+          className="btn btn-ghost btn-sm"
+          href={links.dexscreener}
+          target="_blank"
+          rel="noreferrer"
+          onClick={stopRowClick}
         >
-          Buy
-        </button>
+          Trade
+        </a>
       </div>
     </li>
   );
@@ -99,13 +119,15 @@ export function TokensTab({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return exploreTokens;
-    return exploreTokens.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.symbol.toLowerCase().includes(q) ||
-        t.address.toLowerCase().includes(q),
-    );
+    const base = q
+      ? exploreTokens.filter(
+          (t) =>
+            t.name.toLowerCase().includes(q) ||
+            t.symbol.toLowerCase().includes(q) ||
+            t.address.toLowerCase().includes(q),
+        )
+      : exploreTokens;
+    return [...base].sort((a, b) => (b.mcap ?? 0) - (a.mcap ?? 0));
   }, [exploreTokens, query]);
 
   if (loading) return <p className="muted">Loading tokens…</p>;
@@ -124,10 +146,18 @@ export function TokensTab({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="empty">
-          {exploreTokens.length === 0
-            ? 'No tokens launched yet. Be the first.'
-            : 'No tokens match your search.'}
+        <div className="empty-state">
+          <div className="empty-state-icon" aria-hidden>
+            🔍
+          </div>
+          <p className="empty-state-title">
+            {exploreTokens.length === 0 ? 'No tokens launched yet' : 'No tokens match your search'}
+          </p>
+          <p className="muted empty-state-sub">
+            {exploreTokens.length === 0
+              ? 'Be the first to launch on Robinhood Chain.'
+              : 'Try a different name, symbol, or contract address.'}
+          </p>
         </div>
       ) : (
         <div className="lp-card explore-card">

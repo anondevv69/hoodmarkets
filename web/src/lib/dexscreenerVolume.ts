@@ -30,6 +30,8 @@ interface DexPair {
   fdv?: number;
   marketCap?: number;
   liquidity?: { usd?: number };
+  txns?: { h24?: { buys?: number; sells?: number } };
+  priceUsd?: string;
 }
 
 function isRobinhoodPair(p: DexPair): boolean {
@@ -63,8 +65,11 @@ function pickBestPairForToken(pairs: DexPair[], tokenKey: string): DexPair | nul
 export interface DexTokenMetrics {
   volumeH24Usd?: number;
   change24hPct?: number;
+  marketCapUsd?: number;
   fdvUsd?: number;
   liquidityUsd?: number;
+  txnsH24?: number;
+  priceUsd?: number;
   /** DexScreener pair page URL when indexed (often pair address, not token). */
   dexscreenerUrl?: string;
 }
@@ -87,12 +92,25 @@ export async function fetchTokenMetricsFromDexscreener(
       const fdv = best.fdv;
       const mc = best.marketCap;
       const liq = best.liquidity?.usd;
+      const buys = best.txns?.h24?.buys ?? 0;
+      const sells = best.txns?.h24?.sells ?? 0;
+      const txns = buys + sells;
+      const priceRaw = best.priceUsd;
       const metrics: DexTokenMetrics = {};
       if (typeof vol === 'number' && Number.isFinite(vol) && vol > 0) metrics.volumeH24Usd = vol;
       if (typeof chg === 'number' && Number.isFinite(chg)) metrics.change24hPct = chg;
-      if (typeof fdv === 'number' && Number.isFinite(fdv) && fdv > 0) metrics.fdvUsd = fdv;
-      else if (typeof mc === 'number' && Number.isFinite(mc) && mc > 0) metrics.fdvUsd = mc;
+      if (typeof mc === 'number' && Number.isFinite(mc) && mc > 0) {
+        metrics.marketCapUsd = mc;
+        metrics.fdvUsd = mc;
+      } else if (typeof fdv === 'number' && Number.isFinite(fdv) && fdv > 0) {
+        metrics.fdvUsd = fdv;
+      }
       if (typeof liq === 'number' && Number.isFinite(liq) && liq > 0) metrics.liquidityUsd = liq;
+      if (txns > 0) metrics.txnsH24 = txns;
+      if (priceRaw != null) {
+        const p = Number(priceRaw);
+        if (Number.isFinite(p) && p > 0) metrics.priceUsd = p;
+      }
       if (typeof best.url === 'string' && best.url.length > 0) metrics.dexscreenerUrl = best.url;
       if (Object.keys(metrics).length > 0) out[key] = metrics;
     }
@@ -132,4 +150,19 @@ export async function fetchTokenMetricsFromDexscreener(
   const normalized: Record<string, DexTokenMetrics | undefined> = {};
   for (const a of uniq) normalized[a] = out[a.toLowerCase()];
   return normalized;
+}
+
+export function formatTxns(n: number | undefined): string {
+  if (n == null || !Number.isFinite(n) || n <= 0) return '—';
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(Math.round(n));
+}
+
+export function formatTinyUsdPrice(n: number | undefined): string {
+  if (n == null || !Number.isFinite(n) || n <= 0) return '—';
+  if (n >= 1) return `$${n.toFixed(2)}`;
+  if (n >= 0.01) return `$${n.toFixed(4)}`;
+  if (n >= 0.0001) return `$${n.toFixed(6)}`;
+  return `$${n.toExponential(2)}`;
 }

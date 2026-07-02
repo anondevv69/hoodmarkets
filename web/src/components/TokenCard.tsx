@@ -49,7 +49,7 @@ export function TokenCard({ deployment: d, metrics, showDeployer = true }: Token
       <TokenSocialLinks websiteUrl={d.tokenWebsiteUrl} xUrl={d.tokenXUrl} />
 
       <div className="trade-section">
-        <p className="label">Buy / track</p>
+        <p className="label">Trade</p>
         <TradingLinksRowForToken tokenAddress={d.tokenAddress} />
       </div>
 
@@ -106,7 +106,7 @@ export function LaunchSuccessLinks({
         </div>
       </div>
       <div className="trade-section">
-        <p className="label">Buy / track</p>
+        <p className="label">Trade</p>
         <TradingLinksRow links={tradeLinks} />
       </div>
     </div>
