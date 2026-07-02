@@ -12,6 +12,7 @@ import {
 import { isV3PoolId } from '../lib/poolId';
 import { buildTradingLinks } from '../lib/tradingLinks';
 import { formatDeploySource } from '../lib/deploySourceDisplay';
+import { fetchTokenDescriptionFromChain } from '../lib/tokenOnChainMetadata';
 import { closeTokenPage } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
 import { ClaimFeesActions } from './ClaimFeesActions';
@@ -23,6 +24,7 @@ import { TradingLinksRow } from './TradingLinksRow';
 
 export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   const [token, setToken] = useState<TokenDetail | null>(null);
+  const [description, setDescription] = useState<string | undefined>();
   const [metrics, setMetrics] = useState<DexTokenMetrics | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,10 +34,18 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
     (async () => {
       setLoading(true);
       setError(null);
+      setDescription(undefined);
       try {
         const row = await fetchDeploymentByAddress(tokenAddress);
         if (cancelled) return;
         setToken(row);
+        const catalogDesc = row.tokenDescription?.trim();
+        if (catalogDesc) {
+          setDescription(catalogDesc);
+        } else {
+          const onChainDesc = await fetchTokenDescriptionFromChain(tokenAddress);
+          if (!cancelled) setDescription(onChainDesc);
+        }
         const m = await fetchTokenMetricsFromDexscreener([row.tokenAddress]);
         if (!cancelled) setMetrics(m[row.tokenAddress]);
       } catch (e) {
@@ -104,6 +114,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
           </div>
         </div>
         <TokenSocialLinks websiteUrl={token.tokenWebsiteUrl} xUrl={token.tokenXUrl} />
+        {description ? <p className="token-description">{description}</p> : null}
       </div>
 
       <DexScreenerEmbed tokenAddress={token.tokenAddress} metrics={metrics} />

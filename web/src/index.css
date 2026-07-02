@@ -104,17 +104,18 @@ a {
   background: none;
   padding: 0;
   cursor: pointer;
-  color: inherit;
+  color: var(--text);
   font-family: inherit;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
 }
 
-.logo:hover .logo-markets {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.logo:hover {
+  opacity: 0.88;
 }
 
 .logo-hood {
-  color: var(--text);
+  color: inherit;
 }
 
 .logo-markets {
@@ -576,6 +577,14 @@ label {
 .token-page-name {
   margin: 0 0 0.35rem;
   font-size: 1.5rem;
+}
+
+.token-description {
+  margin: 0.85rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .token-detail-grid {

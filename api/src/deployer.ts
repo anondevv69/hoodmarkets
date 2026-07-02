@@ -68,6 +68,8 @@ export interface TokenDeploymentParams {
   xUrl?: string;
   /** `simple` = HoodMarkets V3 (Uniswap V3). `pro` = HoodMarkets V4. */
   launchMode?: 'simple' | 'pro';
+  /** User description for catalog UI (may differ from on-chain metadata text). */
+  tokenDescription?: string;
 }
 
 export interface DeploymentResult {
@@ -161,6 +163,7 @@ export class LiquidDeployer {
         privyUserId: params.privyUserId,
         clientKind: params.clientKind,
         agentMetadataJson: params.agentMetadataJson,
+        tokenDescription: params.tokenDescription?.trim() || undefined,
         chain,
       });
       return mockResult;
@@ -263,6 +266,7 @@ export class LiquidDeployer {
       tokenImageUrl: image || undefined,
       tokenWebsiteUrl: params.websiteUrl?.trim() || undefined,
       tokenXUrl: params.xUrl?.trim() || undefined,
+      tokenDescription: params.tokenDescription?.trim() || undefined,
       chain,
     });
 

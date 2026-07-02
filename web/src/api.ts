@@ -41,6 +41,7 @@ export interface Deployment {
   tokenImageUrl?: string;
   tokenWebsiteUrl?: string;
   tokenXUrl?: string;
+  tokenDescription?: string;
   transactionHash: string;
   feeRecipientAddress: string;
   feeRecipientLabel?: string;

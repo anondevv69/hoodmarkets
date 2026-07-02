@@ -27,7 +27,7 @@ const TAB_COPY: Record<Tab, { title: string; sub: string }> = {
 
 const TOKEN_PAGE_COPY = {
   title: 'Token',
-  sub: 'Chart, market data, and trading links from DexScreener.',
+  sub: '',
 };
 
 function readTabFromUrl(): Tab {
