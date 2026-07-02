@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { resolveTokenImageUrl } from '../lib/tokenImageUrl';
+import { useEffect, useMemo, useState } from 'react';
+import { buildTokenImageCandidates } from '../lib/tokenImageUrl';
 
 function initials(symbol: string): string {
   const s = symbol.replace(/^\$/, '').trim();
@@ -15,10 +15,15 @@ export function TokenAvatar({
   imageUrl?: string | null;
   size?: number;
 }) {
-  const [failed, setFailed] = useState(false);
-  const src = resolveTokenImageUrl(imageUrl);
+  const candidates = useMemo(() => buildTokenImageCandidates(imageUrl), [imageUrl]);
+  const [candidateIndex, setCandidateIndex] = useState(0);
 
-  if (src && !failed) {
+  useEffect(() => {
+    setCandidateIndex(0);
+  }, [imageUrl]);
+  const src = candidates[candidateIndex];
+
+  if (src && candidateIndex < candidates.length) {
     return (
       <img
         src={src}
@@ -27,7 +32,7 @@ export function TokenAvatar({
         width={size}
         height={size}
         loading="lazy"
-        onError={() => setFailed(true)}
+        onError={() => setCandidateIndex((i) => i + 1)}
       />
     );
   }

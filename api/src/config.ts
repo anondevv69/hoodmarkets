@@ -424,10 +424,10 @@ export const config = {
    */
   lighthouse: {
     apiKey: (process.env.LIGHTHOUSE_API_KEY || '').trim(),
-    /** No trailing slash; default is ipfs.io (Lighthouse public gateway often returns 402). */
+    /** No trailing slash. Avoid gateway.lighthouse.storage (402). */
     ipfsGatewayBase: (
       process.env.LIGHTHOUSE_IPFS_GATEWAY_URL?.trim() ||
-      'https://ipfs.io/ipfs'
+      'https://alternative-sparrow-qk8yx.lighthouseweb3.xyz/ipfs'
     ).replace(/\/$/, ''),
   },
 
