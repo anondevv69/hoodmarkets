@@ -94,20 +94,41 @@ export async function deployHoodMarketsV3Token(
     throw new Error('Wallet client has no account');
   }
 
-  const hash = await walletClient.writeContract({
+  const writeParams = {
     address: factory,
     abi: HOODMARKETS_V3_ABI,
-    functionName: 'deployToken',
-    args: [deploymentConfig],
+    functionName: 'deployToken' as const,
+    args: [deploymentConfig] as const,
     value: input.devBuyAmount,
     account,
+  };
+
+  /** V3 deploy + pool mint + LP lock + initial buy often exceeds 8M gas on Robinhood. */
+  let gasLimit = 15_000_000n;
+  try {
+    const estimated = await publicClient.estimateContractGas(writeParams);
+    gasLimit = estimated + estimated / 4n;
+    if (gasLimit < 12_000_000n) gasLimit = 12_000_000n;
+    if (gasLimit > 20_000_000n) gasLimit = 20_000_000n;
+  } catch {
+    gasLimit = 15_000_000n;
+  }
+
+  const hash = await walletClient.writeContract({
+    ...writeParams,
     chain: walletClient.chain,
-    gas: 8_000_000n,
+    gas: gasLimit,
   });
 
   const receipt = await publicClient.waitForTransactionReceipt({ hash });
   if (receipt.status !== 'success') {
-    throw new Error(`HoodMarkets V3 deploy failed (tx ${hash})`);
+    const used = receipt.gasUsed;
+    const likelyOog = used >= (gasLimit * 95n) / 100n;
+    throw new Error(
+      likelyOog
+        ? `HoodMarkets V3 deploy ran out of gas (used ${used} / limit ${gasLimit}). Tx: ${hash}`
+        : `HoodMarkets V3 deploy reverted on-chain. Tx: ${hash}`,
+    );
   }
 
   let tokenAddress: Address | undefined;
