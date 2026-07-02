@@ -4,7 +4,15 @@
 
 Bankr agents: install skill from `skills/hoodmarkets/` in this repo.
 
-## Step 1 — Solve haiku once, get a JWT (valid 8 hours)
+## Step 1 — Auth (optional when skip-captcha is enabled)
+
+When the API has `AGENT_DEPLOY_SKIP_CAPTCHA=true` (Bankr on X), skip haiku — pass the fee wallet on deploy:
+
+```http
+x-wallet-address: 0xYOUR_WALLET
+```
+
+**Otherwise** — solve haiku once, get a JWT (valid 8 hours):
 
 ```
 GET https://api.hood.markets/api/agent-captcha/challenge

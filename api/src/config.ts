@@ -593,6 +593,15 @@ export const config = {
   },
 
   /**
+   * When true, `feeTarget: agent_wallet` deploys skip haiku captcha — fee wallet from
+   * `agentFeeRecipient` / `wallet` / `x-wallet-address` (for Bankr on X and other trusted agents).
+   * Preflight + global ticker cooldowns still apply.
+   */
+  agentDeploy: {
+    skipCaptcha: process.env.AGENT_DEPLOY_SKIP_CAPTCHA === 'true',
+  },
+
+  /**
    * CoinGecko (public API) — token search → Base `contract_address` for `resolve_token_on_base` agent tool.
    * Optional `COINGECKO_API_KEY` sets `x-cg-demo-api-key` on requests (higher rate limits on supported plans).
    */

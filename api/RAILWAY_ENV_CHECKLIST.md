@@ -27,7 +27,8 @@ The monorepo has no root `package.json`. Deploying from repo root will fail to b
 - [ ] `HOODMARKETS_UNIV4_ETH_DEV_BUY`
 - [ ] `PRIVY_APP_ID`
 - [ ] `PRIVY_APP_SECRET`
-- [ ] `AGENT_CAPTCHA_JWT_SECRET` — HS256 secret for Bankr/agent haiku JWT (`openssl rand -hex 32`). Required for `POST /api/agent-captcha/verify`, agent deploy, and agent claim.
+- [ ] `AGENT_CAPTCHA_JWT_SECRET` — HS256 secret for agent haiku JWT (`openssl rand -hex 32`). Optional when skip-captcha is on.
+- [ ] `AGENT_DEPLOY_SKIP_CAPTCHA=true` — **recommended for Bankr on X** — no haiku; wallet from `x-wallet-address` / `agentFeeRecipient`. Preflight + ticker cooldowns still apply.
 
 **Not required** for web-only: `NEYNAR_*`, `DISCORD_*`, `TELEGRAM_*`.
 

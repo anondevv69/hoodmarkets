@@ -7,7 +7,7 @@ import { markDeploymentFeeClaimed } from '../lib/deploymentCatalog.js';
 import { BASE_WETH } from '../lib/liquidFactoryDeploy.js';
 import { robinhood, robinhoodTxUrl, ROBINHOOD_CHAIN_ID } from '../lib/robinhoodChain.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
-import { readAgentCaptchaToken, verifyAgentCaptchaJwt } from '../lib/agentCaptchaVerify.js';
+import { resolveAgentWalletAuth } from '../lib/agentWalletDeployAuth.js';
 
 /** Fee locker ABI for checking and claiming fees */
 const FEE_LOCKER_ABI = [
@@ -40,6 +40,8 @@ interface ClaimBody {
   /** Full name — optional; use alone only if it uniquely identifies one deployment */
   tokenName?: string;
   agentCaptchaJwt?: string;
+  wallet?: string;
+  agentFeeRecipient?: string;
 }
 
 /**
@@ -78,26 +80,16 @@ export function registerAgentClaimRoutes(app: Express): void {
 
     try {
       const body = req.body as ClaimBody;
-      const captchaJwt = readAgentCaptchaToken(req.headers as any, body);
-      if (!captchaJwt) {
-        res.status(400).json({
-          error:
-            'Missing agent captcha JWT (X-Agent-Captcha-JWT or agentCaptchaJwt). Solve haiku challenge first.',
-        });
-        return;
-      }
-
-      let captchaPayload;
+      let walletFromCaptcha: `0x${string}`;
       try {
-        captchaPayload = await verifyAgentCaptchaJwt(captchaJwt);
+        const agentAuth = await resolveAgentWalletAuth(req.headers as any, body);
+        walletFromCaptcha = agentAuth.walletAddress;
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
-        res.status(401).json({ error: msg });
+        const status = /requires|missing|invalid/i.test(msg) ? 400 : 401;
+        res.status(status).json({ error: msg });
         return;
       }
-
-      // Extract wallet that will receive fees (the agent's fee wallet from CAPTCHA)
-      const walletFromCaptcha = captchaPayload.walletAddress as `0x${string}`;
 
       const tokenAddressRaw = typeof body.tokenAddress === 'string' ? body.tokenAddress.trim() : '';
       const tokenSymbolRaw = typeof body.tokenSymbol === 'string' ? body.tokenSymbol.trim() : '';

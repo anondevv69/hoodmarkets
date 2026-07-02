@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 2
+version: 3
 ---
 
 # hood.markets — Bankr agent skill
@@ -67,7 +67,7 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
   4. **Deploy:** call `preflight-deploy` first — if blocked, reply with `replyHint` (ticker taken, daily limit, etc.)
   5. Call references/AGENT-API.md endpoint BEFORE replying
   6. Format reply locally — references/RESPONSE-SAFETY.md
-  7. Deploy: haiku JWT → POST /api/deploy (server-side, no Bankr submit)
+  7. Deploy: preflight ok → POST /api/deploy with wallet (skip captcha when API has AGENT_DEPLOY_SKIP_CAPTCHA) OR haiku JWT first
   8. Buy/sell: `token-info` → if Pro, prepare-buy|prepare-sell → validate txs → Bankr /wallet/submit
   9. Claim: haiku JWT → POST /api/agent/claim (server broadcasts, no submit)
 ```
@@ -97,6 +97,27 @@ See **`references/AGENT-API.md`** for bodies and response fields.
 ## Deploy flow (server-side — no Bankr submit)
 
 Deploy is **gasless for the user** — hood.markets launcher wallet pays gas + launch seed.
+
+**When `AGENT_DEPLOY_SKIP_CAPTCHA=true` on the API (recommended for Bankr on X):** deploy directly — no haiku.
+
+```http
+POST https://api.hood.markets/api/deploy
+x-wallet-address: 0x…
+Content-Type: application/json
+
+{
+  "name": "My Token",
+  "symbol": "MTK",
+  "feeTarget": "agent_wallet",
+  "clientKind": "agent",
+  "agentProvider": "bankr",
+  "launchMode": "simple",
+  "imageUrl": "https://…",
+  "wallet": "0x…"
+}
+```
+
+**Otherwise (haiku JWT):**
 
 1. `GET https://api.hood.markets/api/agent-captcha/challenge`
 2. `POST https://api.hood.markets/api/agent-captcha/verify` with haiku + `agentFeeRecipient: <Bankr wallet>`
