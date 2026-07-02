@@ -18,6 +18,19 @@ function parseHandleBlocklist(raw: string | undefined): ReadonlySet<string> {
   return set;
 }
 
+/** Agent channels that skip haiku captcha (e.g. `x,twitter` → Set with `x`). */
+function parseAgentChannelSet(raw: string | undefined): ReadonlySet<string> {
+  const set = new Set<string>();
+  if (!raw?.trim()) return set;
+  for (const part of raw.split(/[\s,;]+/)) {
+    const t = part.trim().toLowerCase();
+    if (!t) continue;
+    if (t === 'twitter' || t === 'tweet') set.add('x');
+    else set.add(t);
+  }
+  return set;
+}
+
 function requireEnv(key: string): string {
   const value = process.env[key];
   if (!value) {
@@ -593,12 +606,16 @@ export const config = {
   },
 
   /**
-   * When true, `feeTarget: agent_wallet` deploys skip haiku captcha — fee wallet from
-   * `agentFeeRecipient` / `wallet` / `x-wallet-address` (for Bankr on X and other trusted agents).
-   * Preflight + global ticker cooldowns still apply.
+   * Agent deploy auth for `feeTarget: agent_wallet`:
+   * - X/Twitter (`agentChannel: x` or `x-agent-channel: x`): skip haiku — Bankr confirms in-thread first.
+   * - Other agents: haiku JWT (automatable).
+   * - `AGENT_DEPLOY_SKIP_CAPTCHA=true`: legacy global skip (all channels).
    */
   agentDeploy: {
-    skipCaptcha: process.env.AGENT_DEPLOY_SKIP_CAPTCHA === 'true',
+    skipCaptchaGlobal: process.env.AGENT_DEPLOY_SKIP_CAPTCHA === 'true',
+    skipCaptchaChannels: parseAgentChannelSet(
+      process.env.AGENT_DEPLOY_SKIP_CAPTCHA_CHANNELS || 'x,twitter',
+    ),
   },
 
   /**

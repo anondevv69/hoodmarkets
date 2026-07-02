@@ -44,7 +44,11 @@ WETH: `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` · Explorer: [robinhoodchain.
 
 ---
 
-## Step 1 — Solve haiku once, get a JWT (valid 8 hours)
+## Step 1 — Auth
+
+**X / Twitter:** confirm with the user in-thread, then deploy with `agentChannel: "x"` and `x-agent-channel: x` — no haiku.
+
+**Non-X agents (API, automation):** solve haiku once, get a JWT (valid 8 hours):
 
 ```
 GET https://api.hood.markets/api/agent-captcha/challenge

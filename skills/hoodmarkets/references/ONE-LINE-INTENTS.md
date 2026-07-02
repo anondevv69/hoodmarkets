@@ -2,7 +2,8 @@
 
 | User message (examples) | Action |
 |-------------------------|--------|
-| launch X on hood / deploy $SYM hoodmarkets | `preflight-deploy` → if ok, `prepare-deploy` → captcha → POST /api/deploy |
+| launch X on hood / deploy $SYM hoodmarkets | `preflight-deploy` → `prepare-deploy` with `agentChannel: "x"` → confirm in-thread → deploy (no haiku) |
+| launch token via API agent (not X) | `preflight-deploy` → `prepare-deploy` → haiku captcha → POST /api/deploy |
 | my hood tokens / what did I launch | GET /api/agent/briefing |
 | is $MTK simple or pro / how do I buy MTK | GET /api/agent/token-info?symbol=MTK |
 | buy 0.01 eth of 0x… hood | token-info → if pro: prepare-buy → Bankr submit; if simple: Uniswap link |
