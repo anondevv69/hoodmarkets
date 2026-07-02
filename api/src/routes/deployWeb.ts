@@ -858,7 +858,7 @@ export function registerWebDeployRoutes(
       if (userInitialBuyWei > 0n && feeTarget !== 'self') {
         res.status(400).json({
           error:
-            'Paying an initial buy from your wallet is only supported when trading fees go to you (Me). Use 0 or leave initial buy empty for launches on behalf of someone else.',
+            'Paying pool seed from your wallet is only supported when trading fees go to you (Me). Use 0 for launches on behalf of someone else (hood.markets covers pool seed).',
         });
         return;
       }
@@ -867,6 +867,16 @@ export function registerWebDeployRoutes(
         typeof body.launchMode === 'string' ? body.launchMode.trim().toLowerCase() : '';
       const launchMode: 'simple' | 'pro' =
         launchModeRaw === 'pro' ? 'pro' : launchModeRaw === 'simple' ? 'simple' : config.defaultLaunchMode;
+
+      const selfPaysPoolSeed =
+        feeTarget === 'self' &&
+        !anonymousNoDev &&
+        !agentWalletDeploy &&
+        (launchMode === 'simple' || launchMode === 'pro');
+
+      if (selfPaysPoolSeed && userInitialBuyWei === 0n) {
+        userInitialBuyWei = config.deployBondWei;
+      }
 
       if (launchMode === 'simple' && !config.hoodmarketsV3.factory) {
         res.status(503).json({
@@ -934,7 +944,12 @@ export function registerWebDeployRoutes(
         return;
       }
 
-      let devBuyAmount = userInitialBuyWei > 0n ? 0n : config.deployBondWei;
+      let devBuyAmount = 0n;
+      if (feeTarget !== 'self' || anonymousNoDev || agentWalletDeploy) {
+        devBuyAmount = userInitialBuyWei > 0n ? 0n : config.deployBondWei;
+      } else if (!useWalletDeploy) {
+        devBuyAmount = config.deployBondWei;
+      }
 
       const deployReq: DeployRequest = {
         platform: 'web',

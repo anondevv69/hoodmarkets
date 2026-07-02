@@ -1111,6 +1111,53 @@ label {
   border-top: 1px solid var(--border);
 }
 
+.explore-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.explore-page-btn {
+  min-width: 2.1rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.explore-page-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.explore-page-btn.is-active {
+  color: var(--text);
+  background: var(--accent-glow);
+  border-color: transparent;
+}
+
+.explore-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.explore-page-gap {
+  color: var(--text-muted);
+  padding: 0 0.15rem;
+  font-size: 0.82rem;
+}
+
+.explore-row-highlight {
+  background: color-mix(in srgb, var(--accent-glow) 55%, transparent);
+}
+
 .explore-card {
   overflow: hidden;
 }
