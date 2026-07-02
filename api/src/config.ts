@@ -123,6 +123,8 @@ export const config = {
       'LIQUID_UNIV4_ETH_DEV_BUY',
       '',
     ),
+    /** One-tx buy/sell helper — set after `02b_DeploySwapHelper.s.sol`. */
+    swapHelper: protocolAddress('HOODMARKETS_SWAP_HELPER', 'LIQUID_SWAP_HELPER', ''),
   },
 
   // Deployer wallet (pays gas + minimal deploy bond)

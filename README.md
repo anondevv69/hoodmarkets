@@ -28,6 +28,7 @@ Latest deployed addresses (`contracts/deployed-robinhood-mainnet.json`):
 | HoodMarketsLpLockerFeeConversion | `0x34861965c8eFc302E794C8593404CF17c6e65fF0` |
 | HoodMarketsUniv4EthDevBuy | `0x39ddf0339f9dccef59457a3579de1789c38d5a40` |
 | HoodMarketsSniperAuctionV2 | `0xcbbc3534a892a365c57023c34349300d360f6a1b` |
+| HoodMarketsSwapHelper | `0x6373285F77ad0a3f5a441439B3D23d16B79aA585` |
 
 Explorer: [robinhoodchain.blockscout.com](https://robinhoodchain.blockscout.com)
 

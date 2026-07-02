@@ -6,5 +6,6 @@
   "hookStatic": "0xcd9dd3fa11c53cf6ae3d4e4d3fdf7c1f790468cc",
   "lpLocker": "0x34861965c8efc302e794c8593404cf17c6e65ff0",
   "univ4EthDevBuy": "0x39ddf0339f9dccef59457a3579de1789c38d5a40",
-  "mevModule": "0xcbbc3534a892a365c57023c34349300d360f6a1b"
+  "mevModule": "0xcbbc3534a892a365c57023c34349300d360f6a1b",
+  "swapHelper": "0x6373285f77ad0a3f5a441439b3d23d16b79aa585"
 }

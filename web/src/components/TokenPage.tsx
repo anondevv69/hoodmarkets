@@ -13,16 +13,18 @@ import { buildTradingLinks } from '../lib/tradingLinks';
 import { closeTokenPage, readBuyEthFromUrl } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
 import { ClaimFeesActions } from './ClaimFeesActions';
-import { DexMetricsStrip } from './DexMetricsStrip';
+import { DexMetricsStrip, OnChainPoolPanel } from './DexMetricsStrip';
 import { DexScreenerChartEmbed } from './TokenListingStatus';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 import { TokenSwap } from './TokenSwap';
 import { TradingLinksRow } from './TradingLinksRow';
+import { fetchOnChainPoolStats, type OnChainPoolStats } from '../lib/robinhoodSwap';
 
 export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   const [token, setToken] = useState<TokenDetail | null>(null);
   const [metrics, setMetrics] = useState<DexTokenMetrics | undefined>();
+  const [onChainStats, setOnChainStats] = useState<OnChainPoolStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +39,8 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
         setToken(row);
         const m = await fetchTokenMetricsFromDexscreener([row.tokenAddress]);
         if (!cancelled) setMetrics(m[row.tokenAddress]);
+        const chain = await fetchOnChainPoolStats(row.tokenAddress);
+        if (!cancelled) setOnChainStats(chain);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load token');
       } finally {
@@ -88,8 +92,9 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               {token.tokenName}{' '}
               <span className="muted">${sym}</span>
             </h2>
-            <DexMetricsStrip metrics={metrics} />
+            <DexMetricsStrip metrics={metrics} onChain={onChainStats} />
             <DexScreenerChartEmbed tokenAddress={token.tokenAddress} metrics={metrics} />
+            {onChainStats ? <OnChainPoolPanel stats={onChainStats} /> : null}
           </div>
         </div>
 

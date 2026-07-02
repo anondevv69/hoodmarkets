@@ -6,6 +6,7 @@ import {
   buildHoodmarketsPoolKey,
   wethToTokenZeroForOne,
 } from '../lib/hoodmarketsPoolKey.js';
+import { readRobinhoodPoolStats } from '../lib/robinhoodV4PoolStats.js';
 import { ROBINHOOD_WETH } from '../lib/robinhoodChain.js';
 import { webDeployCorsHeadersRead } from '../lib/webDeployCors.js';
 
@@ -18,31 +19,43 @@ function swapAddresses() {
     universalRouter: (process.env.UNISWAP_UNIVERSAL_ROUTER?.trim() ||
       DEFAULT_UNIVERSAL_ROUTER) as `0x${string}`,
     hookStatic: config.liquid.hookStatic,
+    swapHelper: config.liquid.swapHelper,
   };
+}
+
+function corsRead(req: Request, res: Response): void {
+  const h = webDeployCorsHeadersRead(req.headers.origin);
+  for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
+}
+
+function parseTokenParam(raw: string): `0x${string}` | null {
+  if (!/^0x[a-fA-F0-9]{40}$/.test(raw.trim())) return null;
+  try {
+    return getAddress(raw.trim());
+  } catch {
+    return null;
+  }
 }
 
 export function registerTokenSwapRoutes(app: Express): void {
   app.options('/api/tokens/:tokenAddress/swap-config', (req, res) => {
-    const h = webDeployCorsHeadersRead(req.headers.origin);
-    for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
+    corsRead(req, res);
+    res.status(204).end();
+  });
+
+  app.options('/api/tokens/:tokenAddress/pool-stats', (req, res) => {
+    corsRead(req, res);
     res.status(204).end();
   });
 
   app.get('/api/tokens/:tokenAddress/swap-config', async (req: Request, res: Response) => {
-    const h = webDeployCorsHeadersRead(req.headers.origin);
-    for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
+    corsRead(req, res);
 
-    const raw = typeof req.params.tokenAddress === 'string' ? req.params.tokenAddress.trim() : '';
-    if (!/^0x[a-fA-F0-9]{40}$/.test(raw)) {
+    const tokenAddress = parseTokenParam(
+      typeof req.params.tokenAddress === 'string' ? req.params.tokenAddress : '',
+    );
+    if (!tokenAddress) {
       res.status(400).json({ error: 'tokenAddress must be a valid 0x contract address.' });
-      return;
-    }
-
-    let tokenAddress: `0x${string}`;
-    try {
-      tokenAddress = getAddress(raw);
-    } catch {
-      res.status(400).json({ error: 'Invalid token address checksum.' });
       return;
     }
 
@@ -52,7 +65,7 @@ export function registerTokenSwapRoutes(app: Express): void {
       return;
     }
 
-    const { weth, universalRouter, hookStatic } = swapAddresses();
+    const { weth, universalRouter, hookStatic, swapHelper } = swapAddresses();
     const permit2 = (process.env.PERMIT2?.trim() ||
       '0x000000000022D473030F116dDEE9F6B43aC78BA3') as `0x${string}`;
     if (!hookStatic) {
@@ -62,6 +75,7 @@ export function registerTokenSwapRoutes(app: Express): void {
 
     const poolKey = buildHoodmarketsPoolKey(tokenAddress, hookStatic, weth);
     const zeroForOne = wethToTokenZeroForOne(poolKey, weth);
+    const sellZeroForOne = !zeroForOne;
 
     res.json({
       chainId: 4663,
@@ -71,9 +85,44 @@ export function registerTokenSwapRoutes(app: Express): void {
       weth,
       universalRouter,
       permit2,
+      swapHelper: swapHelper || undefined,
       /** ETH → token: WETH is tokenIn. */
       zeroForOne,
+      /** Token → ETH: token is tokenIn. */
+      sellZeroForOne,
       pairedToken: weth,
     });
+  });
+
+  app.get('/api/tokens/:tokenAddress/pool-stats', async (req: Request, res: Response) => {
+    corsRead(req, res);
+
+    const tokenAddress = parseTokenParam(
+      typeof req.params.tokenAddress === 'string' ? req.params.tokenAddress : '',
+    );
+    if (!tokenAddress) {
+      res.status(400).json({ error: 'tokenAddress must be a valid 0x contract address.' });
+      return;
+    }
+
+    const deployment = await getDeploymentByTokenAddress(tokenAddress);
+    if (!deployment?.poolId) {
+      res.status(404).json({ error: 'Token not found or missing poolId.' });
+      return;
+    }
+
+    const { weth } = swapAddresses();
+    const stats = await readRobinhoodPoolStats({
+      poolId: deployment.poolId,
+      tokenAddress,
+      wethAddress: weth,
+    });
+
+    if ('error' in stats) {
+      res.status(502).json({ error: stats.error });
+      return;
+    }
+
+    res.json(stats);
   });
 }

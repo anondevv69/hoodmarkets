@@ -14,7 +14,7 @@ export const UNISWAP_V4_POOL_MANAGER_BASE = '0x498581fF718922c3f8e6A244956aF099B
 /** `bytes32(uint256(6))` — index of `pools` mapping in PoolManager */
 const POOLS_SLOT =
   '0x0000000000000000000000000000000000000000000000000000000000000006' as const;
-const LIQUIDITY_WORD_OFFSET = 3n;
+export const LIQUIDITY_WORD_OFFSET = 3n;
 
 const poolManagerExtsloadAbi = [
   {
@@ -42,7 +42,7 @@ export function getPoolStateSlot(poolId: Hex): Hex {
   return keccak256(encodePacked(['bytes32', 'bytes32'], [poolId, POOLS_SLOT]));
 }
 
-function addSlotOffset(stateSlot: Hex, offset: bigint): Hex {
+export function addSlotOffset(stateSlot: Hex, offset: bigint): Hex {
   const n = BigInt(stateSlot) + offset;
   return `0x${n.toString(16).padStart(64, '0')}` as Hex;
 }
