@@ -95,10 +95,38 @@ a {
   flex-wrap: wrap;
 }
 
+.site-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.site-logo-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  flex-shrink: 0;
+  display: block;
+}
+
 .logo {
-  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: baseline;
+  font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+  line-height: 1;
+  background: #f7faf8;
+  padding: 0.28rem 0.55rem;
+  border-radius: 7px;
+}
+
+.logo-hood {
+  color: #0a0a0a;
+}
+
+.logo-markets {
+  color: var(--accent-dim);
 }
 
 .logo span {

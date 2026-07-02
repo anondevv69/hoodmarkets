@@ -61,7 +61,13 @@ export default function App() {
     <div className="app lp-root">
       <header className="site-header">
         <div className="header-inner">
-          <div className="logo lp-display">hoodmarkets</div>
+          <div className="site-logo">
+            <img src="/favicon.png" alt="" className="site-logo-icon" width={32} height={32} />
+            <div className="logo lp-display" aria-label="hood.markets">
+              <span className="logo-hood">hood</span>
+              <span className="logo-markets">.markets</span>
+            </div>
+          </div>
           <nav className="site-nav" aria-label="Main">
             <button
               type="button"
@@ -134,7 +140,7 @@ export default function App() {
           )}
         </div>
 
-        <p className="footer-note">hoodmarkets · Robinhood Chain · trading fees go to your wallet</p>
+        <p className="footer-note">hood.markets · Robinhood Chain · trading fees go to your wallet</p>
       </main>
     </div>
   );
