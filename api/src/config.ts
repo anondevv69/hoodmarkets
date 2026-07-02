@@ -678,7 +678,7 @@ export function validateConfig(): void {
 
   if (config.deployBondWei === 0n) {
     logger.warn(
-      'DEPLOY_BOND_ETH is 0: launch Univ4EthDevBuy is disabled (deploys send no ETH with deployToken; pools may show no initial swap liquidity). Set a positive value (e.g. 0.0001) unless intentional.'
+      'DEPLOY_BOND_ETH is 0: launch Univ4EthDevBuy is disabled (deploys send no ETH with deployToken; pools may show no initial swap liquidity). Set a positive value (e.g. 0.002) unless intentional.'
     );
   }
 
