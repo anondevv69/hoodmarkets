@@ -40,7 +40,7 @@ import {
 } from '../lib/selfFeeLimit.js';
 import { runAfterPriorWebSelfFeeWork } from '../lib/webSelfFeeQueue.js';
 import { runAfterPriorWebThirdPartyFeeWork } from '../lib/webThirdPartyFeeQueue.js';
-import { resolveAgentWalletAuth, agentDeploySkipCaptchaEnabled } from '../lib/agentWalletDeployAuth.js';
+import { resolveAgentWalletAuth } from '../lib/agentWalletDeployAuth.js';
 import { verifyDeploySignature } from '../lib/agentWalletAuth.js';
 import {
   buildAgentDeployCommitment,
@@ -166,8 +166,10 @@ interface DeployWebBody {
   agentCaptchaJwt?: string;
   /** Optional: e.g. `bankr` — stored in catalog + echoed in deploy response. */
   agentProvider?: string;
-  /** Optional: where the agent runs, e.g. `cloud`, `user-device`. */
+  /** Optional: where the agent runs, e.g. `cloud`, `user-device`, `x`. */
   agentRuntime?: string;
+  /** Optional: intake channel — `x` skips haiku (Bankr confirms in-thread); other agents use haiku JWT. */
+  agentChannel?: string;
   /** Optional: wallet stack, e.g. `bankr-evm`, `injected`. */
   walletKind?: string;
   /** Optional extra string metadata (merged with the fields above). */

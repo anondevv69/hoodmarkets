@@ -11,7 +11,12 @@ import {
   resolveAgentTokenLookup,
   runAgentDeployPreflight,
 } from '../lib/agentDeployPreflight.js';
-import { agentDeploySkipCaptchaEnabled } from '../lib/agentWalletDeployAuth.js';
+import { agentDeploySkipCaptchaForRequest } from '../lib/agentWalletDeployAuth.js';
+import {
+  agentDeployConfirmReplyHint,
+  buildAgentDeployConfirmSummary,
+  resolveAgentDeployImageUrl,
+} from '../lib/agentDeployImage.js';
 import { ROBINHOOD_CHAIN_ID } from '../lib/robinhoodChain.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 
@@ -291,6 +296,38 @@ export function registerAgentBankrRoutes(app: Express): void {
       return;
     }
 
+    const description = typeof body.description === 'string' ? body.description.trim() : '';
+    const websiteUrl = typeof body.websiteUrl === 'string' ? body.websiteUrl.trim() : '';
+    const xUrl = typeof body.xUrl === 'string' ? body.xUrl.trim() : '';
+    const resolvedImage = resolveAgentDeployImageUrl({
+      imageUrl: body.imageUrl,
+      tweetImageUrl: body.tweetImageUrl,
+      mediaUrl: body.mediaUrl,
+      tweetMedia: body.tweetMedia,
+      tweetText: body.tweetText,
+      tweet: body.tweet,
+    });
+
+    const agentChannel =
+      typeof body.agentChannel === 'string' ? body.agentChannel.trim().toLowerCase() : '';
+    const { skip: skipCaptcha, channel: resolvedChannel } = agentDeploySkipCaptchaForRequest(
+      req.headers as { [k: string]: string | string[] | undefined },
+      { agentChannel: agentChannel || undefined, agentRuntime: body.agentRuntime },
+    );
+
+    if (!resolvedImage.imageUrl || !resolvedImage.imageSource) {
+      res.status(400).json({
+        ok: false,
+        error: 'Token logo is required before deploy.',
+        imageRequired: true,
+        replyHint:
+          resolvedChannel === 'x'
+            ? 'Attach a photo to the tweet, or pass tweetImageUrl / imageUrl from the original post when calling prepare-deploy.'
+            : 'Pass imageUrl (HTTPS) or tweet media fields (tweetImageUrl, tweetMedia, tweet) on prepare-deploy.',
+      });
+      return;
+    }
+
     const preflight = await runAgentDeployPreflight({
       wallet,
       name,
@@ -308,7 +345,6 @@ export function registerAgentBankrRoutes(app: Express): void {
       return;
     }
 
-    const skipCaptcha = agentDeploySkipCaptchaEnabled();
     const deployBody = {
       name,
       symbol,
@@ -316,23 +352,55 @@ export function registerAgentBankrRoutes(app: Express): void {
       clientKind: 'agent',
       agentProvider: 'bankr',
       launchMode,
-      imageUrl: body.imageUrl ?? '',
-      description: body.description ?? '',
-      websiteUrl: body.websiteUrl ?? '',
-      xUrl: body.xUrl ?? '',
+      imageUrl: resolvedImage.imageUrl,
+      description,
+      websiteUrl,
+      xUrl,
       wallet,
       agentFeeRecipient: wallet,
+      ...(resolvedChannel ? { agentChannel: resolvedChannel } : {}),
     };
+
+    const confirmSummary = buildAgentDeployConfirmSummary({
+      name,
+      symbol,
+      launchMode,
+      feeRecipient: wallet,
+      imageUrl: resolvedImage.imageUrl,
+      imageSource: resolvedImage.imageSource,
+      ...(description ? { description } : {}),
+      ...(websiteUrl ? { websiteUrl } : {}),
+      ...(xUrl ? { xUrl } : {}),
+    });
+    const confirmReplyHint = agentDeployConfirmReplyHint(confirmSummary);
+
+    const deployHeaders: Record<string, string> = { 'x-wallet-address': wallet };
+    if (resolvedChannel) deployHeaders['x-agent-channel'] = resolvedChannel;
 
     const steps = skipCaptcha
       ? [
+          ...(resolvedChannel === 'x'
+            ? [
+                {
+                  step: 'user_confirm',
+                  note:
+                    'Show the launch preview below, including the token logo from the original tweet. Ask the user to reply yes/confirm before deploy. Do not call deploy until they confirm.',
+                  summary: confirmSummary,
+                  replyHint: confirmReplyHint,
+                  requiredFields: ['imageUrl', 'name', 'symbol'],
+                },
+              ]
+            : []),
           {
             step: 'deploy',
             method: 'POST',
             url: `${API_BASE}/api/deploy`,
-            headers: { 'x-wallet-address': wallet },
+            headers: deployHeaders,
             body: deployBody,
-            note: 'Captcha disabled (AGENT_DEPLOY_SKIP_CAPTCHA). Pass linked wallet via x-wallet-address.',
+            note:
+              resolvedChannel === 'x'
+                ? 'X channel — no haiku. User confirmed in-thread; pass linked wallet via x-wallet-address and agentChannel: x.'
+                : 'Captcha skipped for this agent channel. Pass linked wallet via x-wallet-address.',
           },
         ]
       : [
@@ -372,6 +440,11 @@ export function registerAgentBankrRoutes(app: Express): void {
       /** Server deploy — no Bankr /wallet/submit. Launcher pays gas + launch seed. */
       deployMode: 'server',
       captchaRequired: !skipCaptcha,
+      agentChannel: resolvedChannel,
+      confirmSummary,
+      confirmReplyHint,
+      imageUrl: resolvedImage.imageUrl,
+      imageSource: resolvedImage.imageSource,
       steps,
       ...(skipCaptcha
         ? {}

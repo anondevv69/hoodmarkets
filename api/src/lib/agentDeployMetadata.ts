@@ -8,7 +8,7 @@ export interface AgentDeployMetadataBody {
   agentRuntime?: unknown;
   walletKind?: unknown;
   agentId?: unknown;
-  /** `signature` (EIP-191), `payment` (treasury ETH), or `captcha` (CAPTCHA-verified). */
+  /** `signature` (EIP-191), `payment` (treasury ETH), `captcha` (haiku JWT), or `x_confirm` (X in-thread confirm). */
   auth?: unknown;
   /** Extra key/value hints; keys [a-zA-Z0-9_-], values trimmed. */
   agentMetadata?: unknown;

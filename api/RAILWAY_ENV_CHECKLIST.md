@@ -28,7 +28,8 @@ The monorepo has no root `package.json`. Deploying from repo root will fail to b
 - [ ] `PRIVY_APP_ID`
 - [ ] `PRIVY_APP_SECRET`
 - [ ] `AGENT_CAPTCHA_JWT_SECRET` — HS256 secret for agent haiku JWT (`openssl rand -hex 32`). Optional when skip-captcha is on.
-- [ ] `AGENT_DEPLOY_SKIP_CAPTCHA=true` — **recommended for Bankr on X** — no haiku; wallet from `x-wallet-address` / `agentFeeRecipient`. Preflight + ticker cooldowns still apply.
+- [ ] `AGENT_CAPTCHA_JWT_SECRET` — haiku JWT for non-X agents (generate: `openssl rand -hex 32`)
+- [ ] `AGENT_DEPLOY_SKIP_CAPTCHA_CHANNELS=x,twitter` — **default** — X skips haiku (Bankr confirms in-thread); other agents need haiku. Do **not** set `AGENT_DEPLOY_SKIP_CAPTCHA=true` unless you want to skip haiku for every channel.
 
 **Not required** for web-only: `NEYNAR_*`, `DISCORD_*`, `TELEGRAM_*`.
 

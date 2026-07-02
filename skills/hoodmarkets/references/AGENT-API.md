@@ -90,7 +90,11 @@ See `streaming-hints.json` for detection rules.
 
 ## POST /api/agent/prepare-deploy
 
-Returns captcha + deploy checklist (server deploy — **no** Bankr submit). Runs **preflight** automatically.
+Returns deploy checklist (server deploy — **no** Bankr submit). Runs **preflight** automatically.
+
+**X / Twitter:** pass `"agentChannel": "x"` plus **image from the original tweet** → `captchaRequired: false`, `user_confirm` with `confirmSummary` (includes `imageUrl`), then deploy.
+
+**Image (required):** pass at least one of `tweetImageUrl`, `imageUrl`, `tweetMedia`, `tweet` (with media), or `tweetText` with an inline URL. **400** if missing — use `replyHint`.
 
 ```http
 POST https://api.hood.markets/api/agent/prepare-deploy
@@ -101,16 +105,38 @@ Content-Type: application/json
   "name": "My Token",
   "symbol": "MTK",
   "launchMode": "simple",
-  "imageUrl": "https://…",
+  "agentChannel": "x",
+  "tweetImageUrl": "https://pbs.twimg.com/media/…",
+  "tweetText": "launch My Token $MTK on hoodmarkets",
   "description": "…"
 }
 ```
 
 **409** when preflight blocks (ticker taken, daily limit, etc.) — use `replyHint` in the response for X/DM copy.
 
-**Response:** `steps[]` with captcha URLs and deploy body template; optional `preflight.warnings`.
+**200 response fields:** `steps[]`, `captchaRequired`, `confirmSummary` (name, symbol, `imageUrl`, `imageSource`, fee wallet), `confirmReplyHint` (ready-to-post confirm copy with logo URL), `imageUrl`, `imageSource`.
 
-### Deploy (after captcha)
+### Deploy — X channel (after user confirms)
+
+```http
+POST https://api.hood.markets/api/deploy
+x-wallet-address: 0x…
+x-agent-channel: x
+Content-Type: application/json
+
+{
+  "name": "My Token",
+  "symbol": "MTK",
+  "feeTarget": "agent_wallet",
+  "clientKind": "agent",
+  "agentProvider": "bankr",
+  "agentChannel": "x",
+  "launchMode": "simple",
+  "imageUrl": "https://…"
+}
+```
+
+### Deploy — non-X (after haiku captcha)
 
 ```http
 POST https://api.hood.markets/api/deploy

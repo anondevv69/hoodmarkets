@@ -4,15 +4,18 @@
 
 Bankr agents: install skill from `skills/hoodmarkets/` in this repo.
 
-## Step 1 — Auth (optional when skip-captcha is enabled)
+## Step 1 — Auth
 
-When the API has `AGENT_DEPLOY_SKIP_CAPTCHA=true` (Bankr on X), skip haiku — pass the fee wallet on deploy:
+**X / Twitter agents** — confirm with the user in-thread, then deploy with channel tag (no haiku):
 
 ```http
 x-wallet-address: 0xYOUR_WALLET
+x-agent-channel: x
 ```
 
-**Otherwise** — solve haiku once, get a JWT (valid 8 hours):
+Body: `"agentChannel": "x"` on `prepare-deploy` and `/api/deploy`.
+
+**Non-X agents (API, automation)** — solve haiku once, get a JWT (valid 8 hours):
 
 ```
 GET https://api.hood.markets/api/agent-captcha/challenge
@@ -60,8 +63,12 @@ Or get the full checklist:
 
 ```
 POST https://api.hood.markets/api/agent/prepare-deploy
-{ "wallet": "0x…", "name": "…", "symbol": "…", "launchMode": "simple" }
+{ "wallet": "0x…", "name": "…", "symbol": "…", "launchMode": "simple", "agentChannel": "x", "tweetImageUrl": "https://pbs.twimg.com/…" }
 ```
+
+`agentChannel: "x"` → `captchaRequired: false`, `confirmSummary` + `confirmReplyHint` (includes logo from tweet). Omit for haiku flow.
+
+**400** if no image — attach a photo to the tweet or pass `tweetImageUrl` / `imageUrl`.
 
 ---
 

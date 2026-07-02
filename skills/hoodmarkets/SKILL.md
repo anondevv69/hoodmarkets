@@ -67,7 +67,7 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
   4. **Deploy:** call `preflight-deploy` first — if blocked, reply with `replyHint` (ticker taken, daily limit, etc.)
   5. Call references/AGENT-API.md endpoint BEFORE replying
   6. Format reply locally — references/RESPONSE-SAFETY.md
-  7. Deploy: preflight ok → POST /api/deploy with wallet (skip captcha when API has AGENT_DEPLOY_SKIP_CAPTCHA) OR haiku JWT first
+  7. Deploy: preflight ok → `prepare-deploy` with tweet image (`tweetImageUrl` / `tweetText`) + `agentChannel: "x"` on X → show `confirmReplyHint` (logo included) → deploy after yes; else haiku JWT
   8. Buy/sell: `token-info` → if Pro, prepare-buy|prepare-sell → validate txs → Bankr /wallet/submit
   9. Claim: haiku JWT → POST /api/agent/claim (server broadcasts, no submit)
 ```
@@ -83,7 +83,7 @@ Pass wallet via `?wallet=0x…` or header `x-wallet-address: 0x…`.
 | User says | Call |
 |-----------|------|
 | my tokens / my launches / briefing | `GET https://api.hood.markets/api/agent/briefing?wallet=0x…` |
-| launch / deploy token | `GET preflight-deploy` → if ok, `POST prepare-deploy` → follow `steps[]` |
+| launch / deploy token | `GET preflight-deploy` → if ok, `POST prepare-deploy` with `agentChannel: "x"` on X, else haiku flow |
 | is $TICKER simple or pro / how to swap | `GET https://api.hood.markets/api/agent/token-info?symbol=TICKER` |
 | buy TOKEN / buy 0x… with ETH | `token-info` → if Pro: `POST prepare-buy` |
 | sell TOKEN / sell amount | `token-info` → if Pro: `POST prepare-sell` |
@@ -98,11 +98,21 @@ See **`references/AGENT-API.md`** for bodies and response fields.
 
 Deploy is **gasless for the user** — hood.markets launcher wallet pays gas + launch seed.
 
-**When `AGENT_DEPLOY_SKIP_CAPTCHA=true` on the API (recommended for Bankr on X):** deploy directly — no haiku.
+### On X / Twitter (`agentChannel: "x"`)
+
+1. From the **original tweet**, pass the logo into `prepare-deploy`:
+   - **`tweetImageUrl`** — first attached photo (`pbs.twimg.com/...`) — preferred on X
+   - **`tweetText`** — full tweet text (fallback: extract inline image URL)
+   - **`tweet`** — Twitter API object if available (`extended_entities.media`)
+   - **`imageUrl`** — explicit HTTPS URL if user pasted one in the tweet
+2. Call `POST /api/agent/prepare-deploy` with `agentChannel: "x"`, wallet, name, symbol, and image fields above.
+3. Use **`confirmSummary`** / **`confirmReplyHint`** (or `steps[0].summary` / `steps[0].replyHint`) in your confirm message — **must include the logo URL** from the tweet.
+4. Wait for user **yes/confirm**, then deploy — **no haiku**:
 
 ```http
 POST https://api.hood.markets/api/deploy
 x-wallet-address: 0x…
+x-agent-channel: x
 Content-Type: application/json
 
 {
@@ -111,13 +121,16 @@ Content-Type: application/json
   "feeTarget": "agent_wallet",
   "clientKind": "agent",
   "agentProvider": "bankr",
+  "agentChannel": "x",
   "launchMode": "simple",
   "imageUrl": "https://…",
   "wallet": "0x…"
 }
 ```
 
-**Otherwise (haiku JWT):**
+### Non-X agents (API, cron, cloud — automatable)
+
+Use **haiku JWT** — no in-thread confirm step:
 
 1. `GET https://api.hood.markets/api/agent-captcha/challenge`
 2. `POST https://api.hood.markets/api/agent-captcha/verify` with haiku + `agentFeeRecipient: <Bankr wallet>`
@@ -206,7 +219,7 @@ Launcher broadcasts claim and pays gas. JWT wallet must be the **fee recipient**
 
 > launch $PEPE on hoodmarkets simple mode with image https://…
 
-→ prepare-deploy → captcha → deploy → reply with `https://hood.markets/?token=0x…`
+→ prepare-deploy (`agentChannel: "x"` on X: confirm first, no haiku; else haiku) → deploy → reply with `https://hood.markets/?token=0x…`
 
 > buy 0.01 ETH of 0x4895… on hood
 
