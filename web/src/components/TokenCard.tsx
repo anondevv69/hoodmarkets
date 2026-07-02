@@ -1,3 +1,4 @@
+import { ClaimFeesActions } from './ClaimFeesActions';
 import type { Deployment } from '../api';
 import type { DexTokenMetrics } from '../lib/dexscreenerVolume';
 import type { TradingLinks } from '../lib/tradingLinks';
@@ -51,6 +52,13 @@ export function TokenCard({ deployment: d, metrics, showDeployer = true }: Token
         <p className="label">Buy / track</p>
         <TradingLinksRowForToken tokenAddress={d.tokenAddress} />
       </div>
+
+      {!showDeployer && d.feeRecipientAddress ? (
+        <ClaimFeesActions
+          tokenAddress={d.tokenAddress}
+          feeRecipientAddress={d.feeRecipientAddress}
+        />
+      ) : null}
     </li>
   );
 }

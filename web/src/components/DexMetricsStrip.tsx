@@ -5,7 +5,15 @@ export function DexMetricsStrip({ metrics }: { metrics?: DexTokenMetrics }) {
   const mc = metrics?.fdvUsd;
   const liq = metrics?.liquidityUsd;
   const vol = metrics?.volumeH24Usd;
-  if ((!mc || mc <= 0) && (!liq || liq <= 0) && (!vol || vol <= 0)) return null;
+  const chg = metrics?.change24hPct;
+  if (
+    (!mc || mc <= 0) &&
+    (!liq || liq <= 0) &&
+    (!vol || vol <= 0) &&
+    typeof chg !== 'number'
+  ) {
+    return null;
+  }
 
   return (
     <div className="dex-metrics">
@@ -17,6 +25,12 @@ export function DexMetricsStrip({ metrics }: { metrics?: DexTokenMetrics }) {
       ) : null}
       {vol != null && vol > 0 ? (
         <span title="24h volume (USD)">Vol {formatUsdVol(vol)}</span>
+      ) : null}
+      {typeof chg === 'number' ? (
+        <span title="24h price change" style={{ color: chg >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
+          {chg >= 0 ? '+' : ''}
+          {chg.toFixed(1)}%
+        </span>
       ) : null}
     </div>
   );

@@ -62,6 +62,26 @@ function buildLpLockerFeeConversionData(rewardParticipantCount: number): Hex {
   );
 }
 
+/** MEV / anti-sniper swap fee curve baked into each new pool at deploy time. */
+function buildMevModuleData(): Hex {
+  const startingFee = Number(process.env.HOOD_MEV_STARTING_FEE?.trim() || '10000');
+  const endingFee = Number(process.env.HOOD_MEV_ENDING_FEE?.trim() || '10000');
+  const secondsToDecay = BigInt(process.env.HOOD_MEV_DECAY_SECONDS?.trim() || '1');
+  return encodeAbiParameters(
+    [
+      {
+        type: 'tuple',
+        components: [
+          { name: 'startingFee', type: 'uint24' },
+          { name: 'endingFee', type: 'uint24' },
+          { name: 'secondsToDecay', type: 'uint256' },
+        ],
+      },
+    ],
+    [{ startingFee, endingFee, secondsToDecay }],
+  );
+}
+
 /** Presets decoded from real on-chain `deployToken` calls — only token/admin fields are substituted. */
 const STATIC_PRESET = {
   poolConfig: {
@@ -79,8 +99,6 @@ const STATIC_PRESET = {
     lockerData:
       '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' as Hex,
   },
-  mevModuleData:
-    '0x00000000000000000000000000000000000000000000000000000000000c35000000000000000000000000000000000000000000000000000000000000061a800000000000000000000000000000000000000000000000000000000000000014' as Hex,
 } as const;
 
 const DYNAMIC_PRESET = {
@@ -99,8 +117,6 @@ const DYNAMIC_PRESET = {
     lockerData:
       '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001' as Hex,
   },
-  mevModuleData:
-    '0x00000000000000000000000000000000000000000000000000000000000c35000000000000000000000000000000000000000000000000000000000000061a800000000000000000000000000000000000000000000000000000000000000014' as Hex,
 } as const;
 
 export type DeployTokenArgs = {
@@ -218,7 +234,7 @@ function buildDeploymentConfig(
     },
     mevModuleConfig: {
       mevModule: liquidMevModule(),
-      mevModuleData: preset.mevModuleData,
+      mevModuleData: buildMevModuleData(),
     },
     extensionConfigs: (() => {
       const eth = input.devBuy?.ethAmount ?? 0n;

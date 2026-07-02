@@ -152,11 +152,6 @@ contract HoodMarketsMevDescendingFees is IHoodMarketsMevDescendingFees {
         bool,
         bytes calldata
     ) external onlyHook(poolKey) returns (bool disableMevModule) {
-        // don't allow trading in the same second as deployment
-        if (block.timestamp == poolStartTime[poolKey.toId()]) {
-            revert SameSecondAsDeployment();
-        }
-
         // check if tax period is over
         if (
             block.timestamp

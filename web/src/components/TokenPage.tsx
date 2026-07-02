@@ -8,6 +8,7 @@ import {
 import { buildTradingLinks } from '../lib/tradingLinks';
 import { closeTokenPage } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
+import { ClaimFeesActions } from './ClaimFeesActions';
 import { DexMetricsStrip } from './DexMetricsStrip';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
@@ -125,10 +126,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               </a>
             </dd>
           </div>
-          <div>
-            <dt>Chain</dt>
-            <dd>Robinhood Chain ({token.chain})</dd>
-          </div>
         </dl>
       </div>
 
@@ -136,6 +133,11 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
         <p className="section-label">Buy / track</p>
         <TradingLinksRow links={links} />
       </div>
+
+      <ClaimFeesActions
+        tokenAddress={token.tokenAddress}
+        feeRecipientAddress={token.feeRecipientAddress}
+      />
     </div>
   );
 }

@@ -184,3 +184,43 @@ export async function deployToken(token: string, payload: LaunchPayload): Promis
 
   return data;
 }
+
+export interface ClaimFeesResult {
+  ok: boolean;
+  message: string;
+  txHash?: string;
+  basescanUrl?: string;
+  feeAmountHuman?: string;
+}
+
+export async function collectPoolFees(
+  authToken: string,
+  tokenAddress: string,
+  walletAddress?: string,
+): Promise<ClaimFeesResult> {
+  const res = await fetch(`${API_BASE}/api/my-deployments/collect-pool-fees`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ tokenAddress, walletAddress }),
+  });
+  return parseJson<ClaimFeesResult>(res);
+}
+
+export async function claimTradingFees(
+  authToken: string,
+  tokenAddress: string,
+  walletAddress?: string,
+): Promise<ClaimFeesResult> {
+  const res = await fetch(`${API_BASE}/api/my-deployments/claim`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ tokenAddress, walletAddress }),
+  });
+  return parseJson<ClaimFeesResult>(res);
+}

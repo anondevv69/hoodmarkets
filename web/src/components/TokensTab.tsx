@@ -1,26 +1,24 @@
-import { useEffect, useState } from 'react';
-import { fetchDeployments, type Deployment } from '../api';
+import { useMemo, useState } from 'react';
 import { shortenAddress } from '../chain';
-import {
-  fetchTokenMetricsFromDexscreener,
-  formatUsdVol,
-  type DexTokenMetrics,
-} from '../lib/dexscreenerVolume';
+import { formatUsdVol, type DexTokenMetrics } from '../lib/dexscreenerVolume';
+import type { ExploreToken } from '../lib/exploreTokens';
 import { buildTradingLinks } from '../lib/tradingLinks';
 import { openTokenPage } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
 import { DexMetricsStrip } from './DexMetricsStrip';
+import { FilterChips, useTokenFilter } from './ExploreFilters';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 
 function ExploreRow({
-  deployment: d,
+  token,
   metrics,
 }: {
-  deployment: Deployment;
+  token: ExploreToken;
   metrics?: DexTokenMetrics;
 }) {
-  const sym = d.tokenSymbol.replace(/^\$/, '');
+  const d = token.deployment;
+  const sym = token.symbol;
   const links = buildTradingLinks(d.tokenAddress);
   const mc = metrics?.fdvUsd;
 
@@ -88,55 +86,38 @@ function ExploreRow({
   );
 }
 
-export function TokensTab() {
-  const [tokens, setTokens] = useState<Deployment[]>([]);
-  const [metricsByAddress, setMetricsByAddress] = useState<
-    Record<string, DexTokenMetrics | undefined>
-  >({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export function TokensTab({
+  exploreTokens,
+  metricsByAddress,
+  loading,
+  error,
+}: {
+  exploreTokens: ExploreToken[];
+  metricsByAddress: Record<string, DexTokenMetrics | undefined>;
+  loading: boolean;
+  error: string | null;
+}) {
   const [query, setQuery] = useState('');
+  const { filter, setFilter, filtered: chipFiltered, counts } = useTokenFilter(exploreTokens);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const rows = await fetchDeployments(50, 0);
-        if (cancelled) return;
-        setTokens(rows);
-        const addresses = rows.map((r) => r.tokenAddress);
-        if (addresses.length > 0) {
-          const metrics = await fetchTokenMetricsFromDexscreener(addresses);
-          if (!cancelled) setMetricsByAddress(metrics);
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load tokens');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const filtered = tokens.filter((t) => {
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      t.tokenName.toLowerCase().includes(q) ||
-      t.tokenSymbol.toLowerCase().includes(q) ||
-      t.tokenAddress.toLowerCase().includes(q)
+    if (!q) return chipFiltered;
+    return chipFiltered.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.symbol.toLowerCase().includes(q) ||
+        t.address.toLowerCase().includes(q),
     );
-  });
+  }, [chipFiltered, query]);
 
   if (loading) return <p className="muted">Loading tokens…</p>;
   if (error) return <p className="error">{error}</p>;
 
   return (
     <div className="lp-fade-in">
+      <FilterChips filter={filter} setFilter={setFilter} counts={counts} />
+
       <div style={{ marginBottom: '1rem' }}>
         <input
           className="lp-input"
@@ -149,9 +130,9 @@ export function TokensTab() {
 
       {filtered.length === 0 ? (
         <div className="empty">
-          {tokens.length === 0
+          {exploreTokens.length === 0
             ? 'No tokens launched yet. Be the first.'
-            : 'No tokens match your search.'}
+            : 'No tokens match your filters.'}
         </div>
       ) : (
         <div className="lp-card explore-card">
@@ -163,9 +144,9 @@ export function TokensTab() {
           <ul className="token-list">
             {filtered.map((t) => (
               <ExploreRow
-                key={t.tokenAddress}
-                deployment={t}
-                metrics={metricsByAddress[t.tokenAddress]}
+                key={t.address}
+                token={t}
+                metrics={metricsByAddress[t.address]}
               />
             ))}
           </ul>
