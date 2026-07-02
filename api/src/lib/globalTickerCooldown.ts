@@ -104,6 +104,36 @@ export function formatDeployCooldownConflictMessage(conflict: DeployCooldownConf
   );
 }
 
+/** Short X/DM copy when ticker or name is on cooldown — includes existing token address when known. */
+export function formatDeployCooldownReplyHint(conflict: DeployCooldownConflict): string {
+  const { existing, cooldownHours } = conflict;
+  const hasAddr =
+    existing.tokenAddress &&
+    existing.tokenAddress !== '0x0000000000000000000000000000000000000000';
+
+  if (conflict.kind === 'ticker') {
+    const sym = conflict.requestedSymbol ?? existing.tokenSymbol;
+    if (hasAddr) {
+      return (
+        `Ticker $${sym} is already on hood.markets — ${existing.tokenName} at ${existing.tokenAddress}. ` +
+        `Try another symbol or wait ${cooldownHours}h.\n` +
+        `https://hood.markets/?token=${existing.tokenAddress}`
+      );
+    }
+    return `Ticker $${sym} is taken on hood.markets for now — try another symbol or wait ${cooldownHours}h.`;
+  }
+
+  const name = conflict.requestedName ?? existing.tokenName;
+  if (hasAddr) {
+    return (
+      `Name "${name}" is already on hood.markets — $${existing.tokenSymbol} at ${existing.tokenAddress}. ` +
+      `Try another name or wait ${cooldownHours}h.\n` +
+      `https://hood.markets/?token=${existing.tokenAddress}`
+    );
+  }
+  return `That name is taken on hood.markets — pick another name or wait ${cooldownHours}h.`;
+}
+
 /** True if this ticker was used in a catalog deploy within the configured rolling window (global). */
 export async function isTickerGloballyReserved(symbol: string): Promise<boolean> {
   const h = globalTickerCooldownHours();

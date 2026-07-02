@@ -41,6 +41,7 @@ import {
 import { runAfterPriorWebSelfFeeWork } from '../lib/webSelfFeeQueue.js';
 import { runAfterPriorWebThirdPartyFeeWork } from '../lib/webThirdPartyFeeQueue.js';
 import { resolveAgentWalletAuth } from '../lib/agentWalletDeployAuth.js';
+import { agentDeploySuccessReplyHint } from '../lib/agentDeployImage.js';
 import { verifyDeploySignature } from '../lib/agentWalletAuth.js';
 import {
   buildAgentDeployCommitment,
@@ -1081,6 +1082,19 @@ export function registerWebDeployRoutes(
         links,
         clientKind: webClientKind,
         ...(result.imageUrl ? { imageUrl: result.imageUrl } : {}),
+        ...(agentWalletDeploy
+          ? {
+              deployReplyHint: agentDeploySuccessReplyHint({
+                name,
+                symbol,
+                tokenAddress: result.tokenAddress,
+                transactionHash: result.transactionHash,
+                feeRecipient: resolved.walletAddress,
+                dexscreenerUrl: links.dexscreener,
+                uniswapSwapUrl: links.uniswapSwap,
+              }),
+            }
+          : {}),
         ...(hasRecipientPrior
           ? {
               recipientPriorRollingHours,

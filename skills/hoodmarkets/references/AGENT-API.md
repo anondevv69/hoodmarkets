@@ -134,9 +134,11 @@ Content-Type: application/json
 }
 ```
 
-**409** when preflight blocks (ticker taken, daily limit, etc.) — use `replyHint` in the response for X/DM copy.
+**409** when preflight blocks — use `blocks[0].replyHint` and `blocks[0].existingToken` (token address when ticker/name taken).
 
-**200 response fields:** `steps[]`, `captchaRequired`, `confirmSummary` (name, symbol, `imageUrl`, `imageSource`, fee wallet), `confirmReplyHint` (ready-to-post confirm copy with logo URL), `imageUrl`, `imageSource`.
+**200 response fields:** `steps[]`, `captchaRequired`, `confirmSummary`, `confirmReplyHint` (no launch mode line), `imageUrl`, `imageSource`.
+
+**Deploy success:** `POST /api/deploy` returns `deployReplyHint` — post verbatim on X (no DexScreener/simple-mode footer).
 
 ### Deploy — X channel (after user confirms)
 
