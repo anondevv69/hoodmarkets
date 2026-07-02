@@ -1085,6 +1085,15 @@ label {
   text-overflow: ellipsis;
 }
 
+.explore-social-slot {
+  min-height: 1.25rem;
+  margin: 0.35rem 0 0;
+}
+
+.explore-social-slot .token-social-links {
+  margin: 0;
+}
+
 .explore-metrics {
   font-size: 0.75rem;
   color: var(--muted);

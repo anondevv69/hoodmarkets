@@ -58,7 +58,11 @@ function ExploreRow({
             {' · '}
             {new Date(d.createdAt).toLocaleString()}
           </div>
-          <div onClick={stopRowClick} onKeyDown={stopRowClick}>
+          <div
+            className="explore-social-slot"
+            onClick={stopRowClick}
+            onKeyDown={stopRowClick}
+          >
             <TokenSocialLinks websiteUrl={d.tokenWebsiteUrl} xUrl={d.tokenXUrl} />
           </div>
         </div>
