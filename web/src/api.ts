@@ -121,28 +121,6 @@ export async function fetchDeployments(limit = 50, offset = 0): Promise<Deployme
   return data.deployments ?? [];
 }
 
-/** Paginate public catalog — API allows up to 500 per page. */
-const EXPLORE_CATALOG_PAGE_SIZE = 200;
-const EXPLORE_CATALOG_MAX = 2000;
-
-export async function fetchAllDeploymentsForExplore(): Promise<{
-  deployments: Deployment[];
-  truncated: boolean;
-}> {
-  const deployments: Deployment[] = [];
-  let offset = 0;
-  while (deployments.length < EXPLORE_CATALOG_MAX) {
-    const pageSize = Math.min(EXPLORE_CATALOG_PAGE_SIZE, EXPLORE_CATALOG_MAX - deployments.length);
-    const page = await fetchDeployments(pageSize, offset);
-    deployments.push(...page);
-    if (page.length < pageSize) {
-      return { deployments, truncated: false };
-    }
-    offset += page.length;
-  }
-  return { deployments, truncated: true };
-}
-
 export async function fetchDeploymentByAddress(tokenAddress: string): Promise<TokenDetail> {
   const addr = tokenAddress.trim();
   const res = await fetch(`${API_BASE}/api/deployments/${addr}`);
