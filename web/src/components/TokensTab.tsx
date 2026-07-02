@@ -107,13 +107,17 @@ export function TokensTab({
   metricsByAddress,
   loading,
   error,
-  catalogTruncated = false,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
 }: {
   exploreTokens: ExploreToken[];
   metricsByAddress: Record<string, DexTokenMetrics | undefined>;
   loading: boolean;
   error: string | null;
-  catalogTruncated?: boolean;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ExploreSort>('mcap');
@@ -122,6 +126,7 @@ export function TokensTab({
   const [addressLookupState, setAddressLookupState] = useState<'idle' | 'loading' | 'miss'>('idle');
 
   const fullAddressQuery = useMemo(() => extractContractAddressFromSearch(query), [query]);
+  const isSearching = query.trim().length > 0;
 
   useEffect(() => {
     if (!fullAddressQuery) {
@@ -224,10 +229,8 @@ export function TokensTab({
         </div>
         {exploreTokens.length > 0 ? (
           <p className="explore-count muted">
-            {exploreTokens.length} token{exploreTokens.length === 1 ? '' : 's'}
-            {catalogTruncated
-              ? ' shown (oldest hidden — search by contract if you need a specific token)'
-              : ''}
+            {exploreTokens.length} token{exploreTokens.length === 1 ? '' : 's'} loaded
+            {hasMore && !isSearching ? ' · more available' : ''}
           </p>
         ) : null}
       </div>
@@ -285,6 +288,18 @@ export function TokensTab({
               />
             ))}
           </ul>
+          {hasMore && !isSearching && onLoadMore ? (
+            <div className="explore-load-more">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={loadingMore}
+                onClick={() => onLoadMore()}
+              >
+                {loadingMore ? 'Loading…' : 'Load more tokens'}
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
     </div>
