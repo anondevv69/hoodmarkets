@@ -1,10 +1,10 @@
 import type { Express, Request, Response } from 'express';
 import { createWalletClient, encodeFunctionData, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { base } from 'viem/chains';
 import { config } from '../config.js';
 import { getDeploymentCatalogRowForPrivyClaimAuth } from '../lib/deploymentCatalog.js';
 import { LIQUID_LP_LOCKER_COLLECT_ABI } from '../lib/liquidLpLockerCollectAbi.js';
+import { robinhood, robinhoodTxUrl } from '../lib/robinhoodChain.js';
 import { verifyPrivyBearerToken } from '../lib/privyAccessToken.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 
@@ -49,8 +49,8 @@ export function registerMyDeploymentsCollectPoolRoutes(app: Express): void {
       const token = tokenAddress as `0x${string}`;
       const account = privateKeyToAccount(config.deployerPrivateKey);
       const walletClient = createWalletClient({
-        chain: base,
-        transport: http(config.baseRpcUrl),
+        chain: robinhood,
+        transport: http(config.chainRpcUrl),
         account,
       });
 
@@ -66,7 +66,7 @@ export function registerMyDeploymentsCollectPoolRoutes(app: Express): void {
         value: 0n,
       });
 
-      const basescanUrl = `https://basescan.org/tx/${txHash}`;
+      const basescanUrl = robinhoodTxUrl(txHash);
 
       res.json({
         ok: true,

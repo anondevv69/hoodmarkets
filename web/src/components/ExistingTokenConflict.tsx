@@ -15,14 +15,14 @@ export function ExistingTokenConflict({ conflict }: { conflict: DeployCooldownCo
 
   const headline =
     conflict.kind === 'ticker'
-      ? `$${conflict.requestedSymbol ?? sym} was deployed in the last ${cooldownHours}h`
+      ? `$${(conflict.requestedSymbol ?? sym).replace(/^\$/, '')} was deployed in the last ${cooldownHours}h`
       : `"${conflict.requestedName ?? existing.tokenName}" was deployed in the last ${cooldownHours}h`;
 
   return (
     <div className="conflict-card lp-fade-in" role="alert">
       <p className="conflict-title">{headline}</p>
       <p className="conflict-sub">
-        Each ticker and name can only be used once every {cooldownHours} hours on Robinhood Chain.
+        Each ticker and name can only be used once every {cooldownHours} hours on hood.markets.
         Use the existing token below or pick a different name/symbol.
       </p>
 

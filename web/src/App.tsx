@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { LaunchTab } from './components/LaunchTab';
 import { ProfileTab } from './components/ProfileTab';
 import { TokenPage } from './components/TokenPage';
+import { TickerTape } from './components/TickerTape';
 import { TokensTab } from './components/TokensTab';
+import { useExploreTokens } from './hooks/useExploreTokens';
 import { useEnsureRobinhoodChain } from './hooks/useEnsureRobinhoodChain';
 import { readTokenFromUrl } from './lib/tokenRoute';
 
@@ -50,6 +52,10 @@ export default function App() {
   }, []);
 
   const copy = tokenAddress ? TOKEN_PAGE_COPY : TAB_COPY[tab];
+  const showExploreChrome = !tokenAddress;
+  const { tokens: exploreTokens, metricsByAddress, loading, error } = useExploreTokens(
+    showExploreChrome,
+  );
 
   return (
     <div className="app lp-root">
@@ -103,6 +109,8 @@ export default function App() {
         </div>
       </header>
 
+      {showExploreChrome ? <TickerTape tokens={exploreTokens} /> : null}
+
       <main className="main-wrap">
         <div className="page-intro">
           <h1 className="lp-display page-title">{copy.title}</h1>
@@ -113,7 +121,12 @@ export default function App() {
           {tokenAddress ? (
             <TokenPage tokenAddress={tokenAddress} />
           ) : tab === 'tokens' ? (
-            <TokensTab />
+            <TokensTab
+              exploreTokens={exploreTokens}
+              metricsByAddress={metricsByAddress}
+              loading={loading}
+              error={error}
+            />
           ) : tab === 'launch' ? (
             <LaunchTab />
           ) : (

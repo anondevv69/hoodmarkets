@@ -24,6 +24,7 @@ interface DexPair {
   baseToken?: { address?: string };
   quoteToken?: { address?: string };
   volume?: { h24?: number };
+  priceChange?: { h24?: number };
   fdv?: number;
   marketCap?: number;
   liquidity?: { usd?: number };
@@ -59,6 +60,7 @@ function pickBestPairForToken(pairs: DexPair[], tokenKey: string): DexPair | nul
 
 export interface DexTokenMetrics {
   volumeH24Usd?: number;
+  change24hPct?: number;
   fdvUsd?: number;
   liquidityUsd?: number;
 }
@@ -87,11 +89,13 @@ export async function fetchTokenMetricsFromDexscreener(
       const best = pickBestPairForToken(pairs, key);
       if (!best) continue;
       const vol = best.volume?.h24;
+      const chg = best.priceChange?.h24;
       const fdv = best.fdv;
       const mc = best.marketCap;
       const liq = best.liquidity?.usd;
       const metrics: DexTokenMetrics = {};
       if (typeof vol === 'number' && Number.isFinite(vol) && vol > 0) metrics.volumeH24Usd = vol;
+      if (typeof chg === 'number' && Number.isFinite(chg)) metrics.change24hPct = chg;
       if (typeof fdv === 'number' && Number.isFinite(fdv) && fdv > 0) metrics.fdvUsd = fdv;
       else if (typeof mc === 'number' && Number.isFinite(mc) && mc > 0) metrics.fdvUsd = mc;
       if (typeof liq === 'number' && Number.isFinite(liq) && liq > 0) metrics.liquidityUsd = liq;
