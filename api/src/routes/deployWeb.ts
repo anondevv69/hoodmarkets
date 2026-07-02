@@ -1024,6 +1024,7 @@ export function registerWebDeployRoutes(
           tokenXUrl: xUrl,
           tokenDescription: userDescription || undefined,
           chain: deployChain,
+          factoryAddress: config.liquid.factory,
         });
 
         result = {
