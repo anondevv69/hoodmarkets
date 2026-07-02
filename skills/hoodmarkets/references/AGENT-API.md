@@ -88,13 +88,33 @@ See `streaming-hints.json` for detection rules.
 
 ---
 
+## POST /api/agent/resolve-deploy-image
+
+Resolve token logo before deploy — **use on X when Bankr cannot see attached photos**. Pass `tweetUrl` (full status URL); API fetches via X oEmbed.
+
+```http
+POST https://api.hood.markets/api/agent/resolve-deploy-image
+Content-Type: application/json
+
+{
+  "tweetUrl": "https://x.com/Rayblancoeth/status/…"
+}
+```
+
+**200:** `{ "ok": true, "imageUrl": "https://…", "imageSource": "tweet_oembed" }`  
+**400:** `{ "ok": false, "imageRequired": true, "replyHint": "…" }`
+
+Also accepts `imageUrl`, `tweetImageUrl`, `tweetMedia`, `tweet`, `tweetText` (same priority as prepare-deploy).
+
+---
+
 ## POST /api/agent/prepare-deploy
 
 Returns deploy checklist (server deploy — **no** Bankr submit). Runs **preflight** automatically.
 
-**X / Twitter:** pass `"agentChannel": "x"` plus **image from the original tweet** → `captchaRequired: false`, `user_confirm` with `confirmSummary` (includes `imageUrl`), then deploy.
+**X / Twitter:** pass `"agentChannel": "x"` and **`tweetUrl`** (status URL of launch tweet) → API resolves logo via oEmbed → `user_confirm` with `confirmSummary`, then deploy.
 
-**Image (required):** pass at least one of `tweetImageUrl`, `imageUrl`, `tweetMedia`, `tweet` (with media), or `tweetText` with an inline URL. **400** if missing — use `replyHint`.
+**Image (required):** pass `tweetUrl` on X (preferred), or `tweetImageUrl`, `imageUrl`, `tweetMedia`, `tweet`, or `tweetText` with inline URL. **400** if missing — use `replyHint`.
 
 ```http
 POST https://api.hood.markets/api/agent/prepare-deploy
@@ -106,9 +126,8 @@ Content-Type: application/json
   "symbol": "MTK",
   "launchMode": "simple",
   "agentChannel": "x",
-  "tweetImageUrl": "https://pbs.twimg.com/media/…",
-  "tweetText": "launch My Token $MTK on hoodmarkets",
-  "description": "…"
+  "tweetUrl": "https://x.com/Rayblancoeth/status/…",
+  "tweetText": "launch My Token $MTK on hoodmarkets"
 }
 ```
 

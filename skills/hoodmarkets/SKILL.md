@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 3
+version: 4
 ---
 
 # hood.markets — Bankr agent skill
@@ -22,6 +22,7 @@ GET  https://api.hood.markets/api/agent/briefing?wallet=0x…
 GET  https://api.hood.markets/api/agent/preflight-deploy?wallet=0x…&name=…&symbol=…
 GET  https://api.hood.markets/api/agent/token-info?token=0x…
 POST https://api.hood.markets/api/agent/prepare-deploy
+POST https://api.hood.markets/api/agent/resolve-deploy-image
 POST https://api.hood.markets/api/agent/prepare-buy
 POST https://api.hood.markets/api/agent/prepare-sell
 POST https://api.hood.markets/api/deploy          (after haiku JWT)
@@ -67,12 +68,40 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
   4. **Deploy:** call `preflight-deploy` first — if blocked, reply with `replyHint` (ticker taken, daily limit, etc.)
   5. Call references/AGENT-API.md endpoint BEFORE replying
   6. Format reply locally — references/RESPONSE-SAFETY.md
-  7. Deploy: preflight ok → `prepare-deploy` with tweet image (`tweetImageUrl` / `tweetText`) + `agentChannel: "x"` on X → show `confirmReplyHint` (logo included) → deploy after yes; else haiku JWT
+  7. Deploy (X): preflight ok → pass **`tweetUrl`** (status URL of launch tweet) to `prepare-deploy` with `agentChannel: "x"` — API resolves logo via oEmbed → show `confirmReplyHint` → deploy after yes. **Never say "no image" without passing tweetUrl to the API first.** Non-X: haiku JWT.
   8. Buy/sell: `token-info` → if Pro, prepare-buy|prepare-sell → validate txs → Bankr /wallet/submit
   9. Claim: haiku JWT → POST /api/agent/claim (server broadcasts, no submit)
 ```
 
 **Tweet = DM** — same pipeline on `@bankrbot` intake.
+
+---
+
+## X — token logo (CRITICAL for @bankrbot)
+
+Bankr often **cannot see** attached photos in the tweet UI. **Do not tell the user "no attached image" until you have called the API with `tweetUrl`.**
+
+On every X deploy request:
+
+1. Build **`tweetUrl`** — full status URL of the user's launch tweet, e.g. `https://x.com/Rayblancoeth/status/1234567890` (from Bankr's tweet context / conversation id).
+2. Call **`POST /api/agent/resolve-deploy-image`** or **`POST /api/agent/prepare-deploy`** with:
+   - `tweetUrl` (required on X when media is not in your payload)
+   - `agentChannel: "x"`
+   - `wallet`, `name`, `symbol`
+3. Also pass any media Bankr **does** have: `tweetImageUrl`, `tweet` (with `extended_entities.media`), `tweetMedia[]`.
+4. API resolves the logo server-side via X oEmbed (`imageSource: tweet_oembed`).
+5. Only ask the user for a logo if the API still returns `imageRequired: true` after `tweetUrl` was passed.
+
+```json
+{
+  "wallet": "0x…",
+  "name": "dontfukinbuy",
+  "symbol": "TEST",
+  "agentChannel": "x",
+  "tweetUrl": "https://x.com/Rayblancoeth/status/…",
+  "tweetText": "launch dontfukinbuy $TEST on hoodmarkets"
+}
+```
 
 ---
 
@@ -100,14 +129,11 @@ Deploy is **gasless for the user** — hood.markets launcher wallet pays gas + l
 
 ### On X / Twitter (`agentChannel: "x"`)
 
-1. From the **original tweet**, pass the logo into `prepare-deploy`:
-   - **`tweetImageUrl`** — first attached photo (`pbs.twimg.com/...`) — preferred on X
-   - **`tweetText`** — full tweet text (fallback: extract inline image URL)
-   - **`tweet`** — Twitter API object if available (`extended_entities.media`)
-   - **`imageUrl`** — explicit HTTPS URL if user pasted one in the tweet
-2. Call `POST /api/agent/prepare-deploy` with `agentChannel: "x"`, wallet, name, symbol, and image fields above.
-3. Use **`confirmSummary`** / **`confirmReplyHint`** (or `steps[0].summary` / `steps[0].replyHint`) in your confirm message — **must include the logo URL** from the tweet.
-4. Wait for user **yes/confirm**, then deploy — **no haiku**:
+1. Pass **`tweetUrl`** (full status URL of the launch tweet) — API pulls the attached photo via oEmbed even when Bankr cannot see media in context.
+2. Optionally also pass `tweetImageUrl`, `tweet`, `tweetMedia`, or `imageUrl` if available in Bankr's payload.
+3. Call `POST /api/agent/prepare-deploy` with `agentChannel: "x"`, wallet, name, symbol, and fields above.
+4. Use **`confirmReplyHint`** in your confirm message — includes the resolved logo URL.
+5. Wait for user **yes/confirm**, then deploy — **no haiku**:
 
 ```http
 POST https://api.hood.markets/api/deploy
