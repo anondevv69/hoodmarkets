@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 1
+version: 2
 ---
 
 # hood.markets — Bankr agent skill
@@ -49,7 +49,7 @@ Or from Bankr skill catalog once published to [BankrBot/skills](https://github.c
 | Term | Meaning |
 |------|---------|
 | **Launch / deploy** | Create a new token + liquidity pool on Robinhood |
-| **Simple launch** | Uniswap V3 — DexScreener-friendly; **5%** platform fee embedded in contract |
+| **Simple launch** | Uniswap V3 via `0xcFE4…9f09` factory — DexScreener-friendly; **5%** platform / **95%** creator |
 | **Pro launch** | Uniswap V4 hooks — one-click buy/sell on hood.markets |
 | **Buy / sell** | Swap ETH ↔ hood.markets token (Pro tokens via swap helper + Bankr submit) |
 | **Claim fees** | Pull WETH trading fees to creator wallet (launcher pays gas) |

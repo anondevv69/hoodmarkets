@@ -8,6 +8,18 @@ Wallet on all agent routes: `x-wallet-address: 0x…` and/or `?wallet=0x…` and
 
 ---
 
+## Contracts (simple / V3 — default launch)
+
+| Role | Address |
+|------|---------|
+| HoodMarketsV3 factory | `0xcFE4D69Ac8e5F79a95d99e991162902f68029f09` |
+| HoodMarketsV3 LP locker | `0x209eFAA86568f0Ea0E25d1F0E62f92e81c51a72a` |
+| Platform 5% fees | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
+
+Full pin list: `../known-contracts.json` (repo root: `skills/hoodmarkets/known-contracts.json`).
+
+---
+
 ## GET /health
 
 ```http
