@@ -6,7 +6,7 @@ import { TickerTape } from './components/TickerTape';
 import { TokensTab } from './components/TokensTab';
 import { useExploreTokens } from './hooks/useExploreTokens';
 import { useEnsureRobinhoodChain } from './hooks/useEnsureRobinhoodChain';
-import { readTokenFromUrl } from './lib/tokenRoute';
+import { openExplorePage, readTokenFromUrl } from './lib/tokenRoute';
 
 type Tab = 'tokens' | 'launch' | 'profile';
 
@@ -61,9 +61,14 @@ export default function App() {
     <div className="app lp-root">
       <header className="site-header">
         <div className="header-inner">
-          <div className="logo lp-display" aria-label="hood.markets">
+          <button
+            type="button"
+            className="logo lp-display"
+            aria-label="hood.markets — back to explore"
+            onClick={openExplorePage}
+          >
             <span className="logo-hood">hood</span><span className="logo-markets">.markets</span>
-          </div>
+          </button>
           <nav className="site-nav" aria-label="Main">
             <button
               type="button"

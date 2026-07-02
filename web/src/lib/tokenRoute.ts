@@ -22,6 +22,15 @@ export function openTokenPage(tokenAddress: string, opts?: { buyEth?: string }):
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
+export function openExplorePage(): void {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('token');
+  url.searchParams.delete('buy');
+  url.searchParams.set('tab', 'tokens');
+  window.history.pushState({}, '', url);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
 export function closeTokenPage(): void {
   const url = new URL(window.location.href);
   url.searchParams.delete('token');

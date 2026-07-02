@@ -1,17 +1,24 @@
-import { buildTickerItems, type ExploreToken } from '../lib/exploreTokens';
+import {
+  buildTickerItems,
+  expandTickerSequence,
+  formatTickerAge,
+  type ExploreToken,
+} from '../lib/exploreTokens';
+import { formatUsdVol } from '../lib/dexscreenerVolume';
 import { openTokenPage } from '../lib/tokenRoute';
 
 const CATEGORY_STYLES = {
-  hot: { label: 'HOT', color: '#ff3b3b' },
-  trending: { label: 'TRND', color: '#00ff66' },
-  new: { label: 'NEW', color: '#ffd400' },
+  hot: { label: 'HOT', className: 'led-tag-hot' },
+  trending: { label: 'TRND', className: 'led-tag-trnd' },
+  new: { label: 'NEW', className: 'led-tag-new' },
 } as const;
 
 export function TickerTape({ tokens }: { tokens: ExploreToken[] }) {
-  const items = buildTickerItems(tokens);
-  if (items.length === 0) return null;
+  const base = buildTickerItems(tokens);
+  if (base.length === 0) return null;
 
-  const loop = [...items, ...items];
+  const sequence = expandTickerSequence(base);
+  const loop = [...sequence, ...sequence];
 
   return (
     <div className="led-ticker" aria-label="Hot, trending, and new tokens">
@@ -19,12 +26,8 @@ export function TickerTape({ tokens }: { tokens: ExploreToken[] }) {
         {loop.map((t, i) => {
           const cat = CATEGORY_STYLES[t.category];
           const isUp = (t.change24h ?? 0) >= 0;
-          const tagGlow =
-            t.category === 'hot'
-              ? 'led-glow-red'
-              : t.category === 'new'
-                ? 'led-glow-amber'
-                : 'led-glow-green';
+          const hasChange = typeof t.change24h === 'number';
+
           return (
             <button
               type="button"
@@ -32,16 +35,21 @@ export function TickerTape({ tokens }: { tokens: ExploreToken[] }) {
               className="led-item"
               onClick={() => openTokenPage(t.address)}
             >
-              <span className={`led-tag ${tagGlow}`} style={{ color: cat.color }}>
-                [{cat.label}]
-              </span>
+              <span className={`led-tag ${cat.className}`}>{cat.label}</span>
               <span className="led-symbol">${t.symbol}</span>
-              {typeof t.change24h === 'number' ? (
-                <span className={`led-change ${isUp ? 'led-glow-green' : 'led-glow-red'}`}>
+              {hasChange ? (
+                <span className={`led-change ${isUp ? 'led-up' : 'led-down'}`}>
                   {isUp ? '▲' : '▼'}
                   {isUp ? '+' : ''}
-                  {t.change24h.toFixed(1)}%
+                  {t.change24h!.toFixed(1)}%
                 </span>
+              ) : null}
+              {t.category === 'new' ? (
+                <span className="led-meta">{formatTickerAge(t.createdAt)}</span>
+              ) : t.volume24h > 0 ? (
+                <span className="led-meta">VOL {formatUsdVol(t.volume24h)}</span>
+              ) : t.mcap != null && t.mcap > 0 ? (
+                <span className="led-meta">MCAP {formatUsdVol(t.mcap)}</span>
               ) : null}
             </button>
           );
