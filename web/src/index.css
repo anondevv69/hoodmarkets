@@ -659,6 +659,18 @@ label {
   height: 520px;
 }
 
+.launch-tweet-embed {
+  margin-top: 0.85rem;
+  padding: 1.25rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-soft);
+  background: var(--surface-raised, rgba(255, 255, 255, 0.02));
+}
+
+.launch-tweet-embed .twitter-tweet {
+  margin: 0 !important;
+}
+
 .token-market-card {
   padding: 1.25rem;
   margin-top: 0.85rem;

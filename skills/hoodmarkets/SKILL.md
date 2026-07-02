@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 7
+version: 8
 ---
 
 # hood.markets — Bankr agent skill
@@ -148,7 +148,7 @@ Deploy is **gasless for the user** — hood.markets launcher wallet pays gas + l
 2. Optionally also pass `tweetImageUrl`, `tweet`, `tweetMedia`, or `imageUrl` if available in Bankr's payload.
 3. Call `POST /api/agent/prepare-deploy` with `agentChannel: "x"`, wallet, name, symbol, and fields above.
 4. Use **`confirmReplyHint`** from the API as-is for your confirm message (logo + fees only — no launch mode line).
-5. Wait for user **yes/confirm**, then deploy — **no haiku**:
+5. Wait for user **yes/confirm**, then deploy — **no haiku**. Use the **`steps[].body`** from `prepare-deploy` as-is (includes **`tweetUrl`** / **`sourceUrl`** so the launch tweet appears on the token page):
 
 ```http
 POST https://api.hood.markets/api/deploy
@@ -165,6 +165,8 @@ Content-Type: application/json
   "agentChannel": "x",
   "launchMode": "simple",
   "imageUrl": "https://…",
+  "tweetUrl": "https://x.com/user/status/…",
+  "sourceUrl": "https://x.com/user/status/…",
   "wallet": "0x…"
 }
 ```

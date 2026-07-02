@@ -128,6 +128,23 @@ export function normalizeTweetStatusUrl(raw: unknown): string | undefined {
   }
 }
 
+/** Launch tweet URL for catalog `source_url` — from status URL or numeric tweet id. */
+export function resolveLaunchTweetUrl(input: {
+  tweetUrl?: unknown;
+  tweet_url?: unknown;
+  tweetId?: unknown;
+  tweet_id?: unknown;
+  sourceUrl?: unknown;
+}): string | undefined {
+  const fromUrl = normalizeTweetStatusUrl(
+    input.tweetUrl ?? input.tweet_url ?? input.sourceUrl,
+  );
+  if (fromUrl) return fromUrl;
+  const id = extractTweetId(input.tweetId ?? input.tweet_id);
+  if (id) return `https://x.com/i/web/status/${id}`;
+  return undefined;
+}
+
 /** Resolve attached photo via X syndication API (no auth — uses tweet id + token). */
 export async function resolveTweetImageFromSyndication(tweetId: string): Promise<string | undefined> {
   const token = syndicationTokenForTweetId(tweetId);

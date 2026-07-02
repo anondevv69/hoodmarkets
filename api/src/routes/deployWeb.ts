@@ -41,7 +41,7 @@ import {
 import { runAfterPriorWebSelfFeeWork } from '../lib/webSelfFeeQueue.js';
 import { runAfterPriorWebThirdPartyFeeWork } from '../lib/webThirdPartyFeeQueue.js';
 import { resolveAgentWalletAuth } from '../lib/agentWalletDeployAuth.js';
-import { agentDeploySuccessReplyHint } from '../lib/agentDeployImage.js';
+import { agentDeploySuccessReplyHint, resolveLaunchTweetUrl } from '../lib/agentDeployImage.js';
 import { verifyDeploySignature } from '../lib/agentWalletAuth.js';
 import {
   buildAgentDeployCommitment,
@@ -175,6 +175,12 @@ interface DeployWebBody {
   walletKind?: string;
   /** Optional extra string metadata (merged with the fields above). */
   agentMetadata?: Record<string, unknown>;
+  /** Original X launch tweet — stored in catalog `source_url` for token page embed. */
+  tweetUrl?: string;
+  tweet_url?: string;
+  tweetId?: string;
+  tweet_id?: string;
+  sourceUrl?: string;
   recipientAddress?: string;
   farcasterUsername?: string;
   xUsername?: string;
@@ -526,6 +532,7 @@ export function registerWebDeployRoutes(
       const userDescription = typeof body.description === 'string' ? body.description.trim() : '';
       const websiteUrl = normalizeWebsiteUrl(body.websiteUrl);
       const xUrl = normalizeTokenXUrl(body.xUrl);
+      const launchTweetUrl = resolveLaunchTweetUrl(body);
       if (typeof body.websiteUrl === 'string' && body.websiteUrl.trim() && !websiteUrl) {
         res.status(400).json({ error: 'Website must be a valid https URL.' });
         return;
@@ -580,6 +587,7 @@ export function registerWebDeployRoutes(
         agentVerifiedFee = agentAuth.walletAddress;
         agentMetadataJson = serializeAgentDeployMetadata({
           ...body,
+          ...(launchTweetUrl ? { launchTweetUrl } : {}),
           auth: agentAuth.auth,
           agentId: agentAuth.agentId,
         });
@@ -983,6 +991,7 @@ export function registerWebDeployRoutes(
           tokenWebsiteUrl: websiteUrl,
           tokenXUrl: xUrl,
           tokenDescription: userDescription || undefined,
+          ...(launchTweetUrl ? { sourceUrl: launchTweetUrl } : {}),
           chain: deployChain,
           factoryAddress: config.liquid.factory,
         });
@@ -1019,6 +1028,7 @@ export function registerWebDeployRoutes(
         clientKind: webClientKind,
         ...(agentWalletDeploy && agentMetadataJson ? { agentMetadataJson } : {}),
         tokenDescription: userDescription || undefined,
+        ...(launchTweetUrl ? { sourceUrl: launchTweetUrl } : {}),
         chain: deployChain,
       });
       }

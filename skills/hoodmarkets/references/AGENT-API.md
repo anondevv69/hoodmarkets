@@ -137,11 +137,13 @@ Content-Type: application/json
 
 **409** when preflight blocks — use `blocks[0].replyHint` and `blocks[0].existingToken` (token address when ticker/name taken).
 
-**200 response fields:** `steps[]`, `captchaRequired`, `confirmSummary`, `confirmReplyHint` (no launch mode line), `imageUrl`, `imageSource`.
+**200 response fields:** `steps[]`, `captchaRequired`, `confirmSummary`, `confirmReplyHint` (no launch mode line), `imageUrl`, `imageSource`. The deploy step **`body`** includes **`tweetUrl`** and **`sourceUrl`** when the launch tweet was passed — required for the token page embed.
 
-**Deploy success:** `POST /api/deploy` returns `deployReplyHint` — post verbatim on X (no DexScreener/simple-mode footer).
+**Deploy success:** `POST /api/deploy` returns `deployReplyHint` — post verbatim on X (no DexScreener/simple-mode footer). Token page shows the original launch tweet when `sourceUrl` is stored.
 
 ### Deploy — X channel (after user confirms)
+
+Use **`steps[deploy].body`** from prepare-deploy (includes `tweetUrl` when available). Do not strip `tweetUrl` / `sourceUrl`.
 
 ```http
 POST https://api.hood.markets/api/deploy
@@ -157,7 +159,9 @@ Content-Type: application/json
   "agentProvider": "bankr",
   "agentChannel": "x",
   "launchMode": "simple",
-  "imageUrl": "https://…"
+  "imageUrl": "https://…",
+  "tweetUrl": "https://x.com/user/status/…",
+  "sourceUrl": "https://x.com/user/status/…"
 }
 ```
 
