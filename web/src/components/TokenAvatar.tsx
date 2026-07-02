@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { resolveTokenImageUrl } from '../lib/tokenImageUrl';
 
 function initials(symbol: string): string {
   const s = symbol.replace(/^\$/, '').trim();
@@ -15,7 +16,7 @@ export function TokenAvatar({
   size?: number;
 }) {
   const [failed, setFailed] = useState(false);
-  const src = imageUrl?.trim();
+  const src = resolveTokenImageUrl(imageUrl);
 
   if (src && !failed) {
     return (

@@ -16,7 +16,7 @@ import { ClaimFeesActions } from './ClaimFeesActions';
 import { DexMetricsStrip } from './DexMetricsStrip';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
-import { DexScreenerChartEmbed, TokenListingStatus } from './TokenListingStatus';
+import { DexScreenerChartEmbed } from './TokenListingStatus';
 import { TradingLinksRow } from './TradingLinksRow';
 
 export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
@@ -87,7 +87,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               <span className="muted">${sym}</span>
             </h2>
             <DexMetricsStrip metrics={metrics} />
-            <TokenListingStatus metrics={metrics} poolId={token.poolId} />
             <DexScreenerChartEmbed tokenAddress={token.tokenAddress} metrics={metrics} />
           </div>
         </div>
@@ -157,13 +156,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
 
       <div className="lp-card token-page-trade">
         <p className="section-label">Buy / track</p>
-        <TradingLinksRow
-          links={links}
-          dexIndexed={
-            (metrics?.liquidityUsd != null && metrics.liquidityUsd > 0) ||
-            (metrics?.volumeH24Usd != null && metrics.volumeH24Usd > 0)
-          }
-        />
+        <TradingLinksRow links={links} />
       </div>
 
       <ClaimFeesActions
