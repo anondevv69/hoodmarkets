@@ -21,6 +21,8 @@ export function formatUsdVol(n: number): string {
 
 interface DexPair {
   chainId?: string;
+  url?: string;
+  pairAddress?: string;
   baseToken?: { address?: string };
   quoteToken?: { address?: string };
   volume?: { h24?: number };
@@ -63,6 +65,8 @@ export interface DexTokenMetrics {
   change24hPct?: number;
   fdvUsd?: number;
   liquidityUsd?: number;
+  /** DexScreener pair page URL when indexed (often pair address, not token). */
+  dexscreenerUrl?: string;
 }
 
 export async function fetchTokenMetricsFromDexscreener(
@@ -72,20 +76,10 @@ export async function fetchTokenMetricsFromDexscreener(
   const out: Record<string, DexTokenMetrics | undefined> = {};
   for (const a of uniq) out[a.toLowerCase()] = undefined;
 
-  for (const group of chunk(uniq, CHUNK)) {
-    const url = `https://api.dexscreener.com/tokens/v1/${CHAIN_KEY}/${group.join(',')}`;
-    let pairs: DexPair[] = [];
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const data = (await res.json()) as DexPair[] | { pairs?: DexPair[] };
-      pairs = Array.isArray(data) ? data : (data.pairs ?? []);
-    } catch {
-      continue;
-    }
-
-    for (const addr of group) {
+  const applyPairs = (pairs: DexPair[]) => {
+    for (const addr of uniq) {
       const key = addr.toLowerCase();
+      if (out[key]) continue;
       const best = pickBestPairForToken(pairs, key);
       if (!best) continue;
       const vol = best.volume?.h24;
@@ -99,7 +93,39 @@ export async function fetchTokenMetricsFromDexscreener(
       if (typeof fdv === 'number' && Number.isFinite(fdv) && fdv > 0) metrics.fdvUsd = fdv;
       else if (typeof mc === 'number' && Number.isFinite(mc) && mc > 0) metrics.fdvUsd = mc;
       if (typeof liq === 'number' && Number.isFinite(liq) && liq > 0) metrics.liquidityUsd = liq;
+      if (typeof best.url === 'string' && best.url.length > 0) metrics.dexscreenerUrl = best.url;
       if (Object.keys(metrics).length > 0) out[key] = metrics;
+    }
+  };
+
+  for (const group of chunk(uniq, CHUNK)) {
+    let pairs: DexPair[] = [];
+    try {
+      const res = await fetch(
+        `https://api.dexscreener.com/tokens/v1/${CHAIN_KEY}/${group.join(',')}`,
+      );
+      if (res.ok) {
+        const data = (await res.json()) as DexPair[] | { pairs?: DexPair[] };
+        pairs = Array.isArray(data) ? data : (data.pairs ?? []);
+      }
+    } catch {
+      pairs = [];
+    }
+    applyPairs(pairs);
+  }
+
+  // v1 often returns [] on Robinhood; latest/dex/tokens picks up v2/v3 pairs (e.g. Lootback).
+  const missing = uniq.filter((a) => !out[a.toLowerCase()]);
+  for (const addr of missing) {
+    try {
+      const res = await fetch(
+        `https://api.dexscreener.com/latest/dex/tokens/${addr.trim()}`,
+      );
+      if (!res.ok) continue;
+      const data = (await res.json()) as { pairs?: DexPair[] };
+      applyPairs(data.pairs ?? []);
+    } catch {
+      continue;
     }
   }
 

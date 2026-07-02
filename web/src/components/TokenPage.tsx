@@ -67,7 +67,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   }
 
   const sym = token.tokenSymbol.replace(/^\$/, '');
-  const links = buildTradingLinks(token.tokenAddress);
+  const links = buildTradingLinks(token.tokenAddress, metrics);
   const suggestedBuyEth = readBuyEthFromUrl() ?? undefined;
   const feeLabel = token.feeRecipientLabel?.trim();
   const platformFees = isHoodmarketsPlatformFeeRecipient(feeLabel);
