@@ -142,7 +142,7 @@ export default function App() {
         </div>
 
         <p className="footer-note">
-          hood.markets · Robinhood Chain · trading fees go to your wallet ·{' '}
+          hood.markets · Robinhood Chain ·{' '}
           <a href="/agent.md" target="_blank" rel="noreferrer">
             agent.md
           </a>
