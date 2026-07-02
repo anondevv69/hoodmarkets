@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { fetchDeploymentByAddress } from '../api';
 import { shortenAddress } from '../chain';
-import { formatUsdVol, type DexTokenMetrics } from '../lib/dexscreenerVolume';
+import { formatUsdVol, fetchTokenMetricsFromDexscreener, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import type { ExploreToken } from '../lib/exploreTokens';
+import { toExploreTokens } from '../lib/exploreTokens';
+import { extractContractAddressFromSearch, looksLikeAddressSearch } from '../lib/exploreSearch';
 import { formatLaunchTimeEastern, parseCatalogCreatedAt } from '../lib/launchTime';
 import { openTokenPage } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
@@ -114,6 +117,63 @@ export function TokensTab({
 }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ExploreSort>('mcap');
+  const [addressLookup, setAddressLookup] = useState<ExploreToken | null>(null);
+  const [addressLookupMetrics, setAddressLookupMetrics] = useState<DexTokenMetrics | undefined>();
+  const [addressLookupState, setAddressLookupState] = useState<'idle' | 'loading' | 'miss'>('idle');
+
+  const fullAddressQuery = useMemo(() => extractContractAddressFromSearch(query), [query]);
+
+  useEffect(() => {
+    if (!fullAddressQuery) {
+      setAddressLookup(null);
+      setAddressLookupMetrics(undefined);
+      setAddressLookupState('idle');
+      return;
+    }
+
+    const alreadyLoaded = exploreTokens.some(
+      (t) => t.address.toLowerCase() === fullAddressQuery,
+    );
+    if (alreadyLoaded) {
+      setAddressLookup(null);
+      setAddressLookupMetrics(undefined);
+      setAddressLookupState('idle');
+      return;
+    }
+
+    let cancelled = false;
+    setAddressLookupState('loading');
+    void (async () => {
+      try {
+        const deployment = await fetchDeploymentByAddress(fullAddressQuery);
+        if (cancelled) return;
+        const metrics = await fetchTokenMetricsFromDexscreener([deployment.tokenAddress]);
+        if (cancelled) return;
+        const m = metrics[deployment.tokenAddress];
+        setAddressLookup(toExploreTokens([deployment], { [deployment.tokenAddress]: m })[0]);
+        setAddressLookupMetrics(m);
+        setAddressLookupState('idle');
+      } catch {
+        if (!cancelled) {
+          setAddressLookup(null);
+          setAddressLookupMetrics(undefined);
+          setAddressLookupState('miss');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fullAddressQuery, exploreTokens]);
+
+  const mergedMetrics = useMemo(() => {
+    if (!addressLookup) return metricsByAddress;
+    return {
+      ...metricsByAddress,
+      [addressLookup.address]: addressLookupMetrics ?? metricsByAddress[addressLookup.address],
+    };
+  }, [addressLookup, addressLookupMetrics, metricsByAddress]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -125,8 +185,12 @@ export function TokensTab({
             t.address.toLowerCase().includes(q),
         )
       : exploreTokens;
-    return sortExploreTokens(base, metricsByAddress, sort);
-  }, [exploreTokens, metricsByAddress, query, sort]);
+    const sorted = sortExploreTokens(base, mergedMetrics, sort);
+    if (sorted.length === 0 && addressLookup) {
+      return [addressLookup];
+    }
+    return sorted;
+  }, [exploreTokens, mergedMetrics, query, sort, addressLookup]);
 
   if (loading) return <p className="muted">Loading tokens…</p>;
   if (error) return <p className="error">{error}</p>;
@@ -168,19 +232,43 @@ export function TokensTab({
         ) : null}
       </div>
 
+      {addressLookupState === 'loading' ? (
+        <p className="muted" style={{ marginBottom: '1rem' }}>
+          Looking up contract…
+        </p>
+      ) : null}
+
       {filtered.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon" aria-hidden>
             🔍
           </div>
           <p className="empty-state-title">
-            {exploreTokens.length === 0 ? 'No tokens launched yet' : 'No tokens match your search'}
+            {exploreTokens.length === 0
+              ? 'No tokens launched yet'
+              : addressLookupState === 'miss'
+                ? 'Token not in hood.markets catalog'
+                : 'No tokens match your search'}
           </p>
           <p className="muted empty-state-sub">
             {exploreTokens.length === 0
               ? 'Be the first to launch on Robinhood Chain.'
-              : 'Try a different name, symbol, or contract address.'}
+              : addressLookupState === 'miss'
+                ? 'This contract may exist on-chain but was not launched through hood.markets, or the full 0x address is required.'
+                : looksLikeAddressSearch(query)
+                  ? 'Paste the full 42-character contract address (0x + 40 hex digits).'
+                  : 'Try a different name, symbol, or contract address.'}
           </p>
+          {addressLookupState === 'miss' && fullAddressQuery ? (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ marginTop: '0.75rem' }}
+              onClick={() => openTokenPage(fullAddressQuery)}
+            >
+              Try opening {shortenAddress(fullAddressQuery)} anyway
+            </button>
+          ) : null}
         </div>
       ) : (
         <div className="lp-card explore-card">
@@ -193,7 +281,7 @@ export function TokensTab({
               <ExploreRow
                 key={t.address}
                 token={t}
-                metrics={metricsByAddress[t.address]}
+                metrics={mergedMetrics[t.address]}
               />
             ))}
           </ul>
