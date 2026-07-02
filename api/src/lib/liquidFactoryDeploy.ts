@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import {
   decodeEventLog,
+  encodeAbiParameters,
   getAddress,
   isAddress,
   toHex,
@@ -45,6 +46,20 @@ function deployTokenGasLimitWithValue(): bigint {
     if (n >= 3_000_000n) return n;
   }
   return DEFAULT_DEPLOY_TOKEN_GAS_WITH_VALUE;
+}
+
+/** LP locker feePreference array length must match rewardBps / rewardRecipients length. */
+function buildLpLockerFeeConversionData(rewardParticipantCount: number): Hex {
+  const feePreference = Array.from({ length: rewardParticipantCount }, () => 0);
+  return encodeAbiParameters(
+    [
+      {
+        type: 'tuple',
+        components: [{ name: 'feePreference', type: 'uint8[]' }],
+      },
+    ],
+    [{ feePreference }],
+  );
 }
 
 /** Presets decoded from real on-chain `deployToken` calls — only token/admin fields are substituted. */
@@ -199,7 +214,7 @@ function buildDeploymentConfig(
       tickLower: [...preset.lockerConfig.tickLower],
       tickUpper: [...preset.lockerConfig.tickUpper],
       positionBps: [...preset.lockerConfig.positionBps],
-      lockerData: preset.lockerConfig.lockerData,
+      lockerData: buildLpLockerFeeConversionData(rewardBpsArr.length),
     },
     mevModuleConfig: {
       mevModule: liquidMevModule(),
@@ -428,7 +443,7 @@ export async function deployTokenOnchain(
 
   if (receipt.status !== 'success') {
     throw new Error(
-      `deployToken transaction reverted: ${hash} (see BaseScan — often out-of-gas when gasUsed hits the cap; try DEPLOY_TOKEN_GAS)`
+      `deployToken transaction reverted: ${hash} (see https://robinhoodchain.blockscout.com/tx/${hash} — check revert reason; gas OOG only if gasUsed ≈ gas limit)`,
     );
   }
 
