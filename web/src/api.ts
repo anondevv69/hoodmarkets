@@ -285,7 +285,9 @@ export async function deployToken(
     });
 
     if (prepare.mode !== 'wallet') {
-      throw new Error('Server did not return wallet deploy preparation.');
+      throw new Error(
+        'Server did not return wallet deploy preparation. Connect your hood.markets embedded wallet — website deploys are always wallet-signed.',
+      );
     }
 
     const walletPrepare = prepare as WalletDeployPrepare;
