@@ -11,6 +11,7 @@ import {
   type WebDeployConfig,
 } from '../api';
 import { readImageFileAsDataUrl, resolveLaunchImagePayload } from '../lib/imageUpload';
+import { looksLikeFeeRecipientInput } from '../lib/feeRecipientInput';
 import { openTokenPage } from '../lib/tokenRoute';
 import { LaunchSuccessLinks } from './TokenCard';
 import { tradingLinksFromApi } from '../lib/tradingLinks';
@@ -38,6 +39,8 @@ export function LaunchTab() {
   const [description, setDescription] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [xUrl, setXUrl] = useState('');
+  const [feeTarget, setFeeTarget] = useState<'self' | 'other'>('self');
+  const [feeRecipient, setFeeRecipient] = useState('');
   const [rateLimitNotice, setRateLimitNotice] = useState<string | null>(null);
   const [config, setConfig] = useState<WebDeployConfig | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -53,6 +56,7 @@ export function LaunchTab() {
 
   const debouncedSymbol = useDebounced(symbol.trim().toUpperCase(), 400);
   const debouncedName = useDebounced(name.trim(), 400);
+  const debouncedFeeRecipient = useDebounced(feeRecipient.trim(), 400);
 
   useEffect(() => {
     fetchWebDeployConfig()
@@ -65,12 +69,19 @@ export function LaunchTab() {
       setRateLimitNotice(null);
       return;
     }
+    if (feeTarget === 'other' && !looksLikeFeeRecipientInput(debouncedFeeRecipient)) {
+      setRateLimitNotice(null);
+      return;
+    }
     let cancelled = false;
     void (async () => {
       try {
         const token = await getAccessToken();
         if (!token || cancelled) return;
-        const preview = await fetchDeployPreview(token);
+        const preview = await fetchDeployPreview(token, {
+          feeTarget,
+          recipientPaste: feeTarget === 'other' ? debouncedFeeRecipient : undefined,
+        });
         if (!cancelled) {
           setRateLimitNotice(preview.notice);
         }
@@ -81,7 +92,7 @@ export function LaunchTab() {
     return () => {
       cancelled = true;
     };
-  }, [authenticated, getAccessToken]);
+  }, [authenticated, feeTarget, debouncedFeeRecipient, getAccessToken]);
 
   useEffect(() => {
     if (debouncedSymbol.length < 1 && debouncedName.length < 2) {
@@ -123,7 +134,28 @@ export function LaunchTab() {
   }, [debouncedSymbol, debouncedName]);
 
   const cooldownHours = config?.globalTickerCooldownHours ?? 24;
-  const limitsNote = `1 token per user every ${config?.deployRateLimitHours ?? 24}h · each name & symbol unique for ${cooldownHours}h`;
+  const deployHours = config?.deployRateLimitHours ?? 24;
+  const recipientDayCap = config?.maxFeeRecipientDeploysPerEasternDay ?? 0;
+  const recipientRollingCap = config?.maxThirdPartyFeeToWalletPer24h ?? 0;
+  const limitsNote = useMemo(() => {
+    const base = `1 token per user every ${deployHours}h · each name & symbol unique for ${cooldownHours}h`;
+    if (!config?.thirdPartyFeeDeployEnabled) return base;
+    const recipientParts: string[] = [];
+    if (recipientDayCap > 0) {
+      recipientParts.push(`${recipientDayCap} per Eastern day`);
+    }
+    if (recipientRollingCap > 0) {
+      recipientParts.push(`${recipientRollingCap} per ${deployHours}h`);
+    }
+    if (recipientParts.length === 0) return base;
+    return `${base} · fee recipients limited to ${recipientParts.join(' and ')}`;
+  }, [
+    config?.thirdPartyFeeDeployEnabled,
+    cooldownHours,
+    deployHours,
+    recipientDayCap,
+    recipientRollingCap,
+  ]);
 
   const blockingReserved = liveNameReserved ?? liveTickerReserved;
 
@@ -132,18 +164,15 @@ export function LaunchTab() {
     [submitConflict, liveTickerConflict, liveNameConflict],
   );
 
-  const cannotLaunch = !!blockingConflict || !!blockingReserved;
+  const cannotLaunch =
+    !!blockingConflict ||
+    !!blockingReserved ||
+    (feeTarget === 'other' && !looksLikeFeeRecipientInput(feeRecipient));
 
   const previewSymbol = (symbol.trim() || 'TICK').toUpperCase();
   const previewName = name.trim() || 'Your Token';
   const previewImage = imageDataUrl || (imageUrl.trim().startsWith('http') ? imageUrl.trim() : null);
   const hasImage = !!resolveLaunchImagePayload(imageDataUrl, imageUrl);
-
-  useEffect(() => {
-    fetchWebDeployConfig()
-      .then((c) => setConfig(c))
-      .catch(() => undefined);
-  }, []);
 
   async function onPickLogo(file: File | null) {
     if (!file) return;
@@ -168,6 +197,11 @@ export function LaunchTab() {
     setLaunchedMeta(null);
 
     if (cannotLaunch) return;
+
+    if (feeTarget === 'other' && !looksLikeFeeRecipientInput(feeRecipient)) {
+      setError('Enter a wallet (0x…), @handle, or profile link for who receives trading fees.');
+      return;
+    }
 
     const resolvedImage = resolveLaunchImagePayload(imageDataUrl, imageUrl);
     if (!resolvedImage) {
@@ -206,6 +240,8 @@ export function LaunchTab() {
           description: description.trim() || undefined,
           initialBuyEth: buyEth,
           launchMode: 'simple',
+          feeTarget,
+          recipientPaste: feeTarget === 'other' ? feeRecipient.trim() : undefined,
         },
       );
       setLaunchedMeta({ name: name.trim(), symbol: symbol.trim().toUpperCase() });
@@ -218,6 +254,8 @@ export function LaunchTab() {
       setDescription('');
       setWebsiteUrl('');
       setXUrl('');
+      setFeeTarget('self');
+      setFeeRecipient('');
       setRateLimitNotice(null);
       setLiveTickerConflict(null);
       setLiveNameConflict(null);
@@ -409,6 +447,61 @@ export function LaunchTab() {
               </div>
             </div>
 
+            <div className="lp-card form-section">
+              <p className="section-label">Trading fees</p>
+              <div className="launch-mode-row" role="radiogroup" aria-label="Fee recipient">
+                <label
+                  className={`launch-mode-option${feeTarget === 'self' ? ' active' : ''}`}
+                >
+                  <span className="launch-mode-title">
+                    <input
+                      type="radio"
+                      name="feeTarget"
+                      checked={feeTarget === 'self'}
+                      onChange={() => setFeeTarget('self')}
+                    />
+                    Me
+                  </span>
+                  <span className="launch-mode-desc muted">
+                    Trading fees go to your hood.markets wallet.
+                  </span>
+                </label>
+                <label
+                  className={`launch-mode-option${feeTarget === 'other' ? ' active' : ''}`}
+                >
+                  <span className="launch-mode-title">
+                    <input
+                      type="radio"
+                      name="feeTarget"
+                      checked={feeTarget === 'other'}
+                      onChange={() => setFeeTarget('other')}
+                    />
+                    Someone else
+                  </span>
+                  <span className="launch-mode-desc muted">
+                    Launch for a friend — fees go to their wallet or linked @handle.
+                  </span>
+                </label>
+              </div>
+              {feeTarget === 'other' ? (
+                <label style={{ marginTop: '0.85rem' }}>
+                  Fee recipient
+                  <input
+                    className="lp-input"
+                    value={feeRecipient}
+                    onChange={(e) => setFeeRecipient(e.target.value)}
+                    placeholder="0x… or @handle or https://x.com/…"
+                    required
+                  />
+                  <span className="muted" style={{ fontSize: '0.8rem' }}>
+                    Each wallet can receive fees for at most{' '}
+                    {recipientDayCap > 0 ? `${recipientDayCap} token per Eastern day` : '1 token per day'}
+                    {recipientRollingCap > 0 ? ` and ${recipientRollingCap} per ${deployHours}h` : ''}.
+                  </span>
+                </label>
+              ) : null}
+            </div>
+
             <button
               type="submit"
               className="btn btn-primary btn-launch"
@@ -418,6 +511,8 @@ export function LaunchTab() {
                 ? 'Launching…'
                 : !hasImage
                   ? 'Add a logo to launch'
+                  : feeTarget === 'other' && !looksLikeFeeRecipientInput(feeRecipient)
+                    ? 'Enter fee recipient'
                   : blockingReserved
                   ? 'Reserved name or ticker'
                   : blockingConflict

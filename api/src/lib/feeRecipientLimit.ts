@@ -53,3 +53,25 @@ export async function shouldForceMemeDueToOtherFeeLimit(
   const n = await countOtherFeeDeploymentsCurrentEasternDay(key);
   return n >= max;
 }
+
+/** Shown before web deploy when the resolved fee recipient already hit the daily / rolling cap. */
+export function thirdPartyFeeRecipientLimitProceedNotice(rollingHours?: number): string {
+  const h =
+    Number.isFinite(rollingHours) && (rollingHours ?? 0) > 0
+      ? Math.round(rollingHours as number)
+      : deployRateLimitRollingHours() || 24;
+  const easternMax = maxFeeRecipientDeploysPerEasternDay();
+  const rollingMax = maxThirdPartyFeeToSameWalletPerRollingWindow();
+  const parts: string[] = [];
+  if (easternMax > 0) {
+    parts.push(`${easternMax} token${easternMax === 1 ? '' : 's'} per Eastern day`);
+  }
+  if (rollingMax > 0) {
+    parts.push(`${rollingMax} per ${h} hours`);
+  }
+  const limitText = parts.length > 0 ? parts.join(' and ') : 'the deploy limit';
+  return (
+    `This fee recipient already received a token in the last ${h} hours (limit: ${limitText}). ` +
+    `If you continue, trading fees on this launch go to a burn wallet (No Dev meme) instead of them.`
+  );
+}
