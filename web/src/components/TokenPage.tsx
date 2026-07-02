@@ -14,6 +14,7 @@ import { buildTradingLinks } from '../lib/tradingLinks';
 import { formatDeploySource } from '../lib/deploySourceDisplay';
 import { fetchTokenDescriptionFromChain } from '../lib/tokenOnChainMetadata';
 import { closeTokenPage } from '../lib/tokenRoute';
+import { formatLaunchTimeEastern } from '../lib/launchTime';
 import { CopyButton } from './CopyButton';
 import { ClaimFeesActions } from './ClaimFeesActions';
 import { DexMetricsStrip } from './DexMetricsStrip';
@@ -151,7 +152,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
           </div>
           <div>
             <dt>Launched</dt>
-            <dd>{new Date(token.createdAt).toLocaleString()}</dd>
+            <dd>{formatLaunchTimeEastern(token.createdAt)}</dd>
           </div>
           <div>
             <dt>Launched via</dt>

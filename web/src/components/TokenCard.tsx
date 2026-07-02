@@ -8,6 +8,7 @@ import { DexMetricsStrip } from './DexMetricsStrip';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 import { openTokenPage } from '../lib/tokenRoute';
+import { formatLaunchTimeEastern } from '../lib/launchTime';
 import { TradingLinksRow, TradingLinksRowForToken } from './TradingLinksRow';
 
 interface TokenCardProps {
@@ -42,7 +43,7 @@ export function TokenCard({ deployment: d, metrics, showDeployer = true }: Token
       </p>
 
       <p className="token-meta">
-        {new Date(d.createdAt).toLocaleString()}
+        {formatLaunchTimeEastern(d.createdAt)}
         {showDeployer && d.deployerLabel ? ` · ${d.deployerLabel}` : ''}
       </p>
 
