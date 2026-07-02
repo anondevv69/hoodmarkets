@@ -976,9 +976,10 @@ export function registerWebDeployRoutes(
         return;
       }
 
-      if (deployerPaysPoolSeed) {
+      if (deployerPaysPoolSeed && !useWalletDeploy) {
         res.status(400).json({
-          error: 'Wallet-signed deploy did not complete. Try launching again.',
+          error:
+            'Connect your hood.markets embedded wallet with enough ETH for the pool seed plus gas. hood.markets does not pay deployment costs on the website.',
         });
         return;
       }

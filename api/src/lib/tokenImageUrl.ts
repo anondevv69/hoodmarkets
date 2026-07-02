@@ -5,8 +5,13 @@ const IPFS_PROTO = /^ipfs:\/\/([^/?#]+)/i;
 const LIGHTHOUSE_VIEW_FILE = /\/viewFile\/([^/?#]+)/i;
 const RAW_CID = /^(bafkrei[a-z0-9]{52,}|Qm[1-9A-HJ-NP-Za-km-z]{44,})$/i;
 
-const DEDICATED_LIGHTHOUSE_GATEWAY =
-  'https://alternative-sparrow-qk8yx.lighthouseweb3.xyz/ipfs';
+const PUBLIC_IPFS_GATEWAY = 'https://ipfs.io/ipfs';
+
+function defaultGatewayBase(): string {
+  const fromEnv = config.lighthouse.ipfsGatewayBase.replace(/\/$/, '');
+  if (fromEnv && !fromEnv.includes('gateway.lighthouse.storage')) return fromEnv;
+  return PUBLIC_IPFS_GATEWAY;
+}
 
 /** Extract a CID from common IPFS / Lighthouse URL shapes. */
 export function extractIpfsCid(url: string): string | undefined {
@@ -19,12 +24,6 @@ export function extractIpfsCid(url: string): string | undefined {
   if (view?.[1]) return view[1];
   if (RAW_CID.test(t)) return t;
   return undefined;
-}
-
-function defaultGatewayBase(): string {
-  const fromEnv = config.lighthouse.ipfsGatewayBase.replace(/\/$/, '');
-  if (fromEnv && !fromEnv.includes('gateway.lighthouse.storage')) return fromEnv;
-  return DEDICATED_LIGHTHOUSE_GATEWAY;
 }
 
 /**

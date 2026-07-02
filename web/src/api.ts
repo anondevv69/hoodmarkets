@@ -174,6 +174,8 @@ export async function checkDeployCooldown(
 }
 
 import type { WalletDeployPrepare } from './lib/walletDeploy';
+import { signWalletDeployToken } from './lib/walletDeploy';
+import { ensureRobinhoodChainInWallet } from './lib/ensureRobinhoodChain';
 
 export interface LaunchPayload {
   name: string;
@@ -293,8 +295,6 @@ export async function deployToken(
     const walletPrepare = prepare as WalletDeployPrepare;
 
     const provider = await wallet.getEthereumProvider();
-    const { signWalletDeployToken } = await import('./lib/walletDeploy');
-    const { ensureRobinhoodChainInWallet } = await import('./lib/ensureRobinhoodChain');
     await ensureRobinhoodChainInWallet(
       provider as Parameters<typeof ensureRobinhoodChainInWallet>[0],
     );
