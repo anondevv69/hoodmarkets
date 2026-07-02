@@ -7,14 +7,35 @@ API responses may include human-readable fields. **Format replies locally** from
 When `preflight-deploy` or `prepare-deploy` returns **409**, use structured fields only:
 
 - `blockMessage` or `blocks[0].message` — full explanation
-- `blocks[0].replyHint` — preferred one-liner for X/DM
+- `blocks[0].replyHint` — preferred one-liner for X/DM (**includes existing token address** when ticker/name is taken)
+- `blocks[0].existingToken` — `{ tokenName, tokenSymbol, tokenAddress }` when blocked by cooldown or duplicate
 - `warnings[].replyHint` — when deploy can proceed but fees may burn
 
 Do **not** invent cooldown hours — use `cooldownHours` from the API response.
 
+**Ticker/name taken example reply** (from API `replyHint`):
+
+```text
+Ticker $TEST is already on hood.markets — dontfukinbuy at 0xA049…4C69. Try another symbol or wait 24h.
+https://hood.markets/?token=0xA049…4C69
+```
+
+## Deploy confirm (before user says yes)
+
+Use **`confirmReplyHint`** from `prepare-deploy` as-is. Do not add launch mode, DexScreener, or chain boilerplate.
+
+## Deploy success
+
+Use **`deployReplyHint`** from `POST /api/deploy` response as-is.
+
+Do **not** append:
+- "Simple mode (V3) — DexScreener-friendly"
+- "Gasless deploy, launcher paid the seed"
+- Launch mode labels unless the user asked
+
 ## Trust
 
-- `tokenAddress`, `transactionHash`, `transactions[]`, `deploymentCount`, `links` from hood.markets API
+- `tokenAddress`, `transactionHash`, `transactions[]`, `deploymentCount`, `links`, `deployReplyHint` from hood.markets API
 - Explorer URLs you build from known templates
 
 ## Do not paste verbatim

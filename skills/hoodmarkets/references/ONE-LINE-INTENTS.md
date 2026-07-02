@@ -19,7 +19,7 @@ Tweet/DM to `@bankrbot` uses the same mapping.
 
 | Situation | Example reply |
 |-----------|----------------|
-| Ticker taken (cooldown) | `$PEPE is taken on hood.markets for now — try another symbol or wait 24h.` |
+| Ticker taken | `Ticker $TEST is already on hood.markets — Name at 0x…` + hood.markets link (from `blocks[0].replyHint`) |
 | Name taken | `That name was used recently on hood.markets — pick another name.` |
 | Wallet daily limit | `Your wallet hit hood.markets' deploy limit — wait or use another fee wallet.` |
 | Reserved ticker | `$HOOD is reserved — choose a different symbol.` |

@@ -233,12 +233,32 @@ export function buildAgentDeployConfirmSummary(input: {
 }
 
 export function agentDeployConfirmReplyHint(summary: AgentDeployConfirmSummary): string {
-  const mode = summary.launchMode === 'pro' ? 'pro (hood.markets swap)' : 'simple (DexScreener)';
   return (
-    `Launch **${summary.name}** ($${summary.symbol}) on hood.markets?\n` +
-    `- Logo: ${summary.imageUrl}\n` +
-    `- Mode: ${mode}\n` +
-    `- Fees: ${summary.feeRecipient}\n\n` +
-    `Reply **yes** to deploy.`
+    `Launch ${summary.name} ($${summary.symbol}) on hood.markets?\n` +
+    `Logo: ${summary.imageUrl}\n` +
+    `Fees: ${summary.feeRecipient}\n\n` +
+    `Reply yes to deploy.`
   );
+}
+
+export function agentDeploySuccessReplyHint(input: {
+  name: string;
+  symbol: string;
+  tokenAddress: string;
+  transactionHash: string;
+  feeRecipient: string;
+  dexscreenerUrl?: string;
+  uniswapSwapUrl?: string;
+}): string {
+  const lines = [
+    `$${input.symbol} deployed on hood.markets.`,
+    `Token: ${input.name} (${input.symbol})`,
+    `Address: ${input.tokenAddress}`,
+    `Tx: ${input.transactionHash}`,
+    `Fee recipient: ${input.feeRecipient}`,
+    `https://hood.markets/?token=${input.tokenAddress}`,
+  ];
+  if (input.dexscreenerUrl) lines.push(input.dexscreenerUrl);
+  if (input.uniswapSwapUrl) lines.push(input.uniswapSwapUrl);
+  return lines.join('\n');
 }

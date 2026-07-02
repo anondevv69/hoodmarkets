@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 5
+version: 6
 ---
 
 # hood.markets — Bankr agent skill
@@ -147,7 +147,7 @@ Deploy is **gasless for the user** — hood.markets launcher wallet pays gas + l
 1. Pass **`tweetUrl`** (full status URL of the launch tweet) — API pulls the attached photo via oEmbed even when Bankr cannot see media in context.
 2. Optionally also pass `tweetImageUrl`, `tweet`, `tweetMedia`, or `imageUrl` if available in Bankr's payload.
 3. Call `POST /api/agent/prepare-deploy` with `agentChannel: "x"`, wallet, name, symbol, and fields above.
-4. Use **`confirmReplyHint`** in your confirm message — includes the resolved logo URL.
+4. Use **`confirmReplyHint`** from the API as-is for your confirm message (logo + fees only — no launch mode line).
 5. Wait for user **yes/confirm**, then deploy — **no haiku**:
 
 ```http
@@ -204,8 +204,9 @@ Check ticker/name taken, wallet deploy limits, and launch mode **before** asking
 GET https://api.hood.markets/api/agent/preflight-deploy?wallet=0x…&name=My+Token&symbol=MTK&launchMode=simple
 ```
 
-- **409** + `blocks[]` → do not deploy; reply with `replyHint` (e.g. ticker taken, wallet daily limit)
+- **409** + `blocks[]` → do not deploy; reply with `blocks[0].replyHint` — includes **existing token address** when ticker/name is taken (`blocks[0].existingToken`)
 - **200** + optional `warnings[]` → can deploy; warn if fees would route to burn
+- After deploy: post **`deployReplyHint`** from `/api/deploy` — no DexScreener/simple-mode footer
 
 See `streaming-hints.json` for V3 vs Pro detection and error codes.
 

@@ -8,12 +8,14 @@ import {
 } from './deploymentCatalog.js';
 import {
   formatDeployCooldownConflictMessage,
+  formatDeployCooldownReplyHint,
   getGlobalNameCooldownConflict,
   getGlobalTickerCooldownConflict,
   globalTickerCooldownHours,
   isNameGloballyReserved,
   isTickerGloballyReserved,
   thirdPartyFeeRecipientCooldownErrorOrNull,
+  type ExistingDeployToken,
 } from './globalTickerCooldown.js';
 import { DEPLOY_LIMIT_MEME_PROCEED_USER_NOTICE } from './memeFeeRecipient.js';
 import {
@@ -46,6 +48,8 @@ export type AgentPreflightIssue = {
   /** Short copy for @bankrbot tweet/DM replies */
   replyHint: string;
   conflict?: unknown;
+  /** Existing catalog token when ticker/name is taken */
+  existingToken?: ExistingDeployToken;
 };
 
 export type AgentDeployPreflightInput = {
@@ -138,8 +142,11 @@ export async function runAgentDeployPreflight(
       code: 'ticker_cooldown',
       severity: 'block',
       message: msg,
-      replyHint: `Ticker $${symbol} is taken on hood.markets for now — try another symbol or wait ${globalTickerCooldownHours()}h.`,
+      replyHint: conflict
+        ? formatDeployCooldownReplyHint(conflict)
+        : `Ticker $${symbol} is taken on hood.markets for now — try another symbol or wait ${globalTickerCooldownHours()}h.`,
       conflict: conflict ?? undefined,
+      existingToken: conflict?.existing,
     });
   }
 
@@ -152,8 +159,11 @@ export async function runAgentDeployPreflight(
       code: 'name_cooldown',
       severity: 'block',
       message: msg,
-      replyHint: `That name is taken on hood.markets — pick another name or wait ${globalTickerCooldownHours()}h.`,
+      replyHint: conflict
+        ? formatDeployCooldownReplyHint(conflict)
+        : `That name is taken on hood.markets — pick another name or wait ${globalTickerCooldownHours()}h.`,
       conflict: conflict ?? undefined,
+      existingToken: conflict?.existing,
     });
   }
 
@@ -167,12 +177,27 @@ export async function runAgentDeployPreflight(
         row.tokenSymbol.replace(/^\$/, '').toUpperCase() === symKey,
     );
     if (duplicate) {
+      const match = prior.find(
+        (row) =>
+          row.tokenName.trim().toLowerCase() === nameKey &&
+          row.tokenSymbol.replace(/^\$/, '').toUpperCase() === symKey,
+      );
+      const existingToken: ExistingDeployToken | undefined = match
+        ? {
+            tokenName: match.tokenName,
+            tokenSymbol: match.tokenSymbol,
+            tokenAddress: match.tokenAddress,
+          }
+        : undefined;
       blocks.push({
         code: 'duplicate_deployer_name_symbol',
         severity: 'block',
         message:
           'This name and ticker were already launched successfully for your wallet. Pick a different name or ticker.',
-        replyHint: `You already launched $${symbol} with that name on hood.markets — use a new name or ticker.`,
+        replyHint: existingToken
+          ? `You already launched $${symbol} (${name}) at ${existingToken.tokenAddress}.\nhttps://hood.markets/?token=${existingToken.tokenAddress}`
+          : `You already launched $${symbol} with that name on hood.markets — use a new name or ticker.`,
+        existingToken,
       });
     }
   }
