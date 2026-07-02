@@ -19,17 +19,49 @@ export function extractImageUrlFromText(text: string): string | undefined {
   return undefined;
 }
 
-/** X/Twitter tweet object: first attached photo (upload or some card previews). */
-export function extractTwitterMediaImageUrl(tweet: any): string | undefined {
-  const list =
-    tweet?.extended_entities?.media ??
-    tweet?.entities?.media ??
-    [];
-  const media = list[0];
-  if (media?.type === 'photo' && media.media_url_https) {
-    return media.media_url_https;
+function firstPhotoUrlFromMediaList(list: unknown): string | undefined {
+  if (!Array.isArray(list)) return undefined;
+  for (const media of list) {
+    if (!media || typeof media !== 'object') continue;
+    const m = media as {
+      type?: string;
+      media_url_https?: string;
+      url?: string;
+    };
+    if (m.type === 'photo' || m.media_url_https || m.url) {
+      const raw = m.media_url_https || m.url;
+      if (typeof raw === 'string' && raw.startsWith('http')) return raw;
+    }
   }
   return undefined;
+}
+
+/** Syndication API tweet-result JSON (`photos`, `mediaDetails`). */
+export function extractSyndicationTweetImageUrl(tweet: any): string | undefined {
+  const photos = tweet?.photos;
+  if (Array.isArray(photos) && photos[0] && typeof photos[0].url === 'string') {
+    return photos[0].url;
+  }
+  return firstPhotoUrlFromMediaList(tweet?.mediaDetails);
+}
+
+/** X API v2: `{ data, includes: { media: [{ type, url }] } }`. */
+export function extractTwitterV2MediaImageUrl(payload: any): string | undefined {
+  const fromIncludes = firstPhotoUrlFromMediaList(payload?.includes?.media);
+  if (fromIncludes) return fromIncludes;
+  return firstPhotoUrlFromMediaList(payload?.media);
+}
+
+/** X/Twitter tweet object: v1.1 extended_entities, entities, or syndication shape. */
+export function extractTwitterMediaImageUrl(tweet: any): string | undefined {
+  const fromSyndication = extractSyndicationTweetImageUrl(tweet);
+  if (fromSyndication) return fromSyndication;
+
+  const fromV2 = extractTwitterV2MediaImageUrl(tweet);
+  if (fromV2) return fromV2;
+
+  const list = tweet?.extended_entities?.media ?? tweet?.entities?.media ?? [];
+  return firstPhotoUrlFromMediaList(list);
 }
 
 /** X author profile picture (Account Activity / v1.1 style user object on tweets). */

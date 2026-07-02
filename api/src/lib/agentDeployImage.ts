@@ -1,4 +1,9 @@
-import { extractImageUrlFromText, extractTwitterMediaImageUrl } from './imageSources.js';
+import {
+  extractImageUrlFromText,
+  extractSyndicationTweetImageUrl,
+  extractTwitterMediaImageUrl,
+  extractTwitterV2MediaImageUrl,
+} from './imageSources.js';
 
 export type AgentDeployImageSource =
   | 'imageUrl'
@@ -7,6 +12,7 @@ export type AgentDeployImageSource =
   | 'tweet_media'
   | 'tweetMedia'
   | 'tweet_text'
+  | 'tweet_syndication'
   | 'tweet_oembed';
 
 export type AgentDeployImageInput = {
@@ -18,9 +24,11 @@ export type AgentDeployImageInput = {
   tweetMedia?: unknown;
   /** Full tweet text — used to extract inline image URLs. */
   tweetText?: unknown;
-  /** Twitter API tweet object (`extended_entities.media`, etc.). */
+  /** Twitter API tweet object (v1.1 extended_entities, v2 includes.media, or syndication JSON). */
   tweet?: unknown;
-  /** Full X status URL — API resolves attached photo via oEmbed when Bankr cannot see media. */
+  /** Numeric tweet id — resolves via syndication API. */
+  tweetId?: unknown;
+  /** Full X status URL — resolves via syndication then oEmbed. */
   tweetUrl?: unknown;
 };
 
@@ -68,6 +76,10 @@ export function resolveAgentDeployImageUrl(
     const fromTweet = extractTwitterMediaImageUrl(input.tweet);
     const u = normalizeHttpsImageUrl(fromTweet);
     if (u) return { imageUrl: u, imageSource: 'tweet_media' };
+
+    const fromV2 = extractTwitterV2MediaImageUrl(input.tweet);
+    const v2u = normalizeHttpsImageUrl(fromV2);
+    if (v2u) return { imageUrl: v2u, imageSource: 'tweet_media' };
   }
 
   if (typeof input.tweetText === 'string') {
@@ -79,9 +91,28 @@ export function resolveAgentDeployImageUrl(
   return { imageUrl: undefined, imageSource: null };
 }
 
-const X_STATUS_URL_RE = /(?:twitter\.com|x\.com)\/\w+\/status\/\d+/i;
+const X_STATUS_URL_RE = /(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/i;
 
-/** Normalize an X/Twitter status URL for oEmbed lookup. */
+/** Extract numeric tweet id from status URL or raw id string. */
+export function extractTweetId(raw: unknown): string | undefined {
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return String(Math.trunc(raw));
+  }
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (/^\d{10,25}$/.test(t)) return t;
+    const m = t.match(X_STATUS_URL_RE);
+    if (m?.[1]) return m[1];
+  }
+  return undefined;
+}
+
+/** Token required by cdn.syndication.twimg.com/tweet-result (react-tweet formula). */
+export function syndicationTokenForTweetId(tweetId: string): string {
+  return ((Number(tweetId) / 1e15) * Math.PI).toString(36).replace(/(0+|\.)/g, '');
+}
+
+/** Normalize an X/Twitter status URL for syndication / oEmbed lookup. */
 export function normalizeTweetStatusUrl(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined;
   const trimmed = raw.trim();
@@ -95,6 +126,26 @@ export function normalizeTweetStatusUrl(raw: unknown): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** Resolve attached photo via X syndication API (no auth — uses tweet id + token). */
+export async function resolveTweetImageFromSyndication(tweetId: string): Promise<string | undefined> {
+  const token = syndicationTokenForTweetId(tweetId);
+  const url = `https://cdn.syndication.twimg.com/tweet-result?id=${encodeURIComponent(tweetId)}&lang=en&token=${encodeURIComponent(token)}`;
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; HoodMarkets/1.0)',
+      Accept: 'application/json',
+    },
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!res.ok) return undefined;
+
+  const j = (await res.json()) as { __typename?: string };
+  if (j.__typename === 'TweetTombstone') return undefined;
+
+  const fromSyndication = extractSyndicationTweetImageUrl(j);
+  return normalizeHttpsImageUrl(fromSyndication);
 }
 
 /** Resolve attached photo from an X status URL via publish.twitter.com oEmbed. */
@@ -120,13 +171,21 @@ export async function resolveTweetImageFromOembed(tweetUrl: string): Promise<str
 }
 
 /**
- * Resolve token logo — sync fields first, then optional tweetUrl oEmbed (for Bankr on X).
+ * Resolve token logo — sync fields first, then syndication (tweet id), then oEmbed fallback.
  */
 export async function resolveAgentDeployImageUrlAsync(
   input: AgentDeployImageInput,
 ): Promise<{ imageUrl: string | undefined; imageSource: AgentDeployImageSource | null }> {
   const sync = resolveAgentDeployImageUrl(input);
   if (sync.imageUrl && sync.imageSource) return sync;
+
+  const tweetId = extractTweetId(input.tweetId) ?? extractTweetId(input.tweetUrl);
+  if (tweetId) {
+    const fromSyndication = await resolveTweetImageFromSyndication(tweetId);
+    if (fromSyndication) {
+      return { imageUrl: fromSyndication, imageSource: 'tweet_syndication' };
+    }
+  }
 
   const tweetUrl = normalizeTweetStatusUrl(input.tweetUrl);
   if (tweetUrl) {

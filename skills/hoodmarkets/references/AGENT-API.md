@@ -90,21 +90,24 @@ See `streaming-hints.json` for detection rules.
 
 ## POST /api/agent/resolve-deploy-image
 
-Resolve token logo before deploy — **use on X when Bankr cannot see attached photos**. Pass `tweetUrl` (full status URL); API fetches via X oEmbed.
+Resolve token logo before deploy. **On X, pass `tweetId` and/or `tweetImageUrl` from `extended_entities.media[0].media_url_https`.**
 
 ```http
 POST https://api.hood.markets/api/agent/resolve-deploy-image
 Content-Type: application/json
 
 {
-  "tweetUrl": "https://x.com/Rayblancoeth/status/…"
+  "tweetId": "1990000000000000000",
+  "tweetUrl": "https://x.com/Rayblancoeth/status/…",
+  "tweetImageUrl": "https://pbs.twimg.com/media/….jpg",
+  "tweet": { "extended_entities": { "media": [{ "type": "photo", "media_url_https": "https://pbs.twimg.com/…" }] } }
 }
 ```
 
-**200:** `{ "ok": true, "imageUrl": "https://…", "imageSource": "tweet_oembed" }`  
-**400:** `{ "ok": false, "imageRequired": true, "replyHint": "…" }`
+**200:** `{ "ok": true, "imageUrl": "https://pbs.twimg.com/…", "imageSource": "tweet_syndication" }`  
+Resolves: `tweetImageUrl` → `tweet` object → **syndication API** (`tweetId`/`tweetUrl`) → oEmbed fallback.
 
-Also accepts `imageUrl`, `tweetImageUrl`, `tweetMedia`, `tweet`, `tweetText` (same priority as prepare-deploy).
+**400:** only after all methods fail — use `replyHint`.
 
 ---
 

@@ -62,6 +62,19 @@ function walletFromBody(body: unknown): `0x${string}` | null {
   return null;
 }
 
+function agentImageInputFromBody(body: Record<string, unknown>) {
+  return {
+    imageUrl: body.imageUrl,
+    tweetImageUrl: body.tweetImageUrl ?? body.media_url_https,
+    mediaUrl: body.mediaUrl,
+    tweetMedia: body.tweetMedia,
+    tweetText: body.tweetText,
+    tweet: body.tweet,
+    tweetId: body.tweetId ?? body.tweet_id ?? body.statusId ?? body.status_id,
+    tweetUrl: body.tweetUrl ?? body.tweet_url,
+  };
+}
+
 function launchTypeFromPoolId(poolId: string | undefined): 'simple' | 'pro' | 'unknown' {
   if (!poolId) return 'unknown';
   return poolId.toLowerCase().startsWith('v3:') ? 'simple' : 'pro';
@@ -217,15 +230,7 @@ export function registerAgentBankrRoutes(app: Express): void {
       launchMode,
     });
 
-    const resolvedImage = await resolveAgentDeployImageUrlAsync({
-      imageUrl: body.imageUrl,
-      tweetImageUrl: body.tweetImageUrl,
-      mediaUrl: body.mediaUrl,
-      tweetMedia: body.tweetMedia,
-      tweetText: body.tweetText,
-      tweet: body.tweet,
-      tweetUrl: body.tweetUrl,
-    });
+    const resolvedImage = await resolveAgentDeployImageUrlAsync(agentImageInputFromBody(body));
 
     res.status(preflight.canDeploy ? 200 : 409).json({
       ...preflight,
@@ -244,25 +249,18 @@ export function registerAgentBankrRoutes(app: Express): void {
   app.post('/api/agent/resolve-deploy-image', async (req: Request, res: Response) => {
     cors(req, res);
     const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
-    const resolvedImage = await resolveAgentDeployImageUrlAsync({
-      imageUrl: body.imageUrl,
-      tweetImageUrl: body.tweetImageUrl,
-      mediaUrl: body.mediaUrl,
-      tweetMedia: body.tweetMedia,
-      tweetText: body.tweetText,
-      tweet: body.tweet,
-      tweetUrl: body.tweetUrl,
-    });
+    const resolvedImage = await resolveAgentDeployImageUrlAsync(agentImageInputFromBody(body));
 
     if (!resolvedImage.imageUrl || !resolvedImage.imageSource) {
-      const tweetUrl = normalizeTweetStatusUrl(body.tweetUrl);
+      const tweetUrl = normalizeTweetStatusUrl(body.tweetUrl ?? body.tweet_url);
+      const tweetId = body.tweetId ?? body.tweet_id;
       res.status(400).json({
         ok: false,
         error: 'Could not resolve a token logo from the request.',
         imageRequired: true,
-        replyHint: tweetUrl
+        replyHint: tweetUrl || tweetId
           ? 'No photo found on that tweet — reply with a photo attached or paste an image URL.'
-          : 'Pass tweetUrl (full X status URL), tweetImageUrl, or imageUrl.',
+          : 'Pass tweetId, tweetUrl, tweetImageUrl (media_url_https), or the full tweet object.',
       });
       return;
     }
@@ -351,15 +349,7 @@ export function registerAgentBankrRoutes(app: Express): void {
     const description = typeof body.description === 'string' ? body.description.trim() : '';
     const websiteUrl = typeof body.websiteUrl === 'string' ? body.websiteUrl.trim() : '';
     const xUrl = typeof body.xUrl === 'string' ? body.xUrl.trim() : '';
-    const resolvedImage = await resolveAgentDeployImageUrlAsync({
-      imageUrl: body.imageUrl,
-      tweetImageUrl: body.tweetImageUrl,
-      mediaUrl: body.mediaUrl,
-      tweetMedia: body.tweetMedia,
-      tweetText: body.tweetText,
-      tweet: body.tweet,
-      tweetUrl: body.tweetUrl,
-    });
+    const resolvedImage = await resolveAgentDeployImageUrlAsync(agentImageInputFromBody(body));
 
     const agentChannel =
       typeof body.agentChannel === 'string' ? body.agentChannel.trim().toLowerCase() : '';
@@ -375,8 +365,8 @@ export function registerAgentBankrRoutes(app: Express): void {
         imageRequired: true,
         replyHint:
           resolvedChannel === 'x'
-            ? 'Pass tweetUrl (full X status URL of the launch tweet) — API resolves attached photos via oEmbed. Or attach a photo / pass tweetImageUrl / imageUrl.'
-            : 'Pass imageUrl (HTTPS), tweetUrl, or tweet media fields on prepare-deploy.',
+            ? 'Pass tweetId or tweetUrl — API resolves photos via X syndication. Or pass tweetImageUrl / extended_entities.media from your X API payload.'
+            : 'Pass imageUrl (HTTPS), tweetId, tweetUrl, or tweet media fields on prepare-deploy.',
       });
       return;
     }
