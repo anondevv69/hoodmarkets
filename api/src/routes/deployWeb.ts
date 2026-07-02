@@ -306,7 +306,7 @@ async function previewWebDeployRateLimit(
     return { rateLimitForcedPlatformFee: false, notice: null };
   }
 
-  if (config.webOnlyMode && fee.kind === 'self') {
+  if (config.webOnlyMode && (fee.kind === 'self' || agentWalletDeploy)) {
     const limited = await applyWebDeployRateLimit({
       walletAddress: resolved.walletAddress,
       feeRecipientLabel: resolved.feeRecipientLabel,
@@ -698,7 +698,7 @@ export function registerWebDeployRoutes(
       let rateLimitForcedPlatformFee = false;
       let rateLimitForcedBurn = false;
 
-      if (config.webOnlyMode && fee.kind === 'self') {
+      if (config.webOnlyMode && (fee.kind === 'self' || agentWalletDeploy)) {
         const limited = await applyWebDeployRateLimit({
           walletAddress: resolved.walletAddress,
           feeRecipientLabel: resolved.feeRecipientLabel,
@@ -782,7 +782,10 @@ export function registerWebDeployRoutes(
       const feeCooldownErr = await thirdPartyFeeRecipientCooldownErrorOrNull(
         resolved.walletAddress,
         {
-          feeToSelf: fee.kind === 'self' && !rateLimitForcedBurn && !rateLimitForcedPlatformFee,
+          feeToSelf:
+            (fee.kind === 'self' || (agentWalletDeploy && config.webOnlyMode)) &&
+            !rateLimitForcedBurn &&
+            !rateLimitForcedPlatformFee,
           rateLimitForcedBurn,
           feeRecipientLabel: resolved.feeRecipientLabel,
         },
@@ -908,7 +911,11 @@ export function registerWebDeployRoutes(
               : initiatorAttribution.slice(0, 256);
 
       const feeToSelfEffective =
-        fee.kind === 'self' && !rateLimitForcedBurn && !rateLimitForcedPlatformFee;
+        (fee.kind === 'self' && !rateLimitForcedBurn && !rateLimitForcedPlatformFee) ||
+        (agentWalletDeploy &&
+          config.webOnlyMode &&
+          !rateLimitForcedBurn &&
+          !rateLimitForcedPlatformFee);
 
       const feeRecipientLabelForCatalog = rateLimitForcedPlatformFee
         ? RATE_LIMIT_FORCED_PLATFORM_FEE_LABEL

@@ -25,9 +25,10 @@ import {
   reservedTickerUserMessage,
 } from './reservedTokens.js';
 import {
-  deployRateLimitRollingHours,
-  thirdPartyRollingWindowDeployWarnUserMessage,
-} from './selfFeeLimit.js';
+  applyWebDeployRateLimit,
+  webDeployRateLimitPlatformNotice,
+} from './webDeployRateLimit.js';
+import { deployRateLimitRollingHours } from './selfFeeLimit.js';
 export type AgentPreflightIssueCode =
   | 'invalid_name'
   | 'invalid_symbol'
@@ -39,6 +40,7 @@ export type AgentPreflightIssueCode =
   | 'duplicate_deployer_name_symbol'
   | 'launch_mode_unavailable'
   | 'rate_limit_would_force_burn'
+  | 'rate_limit_would_force_platform_fee'
   | 'third_party_rolling_warning';
 
 export type AgentPreflightIssue = {
@@ -202,18 +204,20 @@ export async function runAgentDeployPreflight(
     }
   }
 
-  const feeCooldownErr = await thirdPartyFeeRecipientCooldownErrorOrNull(wallet, {
-    feeToSelf: false,
-    rateLimitForcedBurn: false,
-    feeRecipientLabel: undefined,
-  });
-  if (feeCooldownErr) {
-    blocks.push({
-      code: 'fee_recipient_cooldown',
-      severity: 'block',
-      message: feeCooldownErr,
-      replyHint: `Your wallet hit hood.markets' deploy limit for today — wait ${globalTickerCooldownHours()}h or use another fee wallet.`,
+  if (!config.webOnlyMode) {
+    const feeCooldownErr = await thirdPartyFeeRecipientCooldownErrorOrNull(wallet, {
+      feeToSelf: false,
+      rateLimitForcedBurn: false,
+      feeRecipientLabel: undefined,
     });
+    if (feeCooldownErr) {
+      blocks.push({
+        code: 'fee_recipient_cooldown',
+        severity: 'block',
+        message: feeCooldownErr,
+        replyHint: `Your wallet hit hood.markets' deploy limit for today — wait ${globalTickerCooldownHours()}h or use another fee wallet.`,
+      });
+    }
   }
 
   if (launchMode === 'simple' && !config.hoodmarketsV3.factory) {
@@ -235,34 +239,51 @@ export async function runAgentDeployPreflight(
     });
   }
 
-  const limited = await applyDeployRateLimitBurn({
-    walletAddress: wallet,
-    feeToSelf: false,
-    platform: 'web',
-    deployerId,
-    privyUserId: null,
-  });
-  if (limited.rateLimitForcedBurn) {
-    warnings.push({
-      code: 'rate_limit_would_force_burn',
-      severity: 'warn',
-      message: DEPLOY_LIMIT_MEME_PROCEED_USER_NOTICE,
-      replyHint:
-        'Heads up: you hit a hood.markets deploy limit — if you launch now, trading fees go to burn (No Dev meme), not your wallet.',
+  if (config.webOnlyMode) {
+    const limited = await applyWebDeployRateLimit({
+      walletAddress: wallet,
+      feeToSelf: true,
+      deployerId,
+      privyUserId: null,
     });
-  }
-
-  const rollingH = deployRateLimitRollingHours();
-  if (rollingH > 0) {
-    const thirdRecent = await countThirdPartyFeeRecipientDeploymentsRollingHours(wallet, rollingH);
-    if (thirdRecent > 0) {
-      const msg = thirdPartyRollingWindowDeployWarnUserMessage(rollingH);
+    if (limited.rateLimitForcedPlatformFee) {
+      const notice = webDeployRateLimitPlatformNotice();
       warnings.push({
-        code: 'third_party_rolling_warning',
+        code: 'rate_limit_would_force_platform_fee',
         severity: 'warn',
-        message: msg,
-        replyHint: `Your wallet already had a hood.markets launch in the last ${rollingH}h — another deploy may route fees to burn.`,
+        message: notice,
+        replyHint: notice,
       });
+    }
+  } else {
+    const limited = await applyDeployRateLimitBurn({
+      walletAddress: wallet,
+      feeToSelf: false,
+      platform: 'web',
+      deployerId,
+      privyUserId: null,
+    });
+    if (limited.rateLimitForcedBurn) {
+      warnings.push({
+        code: 'rate_limit_would_force_burn',
+        severity: 'warn',
+        message: DEPLOY_LIMIT_MEME_PROCEED_USER_NOTICE,
+        replyHint:
+          'Heads up: you hit a hood.markets deploy limit — if you launch now, trading fees go to burn (No Dev meme), not your wallet.',
+      });
+    }
+
+    const rollingH = deployRateLimitRollingHours();
+    if (rollingH > 0) {
+      const thirdRecent = await countThirdPartyFeeRecipientDeploymentsRollingHours(wallet, rollingH);
+      if (thirdRecent > 0) {
+        warnings.push({
+          code: 'third_party_rolling_warning',
+          severity: 'warn',
+          message: `Your wallet already had a hood.markets launch in the last ${rollingH}h.`,
+          replyHint: `Your wallet already had a hood.markets launch in the last ${rollingH}h — another deploy may route fees to burn.`,
+        });
+      }
     }
   }
 

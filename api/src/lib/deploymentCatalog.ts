@@ -362,6 +362,72 @@ export async function countSelfFeeDeploymentsRollingHours(
 }
 
 /**
+ * All successful deploys for a deployer in the current US Eastern day (any fee_to_self).
+ */
+export async function countDeployerDeploymentsCurrentEasternDay(
+  platform: string,
+  deployerId: string,
+): Promise<number> {
+  if (!db) return 0;
+  const { start, end } = getEasternDayRangeUtc();
+  const startSql = toSqliteUtc(start);
+  const endSql = toSqliteUtc(end);
+  const plat = platform.slice(0, 64);
+  const id = deployerId.slice(0, 256);
+  return new Promise((resolve) => {
+    db!.get(
+      `SELECT COUNT(*) AS c FROM deployment_catalog
+       WHERE platform = ?
+         AND deployer_id = ?
+         AND lower(fee_recipient_address) != ?
+         AND created_at >= ? AND created_at < ?`,
+      [plat, id, DEAD_FEE_LOWER, startSql, endSql],
+      (err, row: { c: number } | undefined) => {
+        if (err) {
+          logger.warn('deploymentCatalog: countDeployer eastern failed:', err.message);
+          resolve(0);
+          return;
+        }
+        resolve(Number(row?.c ?? 0));
+      },
+    );
+  });
+}
+
+/**
+ * All successful deploys for a deployer in the rolling window (any fee_to_self).
+ * Used for `agent:0x…` deployer ids so Bankr launches share the same rate limit as web self-fee.
+ */
+export async function countDeployerDeploymentsRollingHours(
+  platform: string,
+  deployerId: string,
+  hours: number,
+): Promise<number> {
+  if (!db) return 0;
+  const timeMod = rollingHoursSqlMod(hours);
+  const plat = platform.slice(0, 64);
+  const id = deployerId.slice(0, 256);
+  return new Promise((resolve) => {
+    db!.get(
+      `SELECT COUNT(*) AS c FROM deployment_catalog
+       WHERE platform = ?
+         AND deployer_id = ?
+         AND lower(fee_recipient_address) != ?
+         AND datetime(created_at) >= datetime('now', ?)`,
+      [plat, id, DEAD_FEE_LOWER, timeMod],
+      (err, row: { c: number } | undefined) => {
+        if (err) {
+          logger.warn('deploymentCatalog: countDeployer rolling failed:', err.message);
+          resolve(0);
+          return;
+        }
+        resolve(Number(row?.c ?? 0));
+      },
+    );
+  });
+}
+
+/**
  * Third-party fee assignments (`fee_to_self = 0`) to this wallet in the rolling window — excludes burn.
  * Used to cap how often others can point launch fees at the same address.
  */

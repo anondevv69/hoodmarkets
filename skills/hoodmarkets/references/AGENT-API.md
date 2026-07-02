@@ -63,7 +63,8 @@ GET https://api.hood.markets/api/agent/preflight-deploy?wallet=0x…&name=My+Tok
 
 | `warnings[].code` | Meaning |
 |-------------------|---------|
-| `rate_limit_would_force_burn` | Deploy allowed but fees → burn (No Dev meme) |
+| `rate_limit_would_force_platform_fee` | Deploy allowed — fees on this token go to hood.markets platform (same as website) |
+| `rate_limit_would_force_burn` | Legacy non-web-only mode only — fees → burn |
 | `third_party_rolling_warning` | Recent launch on this wallet — fees may burn |
 
 `POST` with JSON `{ wallet, name, symbol, launchMode }` also supported.
