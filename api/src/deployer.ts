@@ -13,6 +13,10 @@ import {
   deployTokenOnchain,
   assertValidTokenAdmin,
 } from './lib/liquidFactoryDeploy.js';
+import {
+  assertHoodMarketsV3Factory,
+  deployHoodMarketsV3Token,
+} from './lib/hoodmarketsV3Deploy.js';
 import { recordDeploymentCatalog } from './lib/deploymentCatalog.js';
 import { hoodmarketsTokenUrl, launcherAppLaunchesTokenUrl } from './lib/launcherAppUrl.js';
 import type { DeployChain } from './lib/deployChain.js';
@@ -62,6 +66,8 @@ export interface TokenDeploymentParams {
   feesToPlatformOnly?: boolean;
   websiteUrl?: string;
   xUrl?: string;
+  /** `simple` = HoodMarkets V3 (Uniswap V3). `pro` = HoodMarkets V4. */
+  launchMode?: 'simple' | 'pro';
 }
 
 export interface DeploymentResult {
@@ -168,6 +174,8 @@ export class LiquidDeployer {
 
     const tokenAdmin = assertValidTokenAdmin(params.walletAddress);
 
+    const launchMode = params.launchMode ?? config.defaultLaunchMode;
+
     const { image, metadata, context } = await buildWebDeployArtifacts({
       name: params.name,
       symbol: params.symbol,
@@ -179,36 +187,48 @@ export class LiquidDeployer {
       clientKind: params.clientKind,
     });
 
-    const onchain = await deployTokenOnchain(
-      this.publicClient,
-      this.walletClient,
-      {
-        factory: config.liquid.factory,
-        hookStatic: config.liquid.hookStatic,
-        hookDynamic: config.liquid.hookDynamic,
-        lpLocker: config.liquid.lpLocker,
-        name: params.name,
-        symbol: params.symbol,
-        tokenAdmin,
-        hookType: params.hookType,
-        image,
-        metadata,
-        context,
-        ...(params.devBuyAmount > 0n
-          ? {
-              devBuy: {
-                ethAmount: params.devBuyAmount,
-                recipient: tokenAdmin,
-              },
-            }
-          : {}),
-        ...(params.feesToPlatformOnly ? { feesToPlatformOnly: true } : {}),
-      },
-      config.platformFeeRecipient || undefined,
-      config.platformFeeBps,
-    );
+    const onchain =
+      launchMode === 'simple'
+        ? await deployHoodMarketsV3Token(this.publicClient, this.walletClient, {
+            factory: assertHoodMarketsV3Factory(config.hoodmarketsV3.factory),
+            name: params.name,
+            symbol: params.symbol,
+            tokenAdmin,
+            image,
+            metadata,
+            context,
+            devBuyAmount: params.devBuyAmount,
+          })
+        : await deployTokenOnchain(
+            this.publicClient,
+            this.walletClient,
+            {
+              factory: config.liquid.factory,
+              hookStatic: config.liquid.hookStatic,
+              hookDynamic: config.liquid.hookDynamic,
+              lpLocker: config.liquid.lpLocker,
+              name: params.name,
+              symbol: params.symbol,
+              tokenAdmin,
+              hookType: params.hookType,
+              image,
+              metadata,
+              context,
+              ...(params.devBuyAmount > 0n
+                ? {
+                    devBuy: {
+                      ethAmount: params.devBuyAmount,
+                      recipient: tokenAdmin,
+                    },
+                  }
+                : {}),
+              ...(params.feesToPlatformOnly ? { feesToPlatformOnly: true } : {}),
+            },
+            config.platformFeeRecipient || undefined,
+            config.platformFeeBps,
+          );
 
-    console.log('Deployed:', onchain.tokenAddress, chain);
+    console.log('Deployed:', onchain.tokenAddress, chain, launchMode);
 
     const result: DeploymentResult = {
       tokenAddress: onchain.tokenAddress,

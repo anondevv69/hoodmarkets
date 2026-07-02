@@ -29,6 +29,7 @@ import { registerAgentCaptchaRoutes } from './routes/agentCaptcha.js';
 import { registerZeroExSwapRoutes } from './routes/zeroexSwap.js';
 import { registerBotSwapRoutes } from './routes/botSwap.js';
 import { registerLangchainAgentRoutes } from './routes/langchainAgent.js';
+import { registerAgentBankrRoutes } from './routes/agentBankr.js';
 import { registerWebDeployCorsMiddleware } from './lib/webDeployCors.js';
 
 async function main() {
@@ -197,6 +198,7 @@ async function main() {
     registerMyDeploymentsClaimRoutes(app);
     registerMyDeploymentsCollectPoolRoutes(app);
     registerAgentCaptchaRoutes(app);
+    registerAgentBankrRoutes(app);
     registerZeroExSwapRoutes(app);
     registerBotSwapRoutes(app);
     registerLangchainAgentRoutes(app);
@@ -215,6 +217,8 @@ async function main() {
         logger.info(`Agent captcha verify: POST http://localhost:${port}/api/agent-captcha/verify`);
         logger.info(`Agent auto-claim: POST http://localhost:${port}/api/agent/claim`);
         logger.info(`Agent claim calldata: POST http://localhost:${port}/api/agent/claim-calldata`);
+        logger.info(`Agent Bankr briefing: GET http://localhost:${port}/api/agent/briefing`);
+        logger.info(`Agent prepare deploy/buy/sell: POST http://localhost:${port}/api/agent/prepare-deploy|prepare-buy|prepare-sell`);
         logger.info(`Resolve source (prefill): POST http://localhost:${port}/api/resolve-source`);
         logger.info(`My deployments: GET http://localhost:${port}/api/my-deployments (auth)`);
         logger.info(`My deployment claim: POST http://localhost:${port}/api/my-deployments/claim (auth)`);

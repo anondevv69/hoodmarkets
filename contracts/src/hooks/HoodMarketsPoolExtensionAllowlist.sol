@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {IHoodMarketsPoolExtensionAllowlist} from "./interfaces/IHoodMarketsPoolExtensionAllowlist.sol";
+import {HoodMarketsAsciiBanner} from "../HoodMarketsAsciiBanner.sol";
 
 import {OwnerAdmins} from "../utils/OwnerAdmins.sol";
 

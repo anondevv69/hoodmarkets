@@ -63,6 +63,11 @@ export interface WebDeployConfig {
   deployRateLimitHours: number;
   platformFeeBps: number;
   platformFeePercent: number;
+  /** HoodMarkets V3 locker embeds 5% to platform wallet (not configurable per token). */
+  v3PlatformFeePercent: number;
+  defaultLaunchMode: 'simple' | 'pro';
+  v3LaunchEnabled: boolean;
+  proLaunchEnabled: boolean;
   imageUploadEnabled: boolean;
   /** WETH seeded at launch from hood.markets launcher wallet (`DEPLOY_BOND_ETH`) when you skip your buy. */
   platformSubsidizedInitialBuyEth: number;
@@ -150,6 +155,8 @@ export interface LaunchPayload {
   description?: string;
   /** ETH bundled into deployToken via Univ4EthDevBuy (`0` = server-only deploy). */
   initialBuyEth?: string;
+  /** `simple` = Uniswap V3 (DexScreener). `pro` = HoodMarkets V4 hooks. */
+  launchMode?: 'simple' | 'pro';
 }
 
 export type WalletDeployPrepare = {

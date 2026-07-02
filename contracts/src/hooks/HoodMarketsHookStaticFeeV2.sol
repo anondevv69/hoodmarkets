@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {HoodMarketsHookV2} from "./HoodMarketsHookV2.sol";
+import {HoodMarketsAsciiBanner} from "../HoodMarketsAsciiBanner.sol";
 import {ILiquidHookStaticFee} from "./interfaces/ILiquidHookStaticFee.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 

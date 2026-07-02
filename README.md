@@ -14,6 +14,19 @@ Token launchpad on **Robinhood Chain (4663)** — factory, API, and web UI.
 | [`api/`](api/) | Node/Express launcher API (`WEB_ONLY_MODE`) |
 | [`web/`](web/) | Vite + Privy frontend |
 | [`docs/`](docs/) | Deploy and Railway setup |
+| [`skills/hoodmarkets/`](skills/hoodmarkets/) | **Bankr agent skill** — deploy, buy, sell, claim on Robinhood |
+
+## Bankr agents
+
+Install the hood.markets skill for `@bankrbot`:
+
+```text
+install the hoodmarkets skill from https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets
+```
+
+Agent API: `https://api.hood.markets` — see [`api/docs/agent-api.md`](api/docs/agent-api.md) and [`skills/hoodmarkets/SKILL.md`](skills/hoodmarkets/SKILL.md).
+
+To list in the official catalog, PR this folder to [BankrBot/skills](https://github.com/BankrBot/skills) (same pattern as [github-vesting](https://github.com/BankrBot/skills/tree/main/github-vesting)).
 
 ## Robinhood mainnet (4663)
 

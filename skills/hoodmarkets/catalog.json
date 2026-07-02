@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "slug": "hoodmarkets",
+  "provider": "hood.markets",
+  "providerUrl": "https://hood.markets",
+  "logo": "logo.svg",
+  "demo": {
+    "title": "briefing.sh",
+    "language": "bash",
+    "code": "curl -s 'https://api.hood.markets/api/agent/briefing?wallet=0xYOUR_WALLET' \\\n  -H 'x-wallet-address: 0xYOUR_WALLET'"
+  },
+  "setup": [
+    "API: https://api.hood.markets",
+    "Site: https://hood.markets",
+    "Chain: Robinhood (4663) — Bankr wallet must support Robinhood",
+    "Deploy: preflight-deploy → haiku captcha JWT + POST /api/deploy (server pays gas)",
+    "Buy/sell: token-info (V3 vs Pro) → Pro: prepare-buy|prepare-sell → Bankr submit chainId 4663",
+    "Simple (V3) tokens: trade on Uniswap — see streaming-hints.json and token-info",
+    "Claim fees: haiku JWT + POST /api/agent/claim (server pays gas)",
+    "Validate swap txs per references/TX-VALIDATION.md and known-contracts.json"
+  ],
+  "install": {
+    "type": "bankr",
+    "repoPath": "hoodmarkets",
+    "command": "install the hoodmarkets skill from https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets"
+  }
+}

@@ -1,11 +1,11 @@
 import type { Express, Request, Response } from 'express';
 import { createPublicClient, createWalletClient, encodeFunctionData, http } from 'viem';
-import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { config } from '../config.js';
 import { resolveAgentClaimDeployment } from '../lib/claimDeploymentAuth.js';
 import { markDeploymentFeeClaimed } from '../lib/deploymentCatalog.js';
 import { BASE_WETH } from '../lib/liquidFactoryDeploy.js';
+import { robinhood, robinhoodTxUrl, ROBINHOOD_CHAIN_ID } from '../lib/robinhoodChain.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 import { readAgentCaptchaToken, verifyAgentCaptchaJwt } from '../lib/agentCaptchaVerify.js';
 
@@ -119,8 +119,8 @@ export function registerAgentClaimRoutes(app: Express): void {
 
       // Create public client to check claimable fees
       const publicClient = createPublicClient({
-        chain: base,
-        transport: http(config.baseRpcUrl),
+        chain: robinhood,
+        transport: http(config.chainRpcUrl),
       });
 
       // Trading/LP fees accrue as WETH in the locker (second arg), not the liquid token address.
@@ -142,8 +142,8 @@ export function registerAgentClaimRoutes(app: Express): void {
       // Create wallet client to sign and broadcast the claim tx
       const account = privateKeyToAccount(config.deployerPrivateKey);
       const walletClient = createWalletClient({
-        chain: base,
-        transport: http(config.baseRpcUrl),
+        chain: robinhood,
+        transport: http(config.chainRpcUrl),
         account,
       });
 
@@ -175,23 +175,23 @@ export function registerAgentClaimRoutes(app: Express): void {
       const feeAmountWei = BigInt(feesClaim.toString());
       const feeAmountEth = Number(feeAmountWei) / 1e18;
 
-      // Basescan link
-      const basescanUrl = `https://basescan.org/tx/${txHash}`;
+      const explorerUrl = robinhoodTxUrl(txHash);
 
       await markDeploymentFeeClaimed(launchedToken, txHash);
 
       res.json({
         ok: true,
-        chainId: base.id,
+        chainId: ROBINHOOD_CHAIN_ID,
         txHash,
-        basescanUrl,
+        explorerUrl,
+        basescanUrl: explorerUrl,
         feeAmount: feesClaim.toString(),
         feeAmountEth: feeAmountEth.toFixed(6),
         feeOwner: walletFromCaptcha,
         token: launchedToken,
         claimAsset,
-        message: `✅ Claimed ${feeAmountEth.toFixed(6)} ETH (WETH) for $${resolved.row.tokenSymbol} to ${walletFromCaptcha}`,
-        claimLink: basescanUrl,
+        message: `Claimed ${feeAmountEth.toFixed(6)} ETH (WETH) for ${resolved.row.tokenSymbol} to ${walletFromCaptcha}`,
+        claimLink: explorerUrl,
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Claim failed';

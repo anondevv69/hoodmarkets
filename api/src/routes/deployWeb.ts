@@ -187,6 +187,8 @@ interface DeployWebBody {
   walletDeployPhase?: 'prepare' | 'complete';
   transactionHash?: string;
   deploymentConfig?: SerializedDeploymentConfig;
+  /** `simple` = HoodMarkets V3 (DexScreener). `pro` = HoodMarkets V4 hooks. */
+  launchMode?: 'simple' | 'pro';
 }
 
 function normalizeAnonymousClientId(raw: unknown): string | null {
@@ -388,6 +390,11 @@ export function registerWebDeployRoutes(
       deployRateLimitHours: deployRateLimitRollingHours(),
       platformFeeBps: config.platformFeeBps,
       platformFeePercent: Number((config.platformFeeBps / 100).toFixed(2)),
+      /** Embedded in HoodMarkets V3 LpLocker when using simple launch. */
+      v3PlatformFeePercent: 5,
+      defaultLaunchMode: config.defaultLaunchMode,
+      v3LaunchEnabled: !!config.hoodmarketsV3.factory,
+      proLaunchEnabled: !!config.liquid.factory,
       imageUploadEnabled: imageUploadService.isConfigured(),
       /** Fixed WETH seed at launch — paid by launcher wallet (`DEPLOY_BOND_ETH`), not the user. */
       platformSubsidizedInitialBuyEth: Number(webInitialBuyDefaultEth()),
@@ -841,7 +848,21 @@ export function registerWebDeployRoutes(
         return;
       }
 
+      const launchModeRaw =
+        typeof body.launchMode === 'string' ? body.launchMode.trim().toLowerCase() : '';
+      const launchMode: 'simple' | 'pro' =
+        launchModeRaw === 'pro' ? 'pro' : launchModeRaw === 'simple' ? 'simple' : config.defaultLaunchMode;
+
+      if (launchMode === 'simple' && !config.hoodmarketsV3.factory) {
+        res.status(503).json({
+          error:
+            'Simple launch (Uniswap V3) is not configured yet. Set HOODMARKETS_V3_FACTORY on the API, or use launchMode "pro".',
+        });
+        return;
+      }
+
       const useWalletDeploy =
+        launchMode === 'pro' &&
         feeTarget === 'self' &&
         !anonymousNoDev &&
         !agentWalletDeploy &&
@@ -1030,6 +1051,7 @@ export function registerWebDeployRoutes(
         deployerLabel,
         feeRecipientLabel: feeRecipientLabelForCatalog,
         feeToSelf: feeToSelfEffective,
+        launchMode,
         ...(rateLimitForcedPlatformFee ? { feesToPlatformOnly: true } : {}),
         ...(!anonymousNoDev && !agentWalletDeploy ? { privyUserId: userId } : {}),
         clientKind: webClientKind,

@@ -1,0 +1,41 @@
+{
+  "_agentNote": "NOT AN ALLOWLIST. Any Robinhood Chain token can exist off-catalog. This file hints how hood.markets catalog tokens route swaps (Simple V3 vs Pro V4). Always call GET /api/agent/token-info before prepare-buy|prepare-sell — never refuse a 0x address solely because it is missing here.",
+  "chainId": 4663,
+  "apiBase": "https://api.hood.markets",
+  "webBase": "https://hood.markets",
+  "detection": {
+    "preferApi": "GET https://api.hood.markets/api/agent/token-info?token=0x… OR ?symbol=TICKER",
+    "poolIdRule": "catalog poolId starting with v3: → simple (Uniswap V3). Otherwise in-catalog → pro (V4 swap helper).",
+    "briefingField": "GET /api/agent/briefing returns launchType per deployment"
+  },
+  "launchTypes": {
+    "simple": {
+      "label": "Simple (Uniswap V3)",
+      "poolIdPrefix": "v3:",
+      "swapVia": "uniswap",
+      "oneClickSwapOnHoodmarkets": false,
+      "platformFeePercent": 5,
+      "agentBuySell": "Use uniswapSwapUrl from token-info or prepare-buy error hint — prepare-buy/sell returns 400 for V3 tokens"
+    },
+    "pro": {
+      "label": "Pro (Uniswap V4)",
+      "swapVia": "hoodmarkets-swap-helper",
+      "oneClickSwapOnHoodmarkets": true,
+      "swapHelper": "0x6373285F77ad0a3f5a441439B3D23d16B79aA585",
+      "agentBuySell": "POST /api/agent/prepare-buy or prepare-sell → validate txs → Bankr /wallet/submit chainId 4663"
+    }
+  },
+  "deployPreflight": {
+    "endpoint": "GET https://api.hood.markets/api/agent/preflight-deploy?wallet=0x…&name=…&symbol=…",
+    "blockingCodes": [
+      "ticker_reserved",
+      "name_reserved",
+      "ticker_cooldown",
+      "name_cooldown",
+      "fee_recipient_cooldown",
+      "duplicate_deployer_name_symbol",
+      "launch_mode_unavailable"
+    ],
+    "warningCodes": ["rate_limit_would_force_burn", "third_party_rolling_warning"]
+  }
+}

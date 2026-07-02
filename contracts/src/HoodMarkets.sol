@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-//  hoodmarkets — Token Factory (Robinhood Chain)
-//  https://hood.markets
-
+import {HoodMarketsAsciiBanner} from "./HoodMarketsAsciiBanner.sol";
 import {HoodMarketsDeployer} from "./utils/HoodMarketsDeployer.sol";
 import {OwnerAdmins} from "./utils/OwnerAdmins.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -19,7 +17,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 
-/// @notice hoodmarkets token factory
+/// @notice hood.markets token factory (Uniswap V4) — https://hood.markets
 contract HoodMarkets is OwnerAdmins, ReentrancyGuard, ILiquid {
     string public constant PROTOCOL = "hoodmarkets";
     string constant version = "4";

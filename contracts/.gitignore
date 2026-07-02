@@ -1,4 +1,5 @@
 # Compiler files
+_vendor/
 cache/
 out/
 

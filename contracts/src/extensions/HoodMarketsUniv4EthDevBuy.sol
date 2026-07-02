@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {ILiquid} from "../interfaces/ILiquid.sol";
+import {HoodMarketsAsciiBanner} from "../HoodMarketsAsciiBanner.sol";
 import {ILiquidExtension} from "../interfaces/ILiquidExtension.sol";
 
 import {IHoodMarketsUniv4EthDevBuy} from "./interfaces/IHoodMarketsUniv4EthDevBuy.sol";

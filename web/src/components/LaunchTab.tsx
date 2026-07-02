@@ -41,6 +41,7 @@ export function LaunchTab() {
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [xUrl, setXUrl] = useState('');
   const [yourBuyEth, setYourBuyEth] = useState('0.005');
+  const [launchMode, setLaunchMode] = useState<'simple' | 'pro'>('simple');
   const [rateLimitNotice, setRateLimitNotice] = useState<string | null>(null);
   const [config, setConfig] = useState<WebDeployConfig | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +64,9 @@ export function LaunchTab() {
         setConfig(c);
         if (c.initialBuyDefaultEth) {
           setYourBuyEth(c.initialBuyDefaultEth);
+        }
+        if (c.defaultLaunchMode) {
+          setLaunchMode(c.defaultLaunchMode);
         }
       })
       .catch(() => undefined);
@@ -132,7 +136,11 @@ export function LaunchTab() {
 
   const cooldownHours = config?.globalTickerCooldownHours ?? 24;
   const platformFeePct = config?.platformFeePercent ?? 2;
-  const limitsNote = `1 token per user every ${config?.deployRateLimitHours ?? 24}h · each name & symbol unique for ${cooldownHours}h · platform fee ${platformFeePct}%`;
+  const v3PlatformFeePct = config?.v3PlatformFeePercent ?? 5;
+  const limitsNote =
+    launchMode === 'simple'
+      ? `1 token per user every ${config?.deployRateLimitHours ?? 24}h · each name & symbol unique for ${cooldownHours}h · ${v3PlatformFeePct}% hood.markets fee (embedded on-chain) · trades on Uniswap V3 / DexScreener`
+      : `1 token per user every ${config?.deployRateLimitHours ?? 24}h · each name & symbol unique for ${cooldownHours}h · platform fee ${platformFeePct}%`;
 
   const blockingReserved = liveNameReserved ?? liveTickerReserved;
 
@@ -184,7 +192,7 @@ export function LaunchTab() {
       return;
     }
 
-    const buyEth = yourBuyEth.trim();
+    const buyEth = launchMode === 'simple' ? '0' : yourBuyEth.trim();
     if (buyEth !== '0' && buyEth !== '' && !wallet?.address) {
       setError('Connect a wallet to include your initial buy in the launch transaction.');
       return;
@@ -213,6 +221,7 @@ export function LaunchTab() {
           xUrl: xUrl.trim() || undefined,
           description: description.trim() || undefined,
           initialBuyEth: buyEth || '0',
+          launchMode,
         },
         buyEth !== '0' && wallet
           ? {
@@ -303,6 +312,40 @@ export function LaunchTab() {
           </div>
         ) : (
           <form className="form" onSubmit={onSubmit}>
+            <div className="lp-card form-section">
+              <p className="section-label">Launch type</p>
+              <div className="launch-mode-row">
+                <label className={`launch-mode-option${launchMode === 'simple' ? ' active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="launchMode"
+                    value="simple"
+                    checked={launchMode === 'simple'}
+                    disabled={config?.v3LaunchEnabled === false}
+                    onChange={() => setLaunchMode('simple')}
+                  />
+                  <span className="launch-mode-title">Simple (recommended)</span>
+                  <span className="muted launch-mode-desc">
+                    Uniswap V3 · DexScreener &amp; Uniswap app · {v3PlatformFeePct}% hood.markets fee locked in contract
+                  </span>
+                </label>
+                <label className={`launch-mode-option${launchMode === 'pro' ? ' active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="launchMode"
+                    value="pro"
+                    checked={launchMode === 'pro'}
+                    disabled={config?.proLaunchEnabled === false}
+                    onChange={() => setLaunchMode('pro')}
+                  />
+                  <span className="launch-mode-title">Pro</span>
+                  <span className="muted launch-mode-desc">
+                    Uniswap V4 hooks · one-click buy/sell on hood.markets · MEV protection
+                  </span>
+                </label>
+              </div>
+            </div>
+
             <div className="lp-card form-section">
               <p className="section-label">Token details</p>
               <div className="name-symbol-row">
@@ -419,6 +462,7 @@ export function LaunchTab() {
                 </label>
               </div>
 
+              {launchMode === 'pro' ? (
               <div className="lp-card form-section initial-buy-section">
                 <p className="section-label">Your initial buy</p>
                 <p className="muted initial-buy-note">
@@ -449,6 +493,12 @@ export function LaunchTab() {
                   ))}
                 </div>
               </div>
+              ) : (
+                <p className="muted initial-buy-note">
+                  Simple launch seeds <strong>{platformSeedEth} ETH</strong> from the hood.markets launcher wallet. Trading fees:{' '}
+                  <strong>{v3PlatformFeePct}%</strong> hood.markets (contract-locked) · <strong>95%</strong> to your fee wallet.
+                </p>
+              )}
             </div>
 
             <button
@@ -457,7 +507,7 @@ export function LaunchTab() {
               disabled={submitting || cannotLaunch || !hasImage}
             >
               {submitting
-                ? yourBuyEth !== '0'
+                ? launchMode === 'pro' && yourBuyEth !== '0'
                   ? 'Confirm in wallet…'
                   : 'Launching…'
                 : !hasImage
