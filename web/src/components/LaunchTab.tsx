@@ -49,13 +49,17 @@ export function LaunchTab() {
   const [checkingCooldown, setCheckingCooldown] = useState(false);
   const [result, setResult] = useState<DeployResult | null>(null);
   const [launchedMeta, setLaunchedMeta] = useState<{ name: string; symbol: string } | null>(null);
+  const [initialBuyEth, setInitialBuyEth] = useState('0.002');
 
   const debouncedSymbol = useDebounced(symbol.trim().toUpperCase(), 400);
   const debouncedName = useDebounced(name.trim(), 400);
 
   useEffect(() => {
     fetchWebDeployConfig()
-      .then(setConfig)
+      .then((cfg) => {
+        setConfig(cfg);
+        setInitialBuyEth(String(cfg.initialBuyEthDefault ?? 0.002));
+      })
       .catch(() => undefined);
   }, []);
 
@@ -138,6 +142,14 @@ export function LaunchTab() {
   const previewName = name.trim() || 'Your Token';
   const previewImage = imageDataUrl || (imageUrl.trim().startsWith('http') ? imageUrl.trim() : null);
   const hasImage = !!resolveLaunchImagePayload(imageDataUrl, imageUrl);
+  const buyPresets = config?.initialBuyEthPresets ?? [0.002, 0.01, 0.05];
+  const buyMin = config?.initialBuyEthMin ?? 0.001;
+  const buyMax = config?.initialBuyEthMax ?? 0.1;
+  const parsedInitialBuy = Number(initialBuyEth);
+  const initialBuyInvalid =
+    !Number.isFinite(parsedInitialBuy) ||
+    parsedInitialBuy < 0 ||
+    (parsedInitialBuy > 0 && (parsedInitialBuy < buyMin || parsedInitialBuy > buyMax));
 
   async function onPickLogo(file: File | null) {
     if (!file) return;
@@ -194,6 +206,7 @@ export function LaunchTab() {
         websiteUrl: websiteUrl.trim() || undefined,
         xUrl: xUrl.trim() || undefined,
         description: description.trim() || undefined,
+        initialBuyEth: parsedInitialBuy,
       });
       setLaunchedMeta({ name: name.trim(), symbol: symbol.trim().toUpperCase() });
       setResult(out);
@@ -391,12 +404,51 @@ export function LaunchTab() {
                   />
                 </label>
               </div>
+
+              <div className="lp-card form-section initial-buy-section">
+                <p className="section-label">Initial pool liquidity</p>
+                <p className="muted initial-buy-note">
+                  Seeds the WETH side of the pool at launch so traders can buy right away. Paid by
+                  hood.markets (not your wallet). <strong>0.002 ETH</strong> is the recommended
+                  minimum; use <strong>0.01+</strong> for easier early trading and fewer scam
+                  scanner false positives.
+                </p>
+                <div className="initial-buy-presets" role="group" aria-label="Initial buy presets">
+                  {buyPresets.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className={`btn btn-sm ${Number(initialBuyEth) === preset ? 'btn-primary' : 'btn-ghost'}`}
+                      onClick={() => setInitialBuyEth(String(preset))}
+                    >
+                      {preset} ETH
+                    </button>
+                  ))}
+                </div>
+                <label>
+                  Custom amount (ETH)
+                  <input
+                    className="lp-input"
+                    type="number"
+                    min={0}
+                    max={buyMax}
+                    step="0.001"
+                    value={initialBuyEth}
+                    onChange={(e) => setInitialBuyEth(e.target.value)}
+                  />
+                </label>
+                {initialBuyInvalid ? (
+                  <p className="error" style={{ margin: 0, fontSize: '0.85rem' }}>
+                    Enter 0 to skip, or between {buyMin} and {buyMax} ETH.
+                  </p>
+                ) : null}
+              </div>
             </div>
 
             <button
               type="submit"
               className="btn btn-primary btn-launch"
-              disabled={submitting || cannotLaunch || !hasImage}
+              disabled={submitting || cannotLaunch || !hasImage || initialBuyInvalid}
             >
               {submitting
                 ? 'Launching…'

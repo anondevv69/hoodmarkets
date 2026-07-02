@@ -24,25 +24,47 @@ function ExploreRow({
   const links = buildTradingLinks(d.tokenAddress);
   const mc = metrics?.fdvUsd;
 
+  function openDetails() {
+    openTokenPage(d.tokenAddress);
+  }
+
+  function onRowKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openDetails();
+    }
+  }
+
+  function stopRowClick(e: React.MouseEvent | React.KeyboardEvent) {
+    e.stopPropagation();
+  }
+
   return (
-    <li className="explore-row">
+    <li
+      className="explore-row explore-row-clickable"
+      role="button"
+      tabIndex={0}
+      onClick={openDetails}
+      onKeyDown={onRowKeyDown}
+      aria-label={`${d.tokenName} ${sym} — view token details`}
+    >
       <div className="explore-token-main">
         <TokenAvatar symbol={sym} imageUrl={d.tokenImageUrl} size={44} />
         <div className="explore-token-title">
-          <button
-            type="button"
-            className="explore-token-link name lp-display"
-            onClick={() => openTokenPage(d.tokenAddress)}
-          >
+          <div className="explore-token-link name lp-display">
             {d.tokenName} <span className="lp-mono muted">${sym}</span>
-          </button>
+          </div>
           <div className="explore-metrics">
             <span className="lp-mono">{shortenAddress(d.tokenAddress)}</span>
-            <CopyButton text={d.tokenAddress} />
+            <span onClick={stopRowClick} onKeyDown={stopRowClick}>
+              <CopyButton text={d.tokenAddress} />
+            </span>
             {' · '}
             {new Date(d.createdAt).toLocaleString()}
           </div>
-          <TokenSocialLinks websiteUrl={d.tokenWebsiteUrl} xUrl={d.tokenXUrl} />
+          <div onClick={stopRowClick} onKeyDown={stopRowClick}>
+            <TokenSocialLinks websiteUrl={d.tokenWebsiteUrl} xUrl={d.tokenXUrl} />
+          </div>
         </div>
       </div>
       <div>
@@ -51,12 +73,8 @@ function ExploreRow({
         </div>
         <DexMetricsStrip metrics={metrics} />
       </div>
-      <div className="explore-links">
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={() => openTokenPage(d.tokenAddress)}
-        >
+      <div className="explore-links" onClick={stopRowClick} onKeyDown={stopRowClick}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={openDetails}>
           Details
         </button>
         <a href={links.dexscreener} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">

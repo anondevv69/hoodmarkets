@@ -58,6 +58,10 @@ export interface WebDeployConfig {
   platformFeeBps: number;
   platformFeePercent: number;
   imageUploadEnabled: boolean;
+  initialBuyEthDefault: number;
+  initialBuyEthMin: number;
+  initialBuyEthMax: number;
+  initialBuyEthPresets: number[];
 }
 
 export interface DeployResult {
@@ -136,6 +140,8 @@ export interface LaunchPayload {
   websiteUrl?: string;
   xUrl?: string;
   description?: string;
+  /** WETH seed at launch (ETH). Paid by hood.markets — improves early tradeability. */
+  initialBuyEth?: number;
 }
 
 export interface DeployPreviewResult {
