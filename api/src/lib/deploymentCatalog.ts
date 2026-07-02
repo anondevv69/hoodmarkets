@@ -1619,6 +1619,32 @@ export async function getNewestDeploymentByTickerSymbol(
   });
 }
 
+/** Lookup by deploy tx hash — used to finalize wallet deploy idempotently after on-chain success. */
+export async function getDeploymentByTransactionHash(
+  transactionHash: string,
+): Promise<DeploymentCatalogRow | null> {
+  if (!db) return null;
+  const tx = transactionHash.trim().toLowerCase();
+  if (!/^0x[a-f0-9]{64}$/.test(tx)) return null;
+  return new Promise((resolve) => {
+    db!.get(
+      `SELECT ${SELECT_DEPLOYMENT_ROW}
+       FROM deployment_catalog AS dc
+       WHERE lower(dc.transaction_hash) = ?${visibleCatalogSql()}
+       LIMIT 1`,
+      [tx, visibleCatalogParam()],
+      (err, row: DeploymentCatalogRow | undefined) => {
+        if (err) {
+          logger.warn('deploymentCatalog get by tx failed:', err.message);
+          resolve(null);
+          return;
+        }
+        resolve(hydrateDeploymentCatalogRow(row));
+      },
+    );
+  });
+}
+
 /** Public token page: one catalog row by token contract address. */
 export async function getDeploymentByTokenAddress(
   tokenAddress: string,

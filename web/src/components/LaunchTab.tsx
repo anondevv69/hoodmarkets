@@ -6,10 +6,14 @@ import {
   DeployApiError,
   fetchDeployPreview,
   fetchWebDeployConfig,
+  loadPendingWalletDeploy,
+  retryPendingWalletDeployComplete,
+  WalletDeployCompleteError,
   type DeployCooldownConflict,
   type DeployResult,
   type WebDeployConfig,
 } from '../api';
+import { txUrl } from '../chain';
 import { readImageFileAsDataUrl, resolveLaunchImagePayload } from '../lib/imageUpload';
 import { looksLikeFeeRecipientInput } from '../lib/feeRecipientInput';
 import { pickPrivyEmbeddedWallet } from '../lib/privyWallet';
@@ -57,6 +61,8 @@ export function LaunchTab() {
   const [checkingCooldown, setCheckingCooldown] = useState(false);
   const [result, setResult] = useState<DeployResult | null>(null);
   const [launchedMeta, setLaunchedMeta] = useState<{ name: string; symbol: string } | null>(null);
+  const [walletCompleteTxHash, setWalletCompleteTxHash] = useState<string | null>(null);
+  const [hasPendingFinalize, setHasPendingFinalize] = useState(() => !!loadPendingWalletDeploy());
 
   const debouncedSymbol = useDebounced(symbol.trim().toUpperCase(), 400);
   const debouncedName = useDebounced(name.trim(), 400);
@@ -213,6 +219,7 @@ export function LaunchTab() {
     e.preventDefault();
     setError(null);
     setSubmitConflict(null);
+    setWalletCompleteTxHash(null);
     setResult(null);
     setLaunchedMeta(null);
 
@@ -297,11 +304,53 @@ export function LaunchTab() {
       setLiveNameConflict(null);
       openTokenPage(out.tokenAddress);
     } catch (err) {
-      if (err instanceof DeployApiError) {
+      if (err instanceof WalletDeployCompleteError) {
+        setWalletCompleteTxHash(err.transactionHash);
+        setHasPendingFinalize(true);
+        setError(
+          'Your launch transaction succeeded on-chain, but hood.markets could not finalize it yet. Try “Finalize launch” below or check Blockscout.',
+        );
+      } else if (err instanceof DeployApiError) {
         setError(err.message);
         if (err.conflict) setSubmitConflict(err.conflict);
       } else {
         setError(err instanceof Error ? err.message : 'Launch failed');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function onFinalizePendingLaunch() {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const authToken = await getAccessToken();
+      if (!authToken) {
+        setError('Could not get auth token. Try signing in again.');
+        return;
+      }
+      const pending = loadPendingWalletDeploy();
+      const out = await retryPendingWalletDeployComplete(authToken);
+      setHasPendingFinalize(false);
+      setWalletCompleteTxHash(null);
+      setResult(out);
+      setLaunchedMeta(
+        pending
+          ? { name: pending.payload.name, symbol: pending.payload.symbol }
+          : { name: name.trim(), symbol: symbol.trim().toUpperCase() },
+      );
+      openTokenPage(out.tokenAddress);
+    } catch (err) {
+      if (err instanceof WalletDeployCompleteError) {
+        setWalletCompleteTxHash(err.transactionHash);
+        setHasPendingFinalize(true);
+        setError(err.message);
+      } else if (err instanceof DeployApiError) {
+        setError(err.message);
+        if (err.conflict) setSubmitConflict(err.conflict);
+      } else {
+        setError(err instanceof Error ? err.message : 'Finalize failed');
       }
     } finally {
       setSubmitting(false);
@@ -614,7 +663,29 @@ export function LaunchTab() {
         {submitConflict && !liveTickerConflict && !liveNameConflict ? (
           <ExistingTokenConflict conflict={submitConflict} />
         ) : null}
-        {error && !submitConflict ? <p className="error">{error}</p> : null}
+        {error && !submitConflict ? (
+          <div className="error-block">
+            <p className="error">{error}</p>
+            {walletCompleteTxHash ? (
+              <p className="muted" style={{ fontSize: '0.85rem' }}>
+                On-chain tx:{' '}
+                <a href={txUrl(walletCompleteTxHash)} target="_blank" rel="noreferrer">
+                  {walletCompleteTxHash.slice(0, 10)}…{walletCompleteTxHash.slice(-8)}
+                </a>
+              </p>
+            ) : null}
+            {hasPendingFinalize ? (
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={submitting || !authenticated}
+                onClick={() => void onFinalizePendingLaunch()}
+              >
+                {submitting ? 'Finalizing…' : 'Finalize launch'}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <aside className="launch-preview-col">

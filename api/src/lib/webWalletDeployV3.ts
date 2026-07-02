@@ -127,10 +127,13 @@ export async function completeWebWalletDeployV3(
     throw new Error('Deploy transaction value does not match initial buy amount.');
   }
 
-  const receipt = await publicClient.waitForTransactionReceipt({
-    hash: txHash,
-    timeout: 180_000,
-  });
+  let receipt = await publicClient.getTransactionReceipt({ hash: txHash });
+  if (!receipt) {
+    receipt = await publicClient.waitForTransactionReceipt({
+      hash: txHash,
+      timeout: 180_000,
+    });
+  }
 
   if (receipt.status !== 'success') {
     throw new Error(
