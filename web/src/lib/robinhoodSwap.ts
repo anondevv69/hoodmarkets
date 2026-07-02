@@ -5,6 +5,7 @@ import {
   encodeAbiParameters,
   encodePacked,
   erc20Abi,
+  formatEther,
   getAddress,
   parseEther,
   toHex,
@@ -44,6 +45,21 @@ const permit2Abi = [
     ],
     outputs: [],
   },
+  {
+    type: 'function',
+    name: 'allowance',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'token', type: 'address' },
+      { name: 'spender', type: 'address' },
+    ],
+    outputs: [
+      { name: 'amount', type: 'uint160' },
+      { name: 'expiration', type: 'uint48' },
+      { name: 'nonce', type: 'uint48' },
+    ],
+  },
 ] as const;
 
 const universalRouterAbi = [
@@ -80,6 +96,13 @@ export interface TokenSwapConfig {
   pairedToken: `0x${string}`;
 }
 
+export type SwapBuyResult = {
+  swapTxHash: Hex;
+  tokenBalance: string;
+  stepsRun: string[];
+  stepsSkipped: string[];
+};
+
 export async function fetchTokenSwapConfig(tokenAddress: string): Promise<TokenSwapConfig> {
   const res = await fetch(`${API_BASE}/api/tokens/${tokenAddress}/swap-config`);
   const data = (await res.json()) as TokenSwapConfig & { error?: string };
@@ -90,7 +113,15 @@ export async function fetchTokenSwapConfig(tokenAddress: string): Promise<TokenS
   return data;
 }
 
-/** HoodMarketsHookV2 expects ABI-encoded PoolSwapData (empty bytes when not in sniper bid). */
+/** Robinhood base fee moves every block — refresh with headroom so MetaMask won't reject. */
+async function robinhoodTxFees(publicClient: ReturnType<typeof createPublicClient>) {
+  const block = await publicClient.getBlock({ blockTag: 'latest' });
+  const baseFee = block.baseFeePerGas ?? 20_000_000n;
+  const maxPriorityFeePerGas = 2_000_000n;
+  const maxFeePerGas = baseFee + baseFee / 2n + maxPriorityFeePerGas;
+  return { maxFeePerGas, maxPriorityFeePerGas };
+}
+
 function encodeHoodmarketsHookData(): Hex {
   return encodeAbiParameters(
     [
@@ -192,19 +223,33 @@ async function waitForTx(
   }
 }
 
+async function readTokenBalance(
+  publicClient: ReturnType<typeof createPublicClient>,
+  token: `0x${string}`,
+  account: `0x${string}`,
+): Promise<bigint> {
+  return publicClient.readContract({
+    address: token,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [account],
+  });
+}
+
 export async function swapEthForHoodmarketsToken(opts: {
   config: TokenSwapConfig;
   amountEth: string;
   walletProvider: unknown;
   account: `0x${string}`;
   onStep?: (step: number, total: number, label: string) => void;
-}): Promise<Hex> {
+}): Promise<SwapBuyResult> {
   const amountInWei = parseEther(opts.amountEth);
   if (amountInWei <= 0n) throw new Error('Enter an ETH amount greater than zero.');
 
   const weth = getAddress(opts.config.weth);
   const permit2 = getAddress(opts.config.permit2);
   const router = getAddress(opts.config.universalRouter);
+  const token = getAddress(opts.config.tokenAddress);
   const expiry = Math.floor(Date.now() / 1000) + 60 * 20;
   const deadline = BigInt(expiry);
   const { commands, inputs } = encodeV4WethToTokenSwap(opts.config, amountInWei);
@@ -217,73 +262,153 @@ export async function swapEthForHoodmarketsToken(opts: {
     transport,
   });
 
-  const steps = [
-    { label: 'Wrap ETH to WETH', run: () =>
-      walletClient.writeContract({
-        chain: robinhood,
-        address: weth,
-        abi: wethAbi,
-        functionName: 'deposit',
-        value: amountInWei,
-      }),
+  const balanceBefore = await readTokenBalance(publicClient, token, opts.account);
+
+  const wethBalance = await publicClient.readContract({
+    address: weth,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [opts.account],
+  });
+  const wethAllowancePermit2 = await publicClient.readContract({
+    address: weth,
+    abi: erc20Abi,
+    functionName: 'allowance',
+    args: [opts.account, permit2],
+  });
+  const permit2Allowance = await publicClient.readContract({
+    address: permit2,
+    abi: permit2Abi,
+    functionName: 'allowance',
+    args: [opts.account, weth, router],
+  });
+
+  const stepsRun: string[] = [];
+  const stepsSkipped: string[] = [];
+
+  const allSteps: { id: string; label: string; skip: boolean; run: () => Promise<Hex> }[] = [
+    {
+      id: 'deposit',
+      label: 'Wrap ETH to WETH',
+      skip: wethBalance >= amountInWei,
+      run: async () => {
+        const fees = await robinhoodTxFees(publicClient);
+        return walletClient.writeContract({
+          chain: robinhood,
+          address: weth,
+          abi: wethAbi,
+          functionName: 'deposit',
+          value: amountInWei,
+          maxFeePerGas: fees.maxFeePerGas,
+          maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+        });
+      },
     },
-    { label: 'Approve WETH for Permit2', run: () =>
-      walletClient.writeContract({
-        chain: robinhood,
-        address: weth,
-        abi: erc20Abi,
-        functionName: 'approve',
-        args: [permit2, amountInWei],
-      }),
+    {
+      id: 'approve-weth',
+      label: 'Approve WETH for Permit2',
+      skip: wethAllowancePermit2 >= amountInWei,
+      run: async () => {
+        const fees = await robinhoodTxFees(publicClient);
+        return walletClient.writeContract({
+          chain: robinhood,
+          address: weth,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [permit2, amountInWei],
+          maxFeePerGas: fees.maxFeePerGas,
+          maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+        });
+      },
     },
-    { label: 'Approve router on Permit2', run: () =>
-      walletClient.writeContract({
-        chain: robinhood,
-        address: permit2,
-        abi: permit2Abi,
-        functionName: 'approve',
-        args: [weth, router, amountInWei, expiry],
-      }),
+    {
+      id: 'approve-permit2',
+      label: 'Approve router on Permit2',
+      skip:
+        permit2Allowance[0] >= amountInWei && Number(permit2Allowance[1]) > Math.floor(Date.now() / 1000),
+      run: async () => {
+        const fees = await robinhoodTxFees(publicClient);
+        return walletClient.writeContract({
+          chain: robinhood,
+          address: permit2,
+          abi: permit2Abi,
+          functionName: 'approve',
+          args: [weth, router, amountInWei, expiry],
+          maxFeePerGas: fees.maxFeePerGas,
+          maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+        });
+      },
     },
-    { label: 'Swap WETH for token', run: async () => {
-      try {
-        await publicClient.simulateContract({
-          account: opts.account,
+    {
+      id: 'swap',
+      label: 'Swap WETH for token',
+      skip: false,
+      run: async () => {
+        try {
+          await publicClient.simulateContract({
+            account: opts.account,
+            address: router,
+            abi: universalRouterAbi,
+            functionName: 'execute',
+            args: [commands, inputs, deadline],
+          });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (/NotAuctionBlock|auction/i.test(msg)) {
+            throw new Error(
+              'This pool is still in its anti-sniper auction window. Wait a minute and try again.',
+            );
+          }
+          throw new Error(
+            `Swap simulation failed — the pool may have low liquidity or the anti-sniper window may still be active. (${msg.slice(0, 180)})`,
+          );
+        }
+
+        const fees = await robinhoodTxFees(publicClient);
+        return walletClient.writeContract({
+          chain: robinhood,
           address: router,
           abi: universalRouterAbi,
           functionName: 'execute',
           args: [commands, inputs, deadline],
+          maxFeePerGas: fees.maxFeePerGas,
+          maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
         });
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        if (/NotAuctionBlock|auction/i.test(msg)) {
-          throw new Error(
-            'This pool is still in its anti-sniper auction window. Try again in a few blocks, or use a smaller amount after the fee decay period.',
-          );
-        }
-        throw new Error(
-          `Swap simulation failed — the pool may have low liquidity or the anti-sniper window may still be active. (${msg.slice(0, 180)})`,
-        );
-      }
+      },
+    },
+  ];
 
-      return walletClient.writeContract({
-        chain: robinhood,
-        address: router,
-        abi: universalRouterAbi,
-        functionName: 'execute',
-        args: [commands, inputs, deadline],
-      });
-    }},
-  ] as const;
+  const pending = allSteps.filter((s) => !s.skip);
+  allSteps.filter((s) => s.skip).forEach((s) => stepsSkipped.push(s.label));
+
+  if (pending.length === 0) {
+    throw new Error('Swap steps already completed — retry the buy or check your token balance.');
+  }
 
   let lastHash: Hex | undefined;
-  for (let i = 0; i < steps.length; i += 1) {
-    opts.onStep?.(i + 1, steps.length, steps[i].label);
-    const hash = await steps[i].run();
+  for (let i = 0; i < pending.length; i += 1) {
+    const step = pending[i];
+    opts.onStep?.(i + 1, pending.length, step.label);
+    const hash = await step.run();
     await waitForTx(publicClient, hash);
+    stepsRun.push(step.label);
     lastHash = hash;
   }
 
   if (!lastHash) throw new Error('Swap did not submit.');
-  return lastHash;
+
+  const balanceAfter = await readTokenBalance(publicClient, token, opts.account);
+  const received = balanceAfter - balanceBefore;
+  if (received <= 0n) {
+    throw new Error(
+      'Swap transactions confirmed but no tokens arrived in your wallet. The pool may have rejected the trade — try a smaller amount.',
+    );
+  }
+
+  return {
+    swapTxHash: lastHash,
+    tokenBalance: formatEther(received),
+    stepsRun,
+    stepsSkipped,
+  };
 }

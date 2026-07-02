@@ -23,6 +23,7 @@ export function TokenSwap({
   const [swapStep, setSwapStep] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -48,6 +49,7 @@ export function TokenSwap({
   async function onBuy() {
     setError(null);
     setTxHash(null);
+    setSuccessMsg(null);
     if (!authenticated || !wallet?.address) {
       login();
       return;
@@ -60,7 +62,7 @@ export function TokenSwap({
         provider as Parameters<typeof ensureRobinhoodChainInWallet>[0],
       );
       const config = await fetchTokenSwapConfig(tokenAddress);
-      const hash = await swapEthForHoodmarketsToken({
+      const result = await swapEthForHoodmarketsToken({
         config,
         amountEth,
         walletProvider: provider,
@@ -69,7 +71,13 @@ export function TokenSwap({
           setSwapStep(`Step ${step}/${total}: ${label}`);
         },
       });
-      setTxHash(hash);
+      setTxHash(result.swapTxHash);
+      setSuccessMsg(
+        `You received ${result.tokenBalance} $${sym} in your wallet.` +
+          (result.stepsSkipped.length > 0
+            ? ` (Skipped ${result.stepsSkipped.length} step(s) already done.)`
+            : ''),
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Swap failed');
     } finally {
@@ -84,8 +92,9 @@ export function TokenSwap({
     <div className="lp-card token-swap-card">
       <p className="section-label">Buy on hood.markets</p>
       <p className="muted token-swap-note">
-        Swaps use your wallet directly on this token&apos;s Uniswap v4 pool (WETH → token). MetaMask
-        will ask you to confirm up to 4 transactions: wrap, approve, permit, then swap.
+        Hoodmarkets pools use Uniswap v4 with a custom hook — MetaMask may ask for 2–4 quick
+        confirmations (wrap → approve → swap). Steps you already finished are skipped automatically.
+        <strong> Bundling your buy at launch</strong> (Launch tab) needs only one transaction.
       </p>
 
       <div className="initial-buy-presets" style={{ marginBottom: '0.75rem' }}>
@@ -120,19 +129,35 @@ export function TokenSwap({
         disabled={loading}
         onClick={() => void onBuy()}
       >
-        {loading ? (swapStep ?? 'Confirm in wallet…') : `Buy $${sym}`}
+        {loading
+          ? (swapStep ?? 'Confirm in wallet…')
+          : successMsg
+            ? 'Buy again'
+            : `Buy $${sym}`}
       </button>
 
       {error ? (
         <p className="error" style={{ marginTop: '0.75rem' }}>
           {error}
+          {/base fee|max fee per gas/i.test(error) ? (
+            <>
+              {' '}
+              Click <strong>Buy</strong> again — earlier wrap/approve steps are saved and only the
+              remaining step(s) will run.
+            </>
+          ) : null}
+        </p>
+      ) : null}
+      {successMsg ? (
+        <p className="token-swap-success" style={{ marginTop: '0.75rem' }}>
+          {successMsg}
         </p>
       ) : null}
       {txHash ? (
         <p className="muted" style={{ marginTop: '0.75rem' }}>
-          Swap submitted —{' '}
+          Last tx —{' '}
           <a href={txUrl(txHash)} target="_blank" rel="noreferrer">
-            view transaction
+            view on explorer
           </a>
         </p>
       ) : null}
