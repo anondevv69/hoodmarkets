@@ -1,0 +1,206 @@
+# Agent API reference
+
+**API base:** `https://api.hood.markets`  
+**Web:** `https://hood.markets`  
+**Chain:** Robinhood (`chainId` **4663**)
+
+Wallet on all agent routes: `x-wallet-address: 0x…` and/or `?wallet=0x…` and/or JSON `"wallet"`.
+
+---
+
+## GET /health
+
+```http
+GET https://api.hood.markets/health
+```
+
+---
+
+## GET /api/agent/briefing
+
+Deployments where this wallet is the **fee recipient**.
+
+```http
+GET https://api.hood.markets/api/agent/briefing?wallet=0x…
+```
+
+**Response:** `deploymentCount`, `deployments[]` (`launchType`: `simple`|`pro`), `links`, `feeSplitSimple`.
+
+---
+
+## GET /api/agent/preflight-deploy
+
+Check deploy blockers **before** captcha (ticker/name taken, wallet cooldown, launch mode).
+
+```http
+GET https://api.hood.markets/api/agent/preflight-deploy?wallet=0x…&name=My+Token&symbol=MTK&launchMode=simple
+```
+
+**200** when `canDeploy: true`. **409** when blocked.
+
+**Response fields:** `blocks[]`, `warnings[]`, `blockMessage`, `replyHint` on each issue, `cooldownHours`.
+
+| `blocks[].code` | User-facing meaning |
+|-----------------|---------------------|
+| `ticker_cooldown` | Symbol already launched globally — wait or pick another |
+| `name_cooldown` | Name already used recently |
+| `ticker_reserved` / `name_reserved` | Blocklist |
+| `fee_recipient_cooldown` | Wallet already had a launch in the cooldown window |
+| `duplicate_deployer_name_symbol` | Same wallet already launched this exact name+ticker |
+| `launch_mode_unavailable` | V3 or V4 not configured on API |
+
+| `warnings[].code` | Meaning |
+|-------------------|---------|
+| `rate_limit_would_force_burn` | Deploy allowed but fees → burn (No Dev meme) |
+| `third_party_rolling_warning` | Recent launch on this wallet — fees may burn |
+
+`POST` with JSON `{ wallet, name, symbol, launchMode }` also supported.
+
+---
+
+## GET /api/agent/token-info
+
+Resolve catalog token + **Simple vs Pro** routing for buy/sell.
+
+```http
+GET https://api.hood.markets/api/agent/token-info?token=0x…
+GET https://api.hood.markets/api/agent/token-info?symbol=MTK
+```
+
+**Response:** `launchType` (`simple`|`pro`), `swapMode` (`uniswap`|`hoodmarkets-helper`), `oneClickSwapOnHoodmarkets`, `uniswapSwapUrl`, `tokenPageUrl`.
+
+- **simple** → do not call prepare-buy/sell; share Uniswap link
+- **pro** → use prepare-buy / prepare-sell + Bankr submit
+
+See `streaming-hints.json` for detection rules.
+
+---
+
+## POST /api/agent/prepare-deploy
+
+Returns captcha + deploy checklist (server deploy — **no** Bankr submit). Runs **preflight** automatically.
+
+```http
+POST https://api.hood.markets/api/agent/prepare-deploy
+Content-Type: application/json
+
+{
+  "wallet": "0x…",
+  "name": "My Token",
+  "symbol": "MTK",
+  "launchMode": "simple",
+  "imageUrl": "https://…",
+  "description": "…"
+}
+```
+
+**409** when preflight blocks (ticker taken, daily limit, etc.) — use `replyHint` in the response for X/DM copy.
+
+**Response:** `steps[]` with captcha URLs and deploy body template; optional `preflight.warnings`.
+
+### Deploy (after captcha)
+
+```http
+POST https://api.hood.markets/api/deploy
+X-Agent-Captcha-JWT: <jwt>
+Content-Type: application/json
+
+{
+  "name": "My Token",
+  "symbol": "MTK",
+  "feeTarget": "agent_wallet",
+  "clientKind": "agent",
+  "agentProvider": "bankr",
+  "launchMode": "simple",
+  "imageUrl": "https://…"
+}
+```
+
+**Response:** `tokenAddress`, `transactionHash`, `links` (dexscreener, hood.markets, explorer).
+
+---
+
+## POST /api/agent/prepare-buy
+
+Pro (V4) tokens only. Returns `transactions[]` for Bankr submit.
+
+```http
+POST https://api.hood.markets/api/agent/prepare-buy
+Content-Type: application/json
+
+{
+  "wallet": "0x…",
+  "tokenAddress": "0x…",
+  "amountEth": "0.01"
+}
+```
+
+**Response:** `transactions[]`, `chainId: 4663`, `tokenPageUrl`, `uniswapSwapUrl`.
+
+---
+
+## POST /api/agent/prepare-sell
+
+```http
+POST https://api.hood.markets/api/agent/prepare-sell
+Content-Type: application/json
+
+{
+  "wallet": "0x…",
+  "tokenAddress": "0x…",
+  "amount": "1000000"
+}
+```
+
+May include `approve` step then `sell`. Amount in token units (`1M`, `1000000`).
+
+---
+
+## POST /api/agent/claim
+
+Server broadcasts claim (gas paid by hood.markets). Requires haiku JWT.
+
+```http
+POST https://api.hood.markets/api/agent/claim
+X-Agent-Captcha-JWT: <jwt>
+Content-Type: application/json
+
+{
+  "tokenAddress": "0x…",
+  "tokenSymbol": "MTK"
+}
+```
+
+---
+
+## Captcha (deploy + claim)
+
+```http
+GET  https://api.hood.markets/api/agent-captcha/challenge
+POST https://api.hood.markets/api/agent-captcha/verify
+```
+
+Haiku: exactly 3 lines, must mention topic word. JWT valid **8 hours**.
+
+---
+
+## GET /api/deployments
+
+Public catalog.
+
+```http
+GET https://api.hood.markets/api/deployments?limit=50
+GET https://api.hood.markets/api/deployments/0x…
+```
+
+---
+
+## Bankr wallet submit
+
+After `prepare-buy` / `prepare-sell`, for each validated tx:
+
+```http
+POST https://api.bankr.bot/wallet/submit
+```
+
+`chainId` must be **4663**. See `references/BANKR-SUBMIT.md` and `references/TX-VALIDATION.md`.

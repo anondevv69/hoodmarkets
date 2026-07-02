@@ -1,9 +1,9 @@
 import type { Express, Request, Response } from 'express';
 import { encodeFunctionData } from 'viem';
-import { base } from 'viem/chains';
 import { config } from '../config.js';
 import { resolveAgentClaimDeployment } from '../lib/claimDeploymentAuth.js';
 import { BASE_WETH } from '../lib/liquidFactoryDeploy.js';
+import { ROBINHOOD_CHAIN_ID } from '../lib/robinhoodChain.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 import { readAgentCaptchaToken, verifyAgentCaptchaJwt } from '../lib/agentCaptchaVerify.js';
 
@@ -92,7 +92,7 @@ export function registerAgentClaimCalldataRoutes(app: Express): void {
 
       res.json({
         ok: true,
-        chainId: base.id,
+        chainId: ROBINHOOD_CHAIN_ID,
         to: config.liquid.feeLocker,
         data,
         value: '0x0',

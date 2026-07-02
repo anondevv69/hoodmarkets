@@ -7,5 +7,11 @@
   "lpLocker": "0x34861965c8efc302e794c8593404cf17c6e65ff0",
   "univ4EthDevBuy": "0x39ddf0339f9dccef59457a3579de1789c38d5a40",
   "mevModule": "0xcbbc3534a892a365c57023c34349300d360f6a1b",
-  "swapHelper": "0x6373285f77ad0a3f5a441439b3d23d16b79aa585"
+  "swapHelper": "0x6373285f77ad0a3f5a441439b3d23d16b79aa585",
+  "hoodmarketsV3": {
+    "factory": "0xa77911c301b30283ca3dbc32812839adf443b39f",
+    "vault": "0xcc4554b1c6b33b36a91a306db3f8b13cbe92639e",
+    "lpLocker": "0x8eb68121e5c7a5aaf440a5c66c0c66b828b96fa8",
+    "platformFeeRecipient": "0xa558e3058050448f07df73a2509f23b7912395da"
+  }
 }

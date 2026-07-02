@@ -127,6 +127,29 @@ export const config = {
     swapHelper: protocolAddress('HOODMARKETS_SWAP_HELPER', 'LIQUID_SWAP_HELPER', ''),
   },
 
+  /** Uniswap V3 simple launcher (DexScreener-friendly) — set after `10_DeployHoodMarketsV3.s.sol`. */
+  hoodmarketsV3: {
+    factory: protocolAddress('HOODMARKETS_V3_FACTORY', '', ''),
+    vault: protocolAddress('HOODMARKETS_V3_VAULT', '', ''),
+    lpLocker: protocolAddress('HOODMARKETS_V3_LP_LOCKER', '', ''),
+    /** Embedded 5% platform fee recipient in HoodMarketsV3LpLocker (owner can update). */
+    platformFeeRecipient: protocolAddress(
+      'HOODMARKETS_V3_PLATFORM_FEE_RECIPIENT',
+      'HOODMARKETS_PLATFORM_FEE_RECIPIENT',
+      '',
+    ),
+  },
+
+  /**
+   * Default web launch mode when client omits `launchMode`.
+   * `simple` = HoodMarkets V3 (Uniswap V3). `pro` = HoodMarkets V4 hook stack.
+   * Env: `HOODMARKETS_DEFAULT_LAUNCH_MODE=simple|pro`
+   */
+  defaultLaunchMode: (() => {
+    const raw = (process.env.HOODMARKETS_DEFAULT_LAUNCH_MODE || 'simple').trim().toLowerCase();
+    return raw === 'pro' ? ('pro' as const) : ('simple' as const);
+  })(),
+
   // Deployer wallet (pays gas + minimal deploy bond)
   deployerPrivateKey: normalizePrivateKey(requireEnv('DEPLOYER_PRIVATE_KEY')),
 
@@ -666,6 +689,11 @@ export function validateConfig(): void {
     if (!config.liquid.factory) {
       throw new Error(
         'HOODMARKETS_FACTORY (or LIQUID_FACTORY) is required — set Robinhood contract addresses from deployed-robinhood-mainnet.json',
+      );
+    }
+    if (config.defaultLaunchMode === 'simple' && !config.hoodmarketsV3.factory) {
+      throw new Error(
+        'HOODMARKETS_V3_FACTORY is required when HOODMARKETS_DEFAULT_LAUNCH_MODE=simple — run 10_DeployHoodMarketsV3.s.sol',
       );
     }
     logger.info('WEB_ONLY_MODE: bots and Neynar are optional');

@@ -1,0 +1,24 @@
+{
+  "chainId": 4663,
+  "chainName": "Robinhood Chain",
+  "weth": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+  "apiBase": "https://api.hood.markets",
+  "webBase": "https://hood.markets",
+  "explorer": "https://robinhoodchain.blockscout.com",
+  "contracts": {
+    "hoodmarketsV4Factory": "0xdeBc9bC5c3Ca697493a01e8ac503B590D209d8bD",
+    "feeLocker": "0xD588F6F8819Fc0B34fF72300Bb87b8c69C4cD454",
+    "swapHelper": "0x6373285F77ad0a3f5a441439B3D23d16B79aA585",
+    "hookStatic": "0xCD9DD3fa11c53cf6aE3d4e4D3fdf7C1f790468cc",
+    "universalRouter": "0x53BF6B0684Ec7eF91e1387Da3D1a1769bC5A6F77",
+    "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+    "hoodmarketsV3Factory": "0xa77911C301b30283ca3dBc32812839AdF443b39f",
+    "hoodmarketsV3LpLocker": "0x8eB68121E5c7a5aAf440a5C66c0C66b828B96fA8",
+    "platformFeeRecipientV3": "0xA558E3058050448f07Df73a2509f23B7912395Da"
+  },
+  "swapHelperSelectors": {
+    "buy": "0x49168929",
+    "sell": "0x006215e5"
+  },
+  "_agentNote": "prepare-buy/sell only works for Pro (V4) catalog tokens. Simple V3 poolId prefix v3: → use Uniswap."
+}

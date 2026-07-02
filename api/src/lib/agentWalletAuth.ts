@@ -1,7 +1,7 @@
 import { getAddress, verifyMessage, type Address } from 'viem';
-import { base } from 'viem/chains';
+import { ROBINHOOD_CHAIN_ID } from './robinhoodChain.js';
 
-const CHAIN_ID = base.id;
+const CHAIN_ID = ROBINHOOD_CHAIN_ID;
 
 /** EIP-191 message the agent signs to authorize deploy (fee recipient must match signer). */
 export function buildAgentDeployMessage(params: {
@@ -12,7 +12,7 @@ export function buildAgentDeployMessage(params: {
   const sym = params.symbol.trim().toUpperCase().slice(0, 10);
   return [
     'hoodmarkets agent deploy',
-    `Base chain ID: ${CHAIN_ID}`,
+    `Robinhood Chain ID: ${CHAIN_ID}`,
     `Fee recipient: ${getAddress(params.feeRecipient)}`,
     `Token name: ${params.name.trim()}`,
     `Symbol: ${sym}`,
@@ -26,7 +26,7 @@ export function buildAgentClaimMessage(params: {
 }): string {
   return [
     'hoodmarkets agent claim fees',
-    `Base chain ID: ${CHAIN_ID}`,
+    `Robinhood Chain ID: ${CHAIN_ID}`,
     `Fee recipient: ${getAddress(params.feeRecipient)}`,
     `Token: ${getAddress(params.tokenAddress)}`,
   ].join('\n');

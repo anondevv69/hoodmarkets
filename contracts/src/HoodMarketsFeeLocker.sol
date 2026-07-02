@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import {HoodMarketsAsciiBanner} from "./HoodMarketsAsciiBanner.sol";
 import {IHoodMarketsFeeLocker} from "./interfaces/IHoodMarketsFeeLocker.sol";
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";

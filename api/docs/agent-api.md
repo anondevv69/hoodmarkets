@@ -1,50 +1,36 @@
-# Liquid Launcher — Agent API
+# hood.markets — Agent API
 
-> Document revision: 2026-04-14-r4
+> Robinhood Chain (4663) · API: `https://api.hood.markets` · Web: `https://hood.markets`
+
+Bankr agents: install skill from `skills/hoodmarkets/` in this repo.
 
 ## Step 1 — Solve haiku once, get a JWT (valid 8 hours)
 
-One solve lets you deploy AND claim in any order within 8 hours. No need to re-authenticate.
-
-**Get a challenge:**
-
 ```
-GET https://api.llauncher.app/api/agent-captcha/challenge
+GET https://api.hood.markets/api/agent-captcha/challenge
 ```
 
-Returns:
-
-```json
-{ "sessionId": "abc123", "challenge": "Write a haiku (3 lines) about \"tokens\". Your response must contain exactly 3 lines and mention the word \"tokens\".", "timeLimit": 300 }
 ```
-
-**Solve and get JWT:**
-
-```
-POST https://api.llauncher.app/api/agent-captcha/verify
+POST https://api.hood.markets/api/agent-captcha/verify
 Content-Type: application/json
 
 {
   "sessionId": "abc123",
-  "response": "Tokens rise at dawn\nOn the blockchain tokens flow\nAgents hold the key",
+  "response": "Tokens rise at dawn\nOn Robinhood tokens flow\nAgents hold the key",
   "agentFeeRecipient": "0xYOUR_WALLET"
 }
 ```
 
-Returns:
+Returns `{ "jwt": "eyJ...", "walletAddress": "0x...", "expiresIn": 28800 }`
 
-```json
-{ "jwt": "eyJ...", "walletAddress": "0x...", "expiresIn": 28800 }
-```
-
-> **Haiku rules (simple):** exactly 3 lines separated by `\n`, must mention the topic word. No ASCII math, no word counts, no other constraints.
+> Haiku: exactly 3 lines separated by `\n`, must mention the topic word.
 
 ---
 
 ## Step 2a — Deploy a token
 
 ```
-POST https://api.llauncher.app/api/deploy
+POST https://api.hood.markets/api/deploy
 X-Agent-Captcha-JWT: <jwt>
 Content-Type: application/json
 
@@ -52,69 +38,61 @@ Content-Type: application/json
   "name": "Token Name",
   "symbol": "SYM",
   "feeTarget": "agent_wallet",
-  "clientKind": "agent"
+  "clientKind": "agent",
+  "agentProvider": "bankr",
+  "launchMode": "simple",
+  "imageUrl": "https://…"
 }
 ```
 
-Response: `{ "tokenAddress": "0x...", "transactionHash": "0x...", "links": { "basescan": "...", "dexscreener": "..." } }`
+- `launchMode`: `"simple"` (Uniswap V3, DexScreener) or `"pro"` (V4 hooks)
+- Simple launches: **5%** hood.markets platform fee embedded in contract; **95%** to fee wallet
+
+Or get the full checklist:
+
+```
+POST https://api.hood.markets/api/agent/prepare-deploy
+{ "wallet": "0x…", "name": "…", "symbol": "…", "launchMode": "simple" }
+```
 
 ---
 
-## Step 2b — Claim fees (Liquid broadcasts the tx and pays gas)
+## Step 2b — Buy / sell (Pro tokens)
 
 ```
-POST https://api.llauncher.app/api/agent/claim
+POST https://api.hood.markets/api/agent/prepare-buy
+{ "wallet": "0x…", "tokenAddress": "0x…", "amountEth": "0.01" }
+
+POST https://api.hood.markets/api/agent/prepare-sell
+{ "wallet": "0x…", "tokenAddress": "0x…", "amount": "1000000" }
+```
+
+Returns `transactions[]` for Bankr `POST https://api.bankr.bot/wallet/submit` with `chainId: 4663`.
+
+Simple (V3) tokens (`poolId` starts with `v3:`) → use Uniswap / DexScreener instead.
+
+---
+
+## Step 2c — Claim fees (launcher pays gas)
+
+```
+POST https://api.hood.markets/api/agent/claim
 X-Agent-Captcha-JWT: <jwt>
 Content-Type: application/json
 
-{
-  "tokenAddress": "0x...",
-  "tokenSymbol": "VOL",
-  "tokenName": "My Token"
-}
+{ "tokenAddress": "0x…" }
 ```
-
-Send **at least one** of `tokenAddress` (contract **CA**), `tokenSymbol` (ticker), or `tokenName` so the server can match **your** deployment in the catalog. The JWT’s `walletAddress` must be the **recorded fee recipient** for that token — others get **403**. If `tokenSymbol` or `tokenName` matches **more than one** of your deployments, the API returns **400** and you must pass **`tokenAddress`**. Optional `tokenSymbol` / `tokenName` with `tokenAddress` act as a cross-check (must match the stored deployment).
-
-Response includes `ok`, `txHash`, `basescanUrl`, `feeAmount`, `feeAmountEth` (amounts are **WETH** on Base — trading/LP fees accrue in the fee locker as WETH, not as your launched token).
-
-> **Important:** Always use `POST`, never `GET`. `GET` returns **405** with a hint. The server signs and broadcasts the claim — you do not need gas, a private key, or wallet signing.
 
 ---
 
-## Web profile (Privy) — same launcher, different auth
-
-Used by **llauncher.app** after sign-in. Requires `Authorization: Bearer <Privy access token>` (same app as `PRIVY_APP_ID` on the API). Token must be in the user’s deployment history.
-
-**List deployments**
+## Briefing
 
 ```
-GET https://api.llauncher.app/api/my-deployments?limit=50
-Authorization: Bearer <privy_access_token>
+GET https://api.hood.markets/api/agent/briefing?wallet=0x…
 ```
 
-**Pull pool / LP fees into the fee locker** (do this if claim shows zero but pool fees accrued; launcher pays gas)
-
-```
-POST https://api.llauncher.app/api/my-deployments/collect-pool-fees
-Authorization: Bearer <privy_access_token>
-Content-Type: application/json
-
-{ "tokenAddress": "0x..." }
-```
-
-**Claim trading fees** from the locker to the fee wallet
-
-```
-POST https://api.llauncher.app/api/my-deployments/claim
-Authorization: Bearer <privy_access_token>
-Content-Type: application/json
-
-{ "tokenAddress": "0x..." }
-```
-
-Typical order: **collect-pool-fees** (when needed) → **claim**. CORS must allow your web origin (`WEB_DEPLOY_CORS_ORIGINS`; production defaults include `https://llauncher.app`).
+Lists tokens where the wallet is fee recipient.
 
 ---
 
-*Full docs: https://llauncher.app/agent-api*
+*Skill package: `skills/hoodmarkets/` · PR to [BankrBot/skills](https://github.com/BankrBot/skills) for catalog listing*

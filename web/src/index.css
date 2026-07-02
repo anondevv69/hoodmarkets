@@ -334,6 +334,42 @@ label {
   margin-bottom: 0.25rem;
 }
 
+.launch-mode-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.launch-mode-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.launch-mode-option.active {
+  border-color: var(--accent-dim);
+  background: var(--accent-glow);
+}
+
+.launch-mode-option input {
+  margin-right: 0.5rem;
+}
+
+.launch-mode-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.launch-mode-desc {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
 .name-symbol-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

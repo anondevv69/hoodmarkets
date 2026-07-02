@@ -24,6 +24,10 @@ lookup_spec() {
     HoodMarketsMevDescendingFees) echo "src/mev-modules/HoodMarketsMevDescendingFees.sol:HoodMarketsMevDescendingFees||" ;;
     HoodMarketsSniperUtilV2) echo "src/mev-modules/sniper-utils/HoodMarketsSniperUtilV2.sol:HoodMarketsSniperUtilV2||constructor(address,address,address,address)" ;;
     HoodMarketsLpLockerFeeConversion) echo "src/lp-lockers/HoodMarketsLpLockerFeeConversion.sol:HoodMarketsLpLockerFeeConversion|lplocker|constructor(address,address,address,address,address,address,address)" ;;
+    HoodMarketsV3) echo "src/v31/HoodMarketsV3.sol:HoodMarketsV3||constructor(address)" ;;
+    HoodMarketsV3Vault) echo "src/v31/HoodMarketsV3Vault.sol:HoodMarketsV3Vault||constructor(address,address,uint256)" ;;
+    HoodMarketsV3LpLocker) echo "src/v31/HoodMarketsV3LpLocker.sol:HoodMarketsV3LpLocker||constructor(address,address,address,address)" ;;
+    HoodMarketsSwapHelper) echo "src/extensions/HoodMarketsSwapHelper.sol:HoodMarketsSwapHelper||constructor(address,address,address,address)" ;;
     # Legacy names from pre-rename deploy broadcasts (same bytecode paths)
     LiquidFeeLocker) echo "src/HoodMarketsFeeLocker.sol:HoodMarketsFeeLocker||constructor(address)" ;;
     LiquidPoolExtensionAllowlist) echo "src/hooks/HoodMarketsPoolExtensionAllowlist.sol:HoodMarketsPoolExtensionAllowlist||constructor(address)" ;;

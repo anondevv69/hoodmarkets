@@ -1316,6 +1316,34 @@ export async function getDeploymentByFeeRecipientAndTokenAddress(
   });
 }
 
+/** Newest catalog row for a ticker symbol (global, any fee recipient). */
+export async function getNewestDeploymentByTickerSymbol(
+  tokenSymbol: string,
+): Promise<DeploymentCatalogRow | null> {
+  if (!db) return null;
+  const sym = normalizeCatalogTickerSymbol(tokenSymbol);
+  if (!sym) return null;
+
+  return new Promise((resolve) => {
+    db!.get(
+      `SELECT ${SELECT_DEPLOYMENT_ROW}
+       FROM deployment_catalog AS dc
+       WHERE upper(trim(replace(dc.token_symbol, '$', ''))) = ?
+       ORDER BY datetime(dc.created_at) DESC
+       LIMIT 1`,
+      [sym],
+      (err, row: DeploymentCatalogRow | undefined) => {
+        if (err) {
+          logger.warn('deploymentCatalog get by ticker failed:', err.message);
+          resolve(null);
+          return;
+        }
+        resolve(hydrateDeploymentCatalogRow(row));
+      },
+    );
+  });
+}
+
 /** Public token page: one catalog row by token contract address. */
 export async function getDeploymentByTokenAddress(
   tokenAddress: string,

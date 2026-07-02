@@ -5,3 +5,4 @@
 @uniswap/universal-router/=lib/universal-router/
 @uniswap/permit2/=lib/permit2/
 permit2/=lib/permit2/
+@uniswap/v3-core/=_vendor/v3.1-contracts/lib/v3-core/
