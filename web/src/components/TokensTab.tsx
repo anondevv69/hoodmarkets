@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
 import { shortenAddress } from '../chain';
-import { formatUsdVol, type DexTokenMetrics } from '../lib/dexscreenerVolume';
+import { formatTinyUsdPrice, formatUsdVol, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import type { ExploreToken } from '../lib/exploreTokens';
 import { openTokenPage } from '../lib/tokenRoute';
 import { buildTradingLinks } from '../lib/tradingLinks';
 import { CopyButton } from './CopyButton';
-import { DexMetricsStrip } from './DexMetricsStrip';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 
@@ -19,6 +18,8 @@ function ExploreRow({
   const d = token.deployment;
   const sym = token.symbol;
   const mc = metrics?.marketCapUsd ?? metrics?.fdvUsd ?? token.mcap;
+  const vol = metrics?.volumeH24Usd;
+  const liq = metrics?.liquidityUsd;
   const chg = metrics?.change24hPct ?? token.change24h;
   const links = buildTradingLinks(d.tokenAddress, metrics);
 
@@ -67,24 +68,19 @@ function ExploreRow({
           </div>
         </div>
       </div>
-      <div>
-        <div className="lp-mono explore-mcap" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-          {mc && mc > 0 ? formatUsdVol(mc) : '—'}
+      <div className="explore-market-cell">
+        <div className="lp-mono explore-price">{formatTinyUsdPrice(metrics?.priceUsd)}</div>
+        <div className="explore-market-line lp-mono">
+          <span title="Market cap">MC {formatUsdVol(mc)}</span>
+          <span title="24h volume">Vol {formatUsdVol(vol)}</span>
+          <span title="Liquidity">Liq {formatUsdVol(liq)}</span>
         </div>
         {typeof chg === 'number' ? (
-          <div
-            className="lp-mono"
-            style={{
-              fontSize: '0.78rem',
-              fontWeight: 600,
-              color: chg >= 0 ? 'var(--accent)' : 'var(--danger)',
-            }}
-          >
+          <div className={`explore-chg lp-mono ${chg >= 0 ? 'up' : 'down'}`}>
             {chg >= 0 ? '+' : ''}
             {chg.toFixed(1)}% 24h
           </div>
         ) : null}
-        <DexMetricsStrip metrics={metrics} />
       </div>
       <div className="explore-links" onClick={stopRowClick} onKeyDown={stopRowClick}>
         <button type="button" className="btn btn-primary btn-sm" onClick={openDetails}>

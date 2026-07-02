@@ -14,8 +14,8 @@ import { buildTradingLinks } from '../lib/tradingLinks';
 import { closeTokenPage } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
 import { ClaimFeesActions } from './ClaimFeesActions';
-import { DexMetricsStrip } from './DexMetricsStrip';
-import { DexScreenerChartEmbed } from './TokenListingStatus';
+import { DexScreenerEmbed } from './TokenListingStatus';
+import { TokenMarketPanel } from './TokenMarketPanel';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 import { TradingLinksRow } from './TradingLinksRow';
@@ -67,12 +67,15 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   const feeLabel = token.feeRecipientLabel?.trim();
   const platformFees = isHoodmarketsPlatformFeeRecipient(feeLabel);
   const feeHeadline = feeRecipientHeadline(token.feeRecipientAddress, feeLabel);
+  const showV4PoolId = token.poolId && !isV3PoolId(token.poolId);
+
   const feeNote = platformFees
     ? 'Trading fees on this launch go to hood.markets (24h deploy limit).'
     : token.feeToSelf
-      ? 'Trading fees go to this wallet (launcher deploy).'
-      : feeLabel || 'Fees routed per launch settings (see label).';
-  const showV4PoolId = token.poolId && !isV3PoolId(token.poolId);
+      ? 'Trading fees go to this wallet.'
+      : feeLabel && !platformFees
+        ? feeLabel
+        : null;
 
   return (
     <div className="token-page lp-fade-in">
@@ -88,13 +91,17 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               {token.tokenName}{' '}
               <span className="muted">${sym}</span>
             </h2>
-            <DexMetricsStrip metrics={metrics} />
-            <DexScreenerChartEmbed tokenAddress={token.tokenAddress} metrics={metrics} />
           </div>
         </div>
-
         <TokenSocialLinks websiteUrl={token.tokenWebsiteUrl} xUrl={token.tokenXUrl} />
+      </div>
 
+      <TokenMarketPanel tokenName={token.tokenName} symbol={sym} metrics={metrics} />
+
+      <DexScreenerEmbed tokenAddress={token.tokenAddress} metrics={metrics} />
+
+      <div className="lp-card token-page-details">
+        <p className="section-label">Launch details</p>
         <dl className="token-detail-grid">
           {showV4PoolId ? (
             <div>
@@ -126,7 +133,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
             <dt>Deployed by</dt>
             <dd>{token.deployerLabel || 'Unknown'}</dd>
           </div>
-          <div>
+          <div className="token-detail-span-2">
             <dt>Fee recipient</dt>
             <dd>
               {platformFees ? (
@@ -143,10 +150,11 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
                   <CopyButton text={token.feeRecipientAddress} />
                 </span>
               )}
-              {feeLabel && !platformFees ? (
-                <p className="muted token-fee-label">{feeLabel}</p>
-              ) : null}
-              <p className="muted token-fee-note">{feeNote}</p>
+              {feeNote ? <p className="muted token-fee-note">{feeNote}</p> : null}
+              <div className="token-trade-links">
+                <p className="muted token-trade-links-label">Buy / track</p>
+                <TradingLinksRow links={links} />
+              </div>
             </dd>
           </div>
           <div>
@@ -161,15 +169,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
             </dd>
           </div>
         </dl>
-      </div>
-
-      <div className="lp-card token-page-trade">
-        <p className="section-label">Trade</p>
-        <p className="muted token-swap-note">
-          Buy and sell on DexScreener or Uniswap — hood.markets does not run in-app swaps for this
-          token.
-        </p>
-        <TradingLinksRow links={links} />
       </div>
 
       <ClaimFeesActions
