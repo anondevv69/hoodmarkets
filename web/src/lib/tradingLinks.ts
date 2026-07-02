@@ -3,6 +3,7 @@
  */
 
 import { getAddress } from 'viem';
+import type { DexTokenMetrics } from './dexscreenerVolume';
 
 export interface TradingLinks {
   hoodmarkets: string;
@@ -25,14 +26,17 @@ function hoodmarketsUrl(tokenAddress: string): string {
   return `https://hood.markets/?token=${addr}`;
 }
 
-export function buildTradingLinks(tokenAddress: string): TradingLinks {
+export function buildTradingLinks(
+  tokenAddress: string,
+  metrics?: DexTokenMetrics,
+): TradingLinks {
   const addr = getAddress(tokenAddress.trim() as `0x${string}`);
   const a = tokenLowerHex(addr);
   const hoodmarkets = hoodmarketsUrl(addr);
   return {
     hoodmarkets,
     liquid: hoodmarkets,
-    dexscreener: `https://dexscreener.com/robinhood/${a}`,
+    dexscreener: metrics?.dexscreenerUrl ?? `https://dexscreener.com/robinhood/${a}`,
     uniswap: `https://app.uniswap.org/explore/tokens/robinhood/${addr}`,
     uniswapSwap: `https://app.uniswap.org/swap?chain=robinhood&outputCurrency=${addr}`,
     explorer: `https://robinhoodchain.blockscout.com/token/${addr}`,
