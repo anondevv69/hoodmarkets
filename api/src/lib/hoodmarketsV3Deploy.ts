@@ -45,7 +45,45 @@ export function assertHoodMarketsV3Factory(factory: string | undefined): Address
   return getAddress(factory.trim());
 }
 
-function buildDeploymentConfig(input: HoodMarketsV3DeployInput) {
+export type HoodMarketsV3DeploymentConfig = {
+  tokenConfig: {
+    name: string;
+    symbol: string;
+    salt: Hex;
+    image: string;
+    metadata: string;
+    context: string;
+    originatingChainId: bigint;
+  };
+  vaultConfig: {
+    vaultPercentage: number;
+    vaultDuration: bigint;
+  };
+  poolConfig: {
+    pairedToken: Address;
+    tickIfToken0IsNewToken: number;
+  };
+  initialBuyConfig: {
+    pairedTokenPoolFee: number;
+    pairedTokenSwapAmountOutMinimum: bigint;
+  };
+  rewardsConfig: {
+    creatorReward: bigint;
+    creatorAdmin: Address;
+    creatorRewardRecipient: Address;
+    interfaceAdmin: Address;
+    interfaceRewardRecipient: Address;
+  };
+};
+
+export function buildHoodMarketsV3DeploymentConfig(input: {
+  name: string;
+  symbol: string;
+  tokenAdmin: Address;
+  image: string;
+  metadata: string;
+  context: string;
+}): HoodMarketsV3DeploymentConfig {
   const salt = keccak256(toHex(randomBytes(32)));
   const tokenAdmin = getAddress(input.tokenAdmin);
 
@@ -79,7 +117,44 @@ function buildDeploymentConfig(input: HoodMarketsV3DeployInput) {
       interfaceAdmin: tokenAdmin,
       interfaceRewardRecipient: '0x0000000000000000000000000000000000000000' as Address,
     },
-  } as const;
+  };
+}
+
+function buildDeploymentConfig(input: HoodMarketsV3DeployInput) {
+  return buildHoodMarketsV3DeploymentConfig({
+    name: input.name,
+    symbol: input.symbol,
+    tokenAdmin: getAddress(input.tokenAdmin),
+    image: input.image,
+    metadata: input.metadata,
+    context: input.context,
+  });
+}
+
+export function parseHoodMarketsV3TokenCreatedFromReceipt(
+  receipt: { logs: { address: string; data: Hex; topics: readonly Hex[] }[] },
+  factory: Address,
+): { tokenAddress: Address; positionId: bigint } {
+  for (const log of receipt.logs) {
+    if (log.address.toLowerCase() !== factory.toLowerCase()) continue;
+    try {
+      const decoded = decodeEventLog({
+        abi: HOODMARKETS_V3_ABI,
+        data: log.data,
+        topics: log.topics as [Hex, ...Hex[]],
+      });
+      if (decoded.eventName === 'TokenCreated') {
+        const args = decoded.args as {
+          tokenAddress: Address;
+          positionId: bigint;
+        };
+        return { tokenAddress: args.tokenAddress, positionId: args.positionId };
+      }
+    } catch {
+      // not our event
+    }
+  }
+  throw new Error('TokenCreated event not found in transaction receipt');
 }
 
 export async function deployHoodMarketsV3Token(
@@ -134,26 +209,13 @@ export async function deployHoodMarketsV3Token(
   let tokenAddress: Address | undefined;
   let positionId: bigint | undefined;
 
-  for (const log of receipt.logs) {
-    if (log.address.toLowerCase() !== factory.toLowerCase()) continue;
-    try {
-      const decoded = decodeEventLog({
-        abi: HOODMARKETS_V3_ABI,
-        data: log.data,
-        topics: log.topics,
-      });
-      if (decoded.eventName === 'TokenCreated') {
-        const args = decoded.args as {
-          tokenAddress: Address;
-          positionId: bigint;
-        };
-        tokenAddress = args.tokenAddress;
-        positionId = args.positionId;
-        break;
-      }
-    } catch {
-      // not our event
-    }
+  try {
+    const created = parseHoodMarketsV3TokenCreatedFromReceipt(receipt, factory);
+    tokenAddress = created.tokenAddress;
+    positionId = created.positionId;
+  } catch {
+    tokenAddress = undefined;
+    positionId = undefined;
   }
 
   if (!tokenAddress || positionId === undefined) {

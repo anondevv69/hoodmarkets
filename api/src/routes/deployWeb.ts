@@ -63,6 +63,7 @@ import {
   parseWebInitialBuyWei,
   webInitialBuyMinEth,
   webInitialBuyMaxEth,
+  WEB_INITIAL_BUY_PRESETS_ETH,
 } from '../lib/deployBondEnv.js';
 import {
   tryReserveAgentPaymentTx,
@@ -92,6 +93,14 @@ import {
   completeWebWalletDeploy,
   assertWalletDeploySenderMatches,
 } from '../lib/webWalletDeploy.js';
+import {
+  buildWebWalletDeployPrepareV3,
+  completeWebWalletDeployV3,
+} from '../lib/webWalletDeployV3.js';
+import {
+  deserializeV3DeploymentConfig,
+  v3DeploymentConfigRewardRecipient,
+} from '../lib/v3DeploymentConfigJson.js';
 import {
   deploymentConfigMsgValueWei,
   deserializeDeploymentConfig,
@@ -418,6 +427,7 @@ export function registerWebDeployRoutes(
       initialBuyMinEth: webInitialBuyMinEth(),
       initialBuyMaxEth: webInitialBuyMaxEth(),
       initialBuyDefaultEth: webInitialBuyDefaultEth(),
+      initialBuyPresetsEth: [...WEB_INITIAL_BUY_PRESETS_ETH],
       walletDeployEnabled: true,
     });
   });
@@ -845,6 +855,14 @@ export function registerWebDeployRoutes(
         return;
       }
 
+      if (userInitialBuyWei > 0n && feeTarget !== 'self') {
+        res.status(400).json({
+          error:
+            'Paying an initial buy from your wallet is only supported when trading fees go to you (Me). Use 0 or leave initial buy empty for launches on behalf of someone else.',
+        });
+        return;
+      }
+
       const launchModeRaw =
         typeof body.launchMode === 'string' ? body.launchMode.trim().toLowerCase() : '';
       const launchMode: 'simple' | 'pro' =
@@ -859,7 +877,7 @@ export function registerWebDeployRoutes(
       }
 
       const useWalletDeploy =
-        launchMode === 'pro' &&
+        (launchMode === 'pro' || launchMode === 'simple') &&
         feeTarget === 'self' &&
         !anonymousNoDev &&
         !agentWalletDeploy &&
@@ -875,6 +893,22 @@ export function registerWebDeployRoutes(
             : null;
 
       if (useWalletDeploy && walletPhase === 'prepare') {
+        if (launchMode === 'simple') {
+          const prepare = await buildWebWalletDeployPrepareV3({
+            name,
+            symbol,
+            tokenAdmin: resolved.walletAddress,
+            devBuyAmount: userInitialBuyWei,
+            description: fullDescription,
+            imageUrl,
+            websiteUrl,
+            xUrl,
+            platform: 'web',
+            clientKind: webClientKind,
+          });
+          res.json(prepare);
+          return;
+        }
         const prepare = await buildWebWalletDeployPrepare({
           name,
           symbol,
@@ -900,7 +934,7 @@ export function registerWebDeployRoutes(
         return;
       }
 
-      let devBuyAmount = config.deployBondWei;
+      let devBuyAmount = userInitialBuyWei > 0n ? 0n : config.deployBondWei;
 
       const deployReq: DeployRequest = {
         platform: 'web',
@@ -979,7 +1013,61 @@ export function registerWebDeployRoutes(
           return;
         }
 
-        const cfg = deserializeDeploymentConfig(body.deploymentConfig);
+        if (launchMode === 'simple') {
+          const v3Serialized = body.deploymentConfig as unknown as import('../lib/v3DeploymentConfigJson.js').SerializedV3DeploymentConfig;
+          const v3cfg = deserializeV3DeploymentConfig(v3Serialized);
+          if (v3cfg.tokenConfig.name !== name || v3cfg.tokenConfig.symbol !== symbol) {
+            res.status(400).json({ error: 'Deployment config does not match token name or symbol.' });
+            return;
+          }
+          if (getAddress(v3DeploymentConfigRewardRecipient(v3cfg)) !== getAddress(resolved.walletAddress)) {
+            res.status(400).json({ error: 'Deployment config fee wallet mismatch.' });
+            return;
+          }
+
+          const onchain = await completeWebWalletDeployV3(agentPaymentPublicClient, {
+            transactionHash: txHash,
+            expectedTokenAdmin: resolved.walletAddress,
+            deploymentConfig: v3Serialized,
+            expectedMsgValueWei: userInitialBuyWei,
+          });
+
+          const catalogImage = v3cfg.tokenConfig.image || undefined;
+          await recordDeploymentCatalog({
+            platform: 'web',
+            deployerId: userId,
+            deployerLabel,
+            feeRecipientAddress: resolved.walletAddress,
+            feeRecipientLabel: feeRecipientLabelForCatalog,
+            tokenName: name,
+            tokenSymbol: symbol,
+            tokenAddress: onchain.tokenAddress,
+            poolId: onchain.poolId,
+            transactionHash: onchain.transactionHash,
+            blockNumber: onchain.blockNumber,
+            feeToSelf: feeToSelfEffective,
+            privyUserId: userId,
+            clientKind: webClientKind,
+            tokenImageUrl: catalogImage,
+            tokenWebsiteUrl: websiteUrl,
+            tokenXUrl: xUrl,
+            tokenDescription: userDescription || undefined,
+            ...(launchTweetUrl ? { sourceUrl: launchTweetUrl } : {}),
+            chain: deployChain,
+            factoryAddress: config.hoodmarketsV3.factory,
+          });
+
+          result = {
+            tokenAddress: onchain.tokenAddress,
+            poolId: onchain.poolId,
+            transactionHash: onchain.transactionHash,
+            blockNumber: onchain.blockNumber,
+            timestamp: Date.now(),
+            chain: deployChain,
+            ...(catalogImage ? { imageUrl: catalogImage } : {}),
+          };
+        } else {
+        const cfg = deserializeDeploymentConfig(body.deploymentConfig as SerializedDeploymentConfig);
         if (cfg.tokenConfig.name !== name || cfg.tokenConfig.symbol !== symbol) {
           res.status(400).json({ error: 'Deployment config does not match token name or symbol.' });
           return;
@@ -1038,6 +1126,7 @@ export function registerWebDeployRoutes(
           chain: deployChain,
           ...(catalogImage ? { imageUrl: catalogImage } : {}),
         };
+        }
       } else {
         result = await deployer.deployToken({
         name,

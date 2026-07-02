@@ -37,6 +37,7 @@ export type WebWalletDeployPrepareInput = {
 
 export type WebWalletDeployPrepareResult = {
   mode: 'wallet';
+  factoryKind: 'liquid-v4';
   factory: `0x${string}`;
   deploymentConfig: SerializedDeploymentConfig;
   msgValueWei: string;
@@ -97,6 +98,7 @@ export async function buildWebWalletDeployPrepare(
 
   return {
     mode: 'wallet',
+    factoryKind: 'liquid-v4',
     factory: config.liquid.factory,
     deploymentConfig: serializeDeploymentConfig(deploymentConfig),
     msgValueWei: msgValue.toString(),
