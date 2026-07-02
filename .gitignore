@@ -1,0 +1,21 @@
+node_modules/
+dist/
+site-dist/
+.env
+.env.local
+.env.robinhood
+*.tsbuildinfo
+.DS_Store
+.cursor/
+
+# Foundry
+contracts/cache/
+contracts/out/
+contracts/lib/
+
+# Never commit deploy secrets
+**/.env
+**/.env.robinhood
+
+web/.env
+web/dist/
