@@ -15,7 +15,7 @@
     "Chain: Robinhood (4663) — Bankr wallet must support Robinhood",
     "V3 factory: 0xcFE4D69Ac8e5F79a95d99e991162902f68029f09 (simple launch default)",
     "Platform fee 5%: 0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98",
-    "Deploy on X: pass tweetUrl (status URL) → API resolves logo via oEmbed → prepare-deploy → confirmReplyHint → deploy",
+    "Deploy on X: extract media_url_https from tweet → tweetId + tweetImageUrl → resolve-deploy-image → prepare-deploy → confirm",
     "Deploy via API agent: preflight-deploy → prepare-deploy → haiku captcha → POST /api/deploy",
     "Buy/sell: token-info (V3 vs Pro) → Pro: prepare-buy|prepare-sell → Bankr submit chainId 4663",
     "Simple (V3) tokens: trade on Uniswap — see streaming-hints.json and token-info",

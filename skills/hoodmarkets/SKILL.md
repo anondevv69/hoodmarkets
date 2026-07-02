@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 4
+version: 5
 ---
 
 # hood.markets — Bankr agent skill
@@ -68,7 +68,7 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
   4. **Deploy:** call `preflight-deploy` first — if blocked, reply with `replyHint` (ticker taken, daily limit, etc.)
   5. Call references/AGENT-API.md endpoint BEFORE replying
   6. Format reply locally — references/RESPONSE-SAFETY.md
-  7. Deploy (X): preflight ok → pass **`tweetUrl`** (status URL of launch tweet) to `prepare-deploy` with `agentChannel: "x"` — API resolves logo via oEmbed → show `confirmReplyHint` → deploy after yes. **Never say "no image" without passing tweetUrl to the API first.** Non-X: haiku JWT.
+  7. Deploy (X): extract `media_url_https` from tweet → `resolve-deploy-image` with `tweetId` + `tweetImageUrl` → `prepare-deploy` → `confirmReplyHint` → deploy after yes. **Never claim no image without calling API with tweetId first.**
   8. Buy/sell: `token-info` → if Pro, prepare-buy|prepare-sell → validate txs → Bankr /wallet/submit
   9. Claim: haiku JWT → POST /api/agent/claim (server broadcasts, no submit)
 ```
@@ -79,18 +79,21 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
 
 ## X — token logo (CRITICAL for @bankrbot)
 
-Bankr often **cannot see** attached photos in the tweet UI. **Do not tell the user "no attached image" until you have called the API with `tweetUrl`.**
+Bankr receives the **full Tweet object** from X. The logo is in the media fields — extract it **before** calling the API.
 
-On every X deploy request:
+### Step A — read media from Bankr's X payload (preferred)
 
-1. Build **`tweetUrl`** — full status URL of the user's launch tweet, e.g. `https://x.com/Rayblancoeth/status/1234567890` (from Bankr's tweet context / conversation id).
-2. Call **`POST /api/agent/resolve-deploy-image`** or **`POST /api/agent/prepare-deploy`** with:
-   - `tweetUrl` (required on X when media is not in your payload)
-   - `agentChannel: "x"`
-   - `wallet`, `name`, `symbol`
-3. Also pass any media Bankr **does** have: `tweetImageUrl`, `tweet` (with `extended_entities.media`), `tweetMedia[]`.
-4. API resolves the logo server-side via X oEmbed (`imageSource: tweet_oembed`).
-5. Only ask the user for a logo if the API still returns `imageRequired: true` after `tweetUrl` was passed.
+| X API | Where the image lives |
+|-------|----------------------|
+| **v1.1** | `tweet.extended_entities.media[0].media_url_https` |
+| **v2** | `includes.media[0].url` (request `expansions=attachments.media_keys&media.fields=url`) |
+| **Syndication shape** | `tweet.photos[0].url` or `tweet.mediaDetails[0].media_url_https` |
+
+Pass to the API as **`tweetImageUrl`** or the full **`tweet`** object.
+
+### Step B — always pass tweet id / URL
+
+Every launch tweet has an id. Pass **`tweetId`** (numeric string) or **`tweetUrl`**:
 
 ```json
 {
@@ -98,10 +101,22 @@ On every X deploy request:
   "name": "dontfukinbuy",
   "symbol": "TEST",
   "agentChannel": "x",
-  "tweetUrl": "https://x.com/Rayblancoeth/status/…",
-  "tweetText": "launch dontfukinbuy $TEST on hoodmarkets"
+  "tweetId": "1990000000000000000",
+  "tweetUrl": "https://x.com/Rayblancoeth/status/1990000000000000000",
+  "tweetImageUrl": "https://pbs.twimg.com/media/….jpg",
+  "tweet": { "extended_entities": { "media": [{ "type": "photo", "media_url_https": "https://pbs.twimg.com/…" }] } }
 }
 ```
+
+API resolves via **syndication** (`cdn.syndication.twimg.com`) when only `tweetId` / `tweetUrl` is passed — no Selenium needed.
+
+### Step C — call API before saying "no image"
+
+1. `POST /api/agent/resolve-deploy-image` with fields above
+2. If `ok: true` → use `imageUrl` in `prepare-deploy`
+3. **Only** ask the user for a logo if API returns `imageRequired: true` **after** `tweetId` + `tweetImageUrl` / `tweet` were sent
+
+**Never** tell the user "no attached image" without passing `tweetId` and `tweetImageUrl` (from `media_url_https`) to the API first.
 
 ---
 
