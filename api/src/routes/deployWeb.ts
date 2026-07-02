@@ -787,17 +787,20 @@ export function registerWebDeployRoutes(
         .filter(Boolean)
         .join('\n\n');
 
-      const feeCooldownErr = await thirdPartyFeeRecipientCooldownErrorOrNull(
-        resolved.walletAddress,
-        {
-          feeToSelf:
-            (fee.kind === 'self' || (agentWalletDeploy && config.webOnlyMode)) &&
-            !rateLimitForcedBurn &&
-            !rateLimitForcedPlatformFee,
-          rateLimitForcedBurn,
-          feeRecipientLabel: resolved.feeRecipientLabel,
-        },
-      );
+      const feeCooldownErr =
+        config.webOnlyMode
+          ? null
+          : await thirdPartyFeeRecipientCooldownErrorOrNull(
+              resolved.walletAddress,
+              {
+                feeToSelf:
+                  (fee.kind === 'self' || (agentWalletDeploy && config.webOnlyMode)) &&
+                  !rateLimitForcedBurn &&
+                  !rateLimitForcedPlatformFee,
+                rateLimitForcedBurn,
+                feeRecipientLabel: resolved.feeRecipientLabel,
+              },
+            );
       if (feeCooldownErr) {
         res.status(409).json({ error: feeCooldownErr });
         return;

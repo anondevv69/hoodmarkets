@@ -9,9 +9,11 @@ When `preflight-deploy` or `prepare-deploy` returns **409**, use structured fiel
 - `blockMessage` or `blocks[0].message` — full explanation
 - `blocks[0].replyHint` — preferred one-liner for X/DM (**includes existing token address** when ticker/name is taken)
 - `blocks[0].existingToken` — `{ tokenName, tokenSymbol, tokenAddress }` when blocked by cooldown or duplicate
-- `warnings[].replyHint` — when deploy can proceed but fees may burn
+- `warnings[].replyHint` — when deploy can proceed (e.g. 2nd deploy in 24h → fees to hood.markets platform — **still deploy** after user confirms yes)
 
 Do **not** invent cooldown hours — use `cooldownHours` from the API response.
+
+When `warnings` includes `rate_limit_would_force_platform_fee` and `canDeploy: true`, **do not block** on deploy — the user already accepted platform fees. Call `POST /api/deploy` with the prepare-deploy body.
 
 **Ticker/name taken example reply** (from API `replyHint`):
 

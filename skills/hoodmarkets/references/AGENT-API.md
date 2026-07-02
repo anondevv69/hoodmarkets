@@ -57,7 +57,7 @@ GET https://api.hood.markets/api/agent/preflight-deploy?wallet=0x…&name=My+Tok
 | `ticker_cooldown` | Symbol already launched globally — wait or pick another |
 | `name_cooldown` | Name already used recently |
 | `ticker_reserved` / `name_reserved` | Blocklist |
-| `fee_recipient_cooldown` | Wallet already had a launch in the cooldown window |
+| `fee_recipient_cooldown` | Wallet already had a launch in the cooldown window (legacy mode only — **not** hood.markets web-only) |
 | `duplicate_deployer_name_symbol` | Same wallet already launched this exact name+ticker |
 | `launch_mode_unavailable` | V3 or V4 not configured on API |
 
