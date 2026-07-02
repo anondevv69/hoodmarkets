@@ -1,7 +1,7 @@
 import { config } from '../config.js';
 import {
-  countDeploymentsForFeeRecipientCurrentEasternDay,
   countOtherFeeDeploymentsCurrentEasternDay,
+  countThirdPartyFeeRecipientDeploymentsCurrentEasternDay,
   countThirdPartyFeeRecipientDeploymentsRollingHours,
   type SelfFeeCountKey,
 } from './deploymentCatalog.js';
@@ -13,14 +13,15 @@ export function maxFeeRecipientDeploysPerEasternDay(): number {
 }
 
 /**
- * Whether this fee wallet already hit the **Eastern calendar day** cap (all fee types to that address).
+ * Whether this fee wallet already hit the **Eastern calendar day** cap on **third-party** fee
+ * assignments (`fee_to_self = 0`). Self-fee launches to the same wallet are counted separately.
  */
 export async function shouldForceMemeDueToFeeRecipientLimit(
   feeRecipientAddress: string,
 ): Promise<boolean> {
   const max = maxFeeRecipientDeploysPerEasternDay();
   if (max <= 0) return false;
-  const n = await countDeploymentsForFeeRecipientCurrentEasternDay(feeRecipientAddress);
+  const n = await countThirdPartyFeeRecipientDeploymentsCurrentEasternDay(feeRecipientAddress);
   return n >= max;
 }
 
@@ -54,6 +55,17 @@ export async function shouldForceMemeDueToOtherFeeLimit(
   return n >= max;
 }
 
+/** Shown before web deploy when the deployer already launched for someone else today. */
+export function deployerOtherFeeLimitProceedNotice(): string {
+  const max = maxOtherFeeDeploysPerEasternDay();
+  const tokenWord = max === 1 ? 'token' : 'tokens';
+  const cap = max > 0 ? max : 1;
+  return (
+    `You already launched ${cap} ${tokenWord} for someone else today (Eastern time). ` +
+    `If you continue, trading fees on this launch go to a burn wallet (No Dev meme) instead of them.`
+  );
+}
+
 /** Shown before web deploy when the resolved fee recipient already hit the daily / rolling cap. */
 export function thirdPartyFeeRecipientLimitProceedNotice(rollingHours?: number): string {
   const h =
@@ -71,7 +83,7 @@ export function thirdPartyFeeRecipientLimitProceedNotice(rollingHours?: number):
   }
   const limitText = parts.length > 0 ? parts.join(' and ') : 'the deploy limit';
   return (
-    `This fee recipient already received a token in the last ${h} hours (limit: ${limitText}). ` +
-    `If you continue, trading fees on this launch go to a burn wallet (No Dev meme) instead of them.`
+    `This wallet already received a token from someone else today (limit: ${limitText}). ` +
+    `They can still launch one token for themselves. If you continue, trading fees on this launch go to a burn wallet (No Dev meme) instead of them.`
   );
 }

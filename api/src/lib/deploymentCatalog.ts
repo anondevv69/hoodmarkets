@@ -429,6 +429,43 @@ export async function countDeployerDeploymentsRollingHours(
 }
 
 /**
+ * Third-party fee assignments (`fee_to_self = 0`) to this wallet in the current US Eastern day.
+ */
+export async function countThirdPartyFeeRecipientDeploymentsCurrentEasternDay(
+  feeRecipientAddress: string,
+): Promise<number> {
+  if (!db) return 0;
+  let fee: string;
+  try {
+    fee = getAddress(feeRecipientAddress);
+  } catch {
+    return 0;
+  }
+  if (fee.toLowerCase() === DEAD_FEE_LOWER) return 0;
+  const { start, end } = getEasternDayRangeUtc();
+  const startSql = toSqliteUtc(start);
+  const endSql = toSqliteUtc(end);
+  return new Promise((resolve) => {
+    db!.get(
+      `SELECT COUNT(*) AS c FROM deployment_catalog
+       WHERE lower(fee_recipient_address) = lower(?)
+         AND lower(fee_recipient_address) != ?
+         AND created_at >= ? AND created_at < ?
+         AND fee_to_self = 0`,
+      [fee, DEAD_FEE_LOWER, startSql, endSql],
+      (err, row: { c: number } | undefined) => {
+        if (err) {
+          logger.warn('deploymentCatalog: count third-party fee wallet day failed:', err.message);
+          resolve(0);
+          return;
+        }
+        resolve(Number(row?.c ?? 0));
+      },
+    );
+  });
+}
+
+/**
  * Third-party fee assignments (`fee_to_self = 0`) to this wallet in the rolling window — excludes burn.
  * Used to cap how often others can point launch fees at the same address.
  */

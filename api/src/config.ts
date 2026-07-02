@@ -379,7 +379,9 @@ export const config = {
      */
     maxOtherFeeDeploysPerEasternDay: (() => {
       const raw = process.env.MAX_OTHER_FEE_DEPLOYS_PER_EASTERN_DAY;
-      if (raw === undefined || raw.trim() === '') return 0;
+      if (raw === undefined || raw.trim() === '') {
+        return process.env.WEB_ONLY_MODE === 'true' ? 1 : 0;
+      }
       const n = parseInt(raw, 10);
       if (!Number.isFinite(n)) return 0;
       return n < 0 ? 0 : n;
@@ -387,9 +389,9 @@ export const config = {
   },
 
   /**
-   * Web and all platforms: max successful deploys per **US Eastern calendar day** per resolved fee
-   * recipient address (counts all `deployment_catalog` rows for that address that day). `0` = unlimited.
-   * Env: `MAX_FEE_RECIPIENT_DEPLOYS_PER_EASTERN_DAY`
+   * Web and all platforms: max **third-party** fee assignments per **US Eastern calendar day** per
+   * resolved fee recipient (`fee_to_self = 0`). Self-fee launches to the same wallet use a separate
+   * bucket. `0` = unlimited. Env: `MAX_FEE_RECIPIENT_DEPLOYS_PER_EASTERN_DAY`
    */
   maxFeeRecipientDeploysPerEasternDay: (() => {
     const raw = process.env.MAX_FEE_RECIPIENT_DEPLOYS_PER_EASTERN_DAY;
