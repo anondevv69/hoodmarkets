@@ -11,6 +11,7 @@ import {
   resolveAgentTokenLookup,
   runAgentDeployPreflight,
 } from '../lib/agentDeployPreflight.js';
+import { agentDeploySkipCaptchaEnabled } from '../lib/agentWalletDeployAuth.js';
 import { ROBINHOOD_CHAIN_ID } from '../lib/robinhoodChain.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 
@@ -307,6 +308,58 @@ export function registerAgentBankrRoutes(app: Express): void {
       return;
     }
 
+    const skipCaptcha = agentDeploySkipCaptchaEnabled();
+    const deployBody = {
+      name,
+      symbol,
+      feeTarget: 'agent_wallet',
+      clientKind: 'agent',
+      agentProvider: 'bankr',
+      launchMode,
+      imageUrl: body.imageUrl ?? '',
+      description: body.description ?? '',
+      websiteUrl: body.websiteUrl ?? '',
+      xUrl: body.xUrl ?? '',
+      wallet,
+      agentFeeRecipient: wallet,
+    };
+
+    const steps = skipCaptcha
+      ? [
+          {
+            step: 'deploy',
+            method: 'POST',
+            url: `${API_BASE}/api/deploy`,
+            headers: { 'x-wallet-address': wallet },
+            body: deployBody,
+            note: 'Captcha disabled (AGENT_DEPLOY_SKIP_CAPTCHA). Pass linked wallet via x-wallet-address.',
+          },
+        ]
+      : [
+          {
+            step: 'captcha_challenge',
+            method: 'GET',
+            url: `${API_BASE}/api/agent-captcha/challenge`,
+          },
+          {
+            step: 'captcha_verify',
+            method: 'POST',
+            url: `${API_BASE}/api/agent-captcha/verify`,
+            body: {
+              sessionId: '<from challenge>',
+              response: '<haiku 3 lines mentioning topic word>',
+              agentFeeRecipient: wallet,
+            },
+          },
+          {
+            step: 'deploy',
+            method: 'POST',
+            url: `${API_BASE}/api/deploy`,
+            headers: { 'X-Agent-Captcha-JWT': '<jwt from verify>' },
+            body: deployBody,
+          },
+        ];
+
     res.json({
       ok: true,
       wallet,
@@ -318,43 +371,14 @@ export function registerAgentBankrRoutes(app: Express): void {
       },
       /** Server deploy — no Bankr /wallet/submit. Launcher pays gas + launch seed. */
       deployMode: 'server',
-      steps: [
-        {
-          step: 'captcha_challenge',
-          method: 'GET',
-          url: `${API_BASE}/api/agent-captcha/challenge`,
-        },
-        {
-          step: 'captcha_verify',
-          method: 'POST',
-          url: `${API_BASE}/api/agent-captcha/verify`,
-          body: {
-            sessionId: '<from challenge>',
-            response: '<haiku 3 lines mentioning topic word>',
-            agentFeeRecipient: wallet,
-          },
-        },
-        {
-          step: 'deploy',
-          method: 'POST',
-          url: `${API_BASE}/api/deploy`,
-          headers: { 'X-Agent-Captcha-JWT': '<jwt from verify>' },
-          body: {
-            name,
-            symbol,
-            feeTarget: 'agent_wallet',
-            clientKind: 'agent',
-            agentProvider: 'bankr',
-            launchMode,
-            imageUrl: body.imageUrl ?? '',
-            description: body.description ?? '',
-            websiteUrl: body.websiteUrl ?? '',
-            xUrl: body.xUrl ?? '',
-          },
-        },
-      ],
-      haikuRules:
-        'Exactly 3 lines separated by \\n; must mention the challenge topic word. JWT valid 8 hours.',
+      captchaRequired: !skipCaptcha,
+      steps,
+      ...(skipCaptcha
+        ? {}
+        : {
+            haikuRules:
+              'Exactly 3 lines separated by \\n; must mention the challenge topic word. JWT valid 8 hours.',
+          }),
       feeRecipient: wallet,
       tokenPageUrlTemplate: `${WEB_BASE}/?token={tokenAddress}`,
     });

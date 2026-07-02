@@ -40,7 +40,7 @@ import {
 } from '../lib/selfFeeLimit.js';
 import { runAfterPriorWebSelfFeeWork } from '../lib/webSelfFeeQueue.js';
 import { runAfterPriorWebThirdPartyFeeWork } from '../lib/webThirdPartyFeeQueue.js';
-import { readAgentCaptchaToken, verifyAgentCaptchaJwt } from '../lib/agentCaptchaVerify.js';
+import { resolveAgentWalletAuth, agentDeploySkipCaptchaEnabled } from '../lib/agentWalletDeployAuth.js';
 import { verifyDeploySignature } from '../lib/agentWalletAuth.js';
 import {
   buildAgentDeployCommitment,
@@ -244,30 +244,8 @@ async function previewWebDeployRateLimit(
   let agentVerifiedFee: Address | null = null;
 
   if (isAgentWalletDeploy) {
-    const captchaJwt = readAgentCaptchaToken(req.headers as any, body);
-    if (!captchaJwt) {
-      throw new Error(
-        'Agent captcha deploy requires X-Agent-Captcha-JWT header or agentCaptchaJwt in body.',
-      );
-    }
-
-    let captchaPayload;
-    try {
-      captchaPayload = await verifyAgentCaptchaJwt(captchaJwt);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      throw new Error(msg);
-    }
-
-    const walletFromCaptcha = captchaPayload.walletAddress;
-    let agentVerifiedFeeFromCaptcha: Address;
-    try {
-      agentVerifiedFeeFromCaptcha = getAddress(walletFromCaptcha);
-    } catch {
-      throw new Error('Invalid walletAddress in CAPTCHA JWT.');
-    }
-
-    agentVerifiedFee = agentVerifiedFeeFromCaptcha;
+    const agentAuth = await resolveAgentWalletAuth(req.headers as any, body);
+    agentVerifiedFee = agentAuth.walletAddress;
     userId = `agent:${agentVerifiedFee}`;
     agentWalletDeploy = true;
   } else if (allowAnonNoDev) {
@@ -595,40 +573,12 @@ export function registerWebDeployRoutes(
 
       if (isAgentWalletDeploy) {
         webClientKind = 'agent';
-        const captchaJwt = readAgentCaptchaToken(req.headers as any, body);
-        if (!captchaJwt) {
-          res.status(400).json({
-            error:
-              'Agent captcha deploy requires X-Agent-Captcha-JWT header or agentCaptchaJwt in body.',
-          });
-          return;
-        }
-        
-        let captchaPayload;
-        try {
-          captchaPayload = await verifyAgentCaptchaJwt(captchaJwt);
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : String(e);
-          res.status(401).json({ error: msg });
-          return;
-        }
-
-        // Extract wallet address from CAPTCHA JWT claims
-        const walletFromCaptcha = captchaPayload.walletAddress;
-        let agentVerifiedFeeFromCaptcha: Address;
-        try {
-          agentVerifiedFeeFromCaptcha = getAddress(walletFromCaptcha);
-        } catch {
-          res.status(400).json({ error: 'Invalid walletAddress in CAPTCHA JWT.' });
-          return;
-        }
-
-        // CAPTCHA verification = authorization. Deploy directly without signature or payment.
-        agentVerifiedFee = agentVerifiedFeeFromCaptcha;
+        const agentAuth = await resolveAgentWalletAuth(req.headers as any, body);
+        agentVerifiedFee = agentAuth.walletAddress;
         agentMetadataJson = serializeAgentDeployMetadata({
           ...body,
-          auth: 'captcha',
-          agentId: captchaPayload.agentId,
+          auth: agentAuth.auth,
+          agentId: agentAuth.agentId,
         });
 
         userId = `agent:${agentVerifiedFee}`;
