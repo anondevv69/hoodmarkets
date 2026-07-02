@@ -14,8 +14,8 @@ import { buildTradingLinks } from '../lib/tradingLinks';
 import { closeTokenPage } from '../lib/tokenRoute';
 import { CopyButton } from './CopyButton';
 import { ClaimFeesActions } from './ClaimFeesActions';
+import { DexMetricsStrip } from './DexMetricsStrip';
 import { DexScreenerEmbed } from './TokenListingStatus';
-import { TokenMarketPanel } from './TokenMarketPanel';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 import { TradingLinksRow } from './TradingLinksRow';
@@ -91,12 +91,11 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               {token.tokenName}{' '}
               <span className="muted">${sym}</span>
             </h2>
+            <DexMetricsStrip metrics={metrics} />
           </div>
         </div>
         <TokenSocialLinks websiteUrl={token.tokenWebsiteUrl} xUrl={token.tokenXUrl} />
       </div>
-
-      <TokenMarketPanel tokenName={token.tokenName} symbol={sym} metrics={metrics} />
 
       <DexScreenerEmbed tokenAddress={token.tokenAddress} metrics={metrics} />
 

@@ -1,5 +1,5 @@
 import type { DexTokenMetrics } from '../lib/dexscreenerVolume';
-import { formatTinyUsdPrice, formatTxns, formatUsdVol } from '../lib/dexscreenerVolume';
+import { formatTxns, formatUsdVol } from '../lib/dexscreenerVolume';
 
 export function DexMetricsStrip({ metrics }: { metrics?: DexTokenMetrics }) {
   if (!metrics) return null;
@@ -9,23 +9,17 @@ export function DexMetricsStrip({ metrics }: { metrics?: DexTokenMetrics }) {
   const liq = metrics.liquidityUsd;
   const chg = metrics.change24hPct;
   const txns = metrics.txnsH24;
-  const price = metrics.priceUsd;
-
   const hasAny =
     (mc != null && mc > 0) ||
     (vol != null && vol > 0) ||
     (liq != null && liq > 0) ||
     typeof chg === 'number' ||
-    (txns != null && txns > 0) ||
-    (price != null && price > 0);
+    (txns != null && txns > 0);
 
   if (!hasAny) return null;
 
   return (
     <div className="dex-metrics">
-      {price != null && price > 0 ? (
-        <span title="Price (USD)">{formatTinyUsdPrice(price)}</span>
-      ) : null}
       {mc != null && mc > 0 ? <span title="Market cap (DexScreener)">MC {formatUsdVol(mc)}</span> : null}
       {liq != null && liq > 0 ? (
         <span title="Pool liquidity (USD)">Liq {formatUsdVol(liq)}</span>
