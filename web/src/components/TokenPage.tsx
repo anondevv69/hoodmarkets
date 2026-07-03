@@ -21,6 +21,7 @@ import { TokenSocialLinks } from './TokenSocialLinks';
 import { TradingLinksRow } from './TradingLinksRow';
 import { LaunchTweetEmbed } from './LaunchTweetEmbed';
 import { resolveTokenLaunchTweetUrl } from '../lib/launchTweet';
+import { splitTokenDescriptionForDisplay } from '../lib/tokenDescriptionDisplay';
 
 function PartyCountNote({
   count,
@@ -150,6 +151,8 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   const deployerWallet = token.deployerWalletAddress?.trim() || null;
   const deployerLaunchCount = token.deployerDeploymentCount;
   const feeRecipientCount = token.feeRecipientDeploymentCount;
+  const { userText: descriptionUser, deployNotes: descriptionDeployNote } =
+    splitTokenDescriptionForDisplay(description);
 
   return (
     <div className="token-page lp-fade-in">
@@ -168,7 +171,12 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
             <DexMetricsStrip metrics={metrics} />
             <TradingLinksRow links={links} />
             <TokenSocialLinks websiteUrl={token.tokenWebsiteUrl} xUrl={token.tokenXUrl} />
-            {description ? <p className="token-description">{description}</p> : null}
+            {descriptionUser ? (
+              <p className="token-description">{descriptionUser}</p>
+            ) : null}
+            {descriptionDeployNote ? (
+              <p className="token-description token-page-deploy-note">{descriptionDeployNote}</p>
+            ) : null}
           </div>
         </div>
       </div>
