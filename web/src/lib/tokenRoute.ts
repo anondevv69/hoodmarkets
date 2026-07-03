@@ -26,6 +26,8 @@ export function openExplorePage(): void {
   const url = new URL(window.location.href);
   url.searchParams.delete('token');
   url.searchParams.delete('buy');
+  url.searchParams.delete('profile');
+  url.searchParams.delete('user');
   url.searchParams.set('tab', 'tokens');
   window.history.pushState({}, '', url);
   window.dispatchEvent(new PopStateEvent('popstate'));
