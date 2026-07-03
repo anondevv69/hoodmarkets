@@ -59,6 +59,8 @@ export function TokenCard({ deployment: d, metrics, showDeployer = true }: Token
           tokenAddress={d.tokenAddress}
           feeRecipientAddress={d.feeRecipientAddress}
           feeRecipientLabel={d.feeRecipientLabel}
+          poolId={d.poolId}
+          factoryAddress={d.factoryAddress}
         />
       ) : null}
     </li>

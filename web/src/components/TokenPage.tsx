@@ -306,6 +306,8 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
         tokenAddress={token.tokenAddress}
         feeRecipientAddress={token.feeRecipientAddress}
         feeRecipientLabel={token.feeRecipientLabel}
+        poolId={token.poolId}
+        factoryAddress={token.factoryAddress}
         publicCollect
       />
     </div>

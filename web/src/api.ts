@@ -73,6 +73,8 @@ export interface Deployment {
   deployerWalletAddress?: string;
   /** Catalog rows where this fee wallet receives fees (including this row). */
   feeRecipientDeploymentCount?: number;
+  poolId?: string;
+  factoryAddress?: string;
 }
 
 export type TokenDetail = Deployment & {
