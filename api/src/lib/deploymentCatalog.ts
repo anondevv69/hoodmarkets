@@ -1684,6 +1684,58 @@ export async function getDeploymentByTransactionHash(
   });
 }
 
+/** Tokens in catalog where this wallet receives trading fees. */
+export async function countDeploymentsAsFeeRecipient(walletAddress: string): Promise<number> {
+  if (!db) return 0;
+  let addr: string;
+  try {
+    addr = getAddress(walletAddress).toLowerCase();
+  } catch {
+    return 0;
+  }
+  return new Promise((resolve) => {
+    db!.get(
+      `SELECT COUNT(*) AS n FROM deployment_catalog AS dc
+       WHERE lower(dc.fee_recipient_address) = ?${visibleCatalogSql()}`,
+      [addr, visibleCatalogParam()],
+      (err, row: { n?: number } | undefined) => {
+        if (err) {
+          logger.warn('countDeploymentsAsFeeRecipient failed:', err.message);
+          resolve(0);
+          return;
+        }
+        resolve(typeof row?.n === 'number' ? row.n : 0);
+      },
+    );
+  });
+}
+
+/** Server-side launches initiated from an agent wallet (`deployer_id = agent:0x…`). */
+export async function countDeploymentsByAgentWallet(walletAddress: string): Promise<number> {
+  if (!db) return 0;
+  let dep: string;
+  try {
+    dep = `agent:${getAddress(walletAddress)}`;
+  } catch {
+    return 0;
+  }
+  return new Promise((resolve) => {
+    db!.get(
+      `SELECT COUNT(*) AS n FROM deployment_catalog AS dc
+       WHERE dc.deployer_id = ?${visibleCatalogSql()}`,
+      [dep, visibleCatalogParam()],
+      (err, row: { n?: number } | undefined) => {
+        if (err) {
+          logger.warn('countDeploymentsByAgentWallet failed:', err.message);
+          resolve(0);
+          return;
+        }
+        resolve(typeof row?.n === 'number' ? row.n : 0);
+      },
+    );
+  });
+}
+
 /**
  * Count catalog rows attributed to the same X @handle (agent metadata, deployer label, or tweet URL).
  */
@@ -1759,11 +1811,8 @@ export async function listDeploymentsByXUsername(
 export async function enrichDeploymentForPublicApi(
   row: DeploymentCatalogRow | null,
 ): Promise<(DeploymentCatalogRow & DeploymentPublicExtras) | null> {
-  if (!row) return null;
-  const requesterXUsername = resolveRequesterXUsername(row);
-  if (!requesterXUsername) return row;
-  const requesterXLaunchCount = await countDeploymentsByXUsername(requesterXUsername);
-  return { ...row, requesterXUsername, requesterXLaunchCount };
+  const { enrichDeploymentForPublicApi: enrich } = await import('./deploymentPartyEnrichment.js');
+  return enrich(row);
 }
 
 /** Public token page: one catalog row by token contract address. */

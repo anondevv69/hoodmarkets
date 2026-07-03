@@ -25,6 +25,7 @@ import { registerMyDeploymentsRoutes } from './routes/myDeployments.js';
 import { registerDeployerProfileRoutes } from './routes/deployerProfile.js';
 import { registerMyDeploymentsClaimRoutes } from './routes/myDeploymentsClaim.js';
 import { registerMyDeploymentsCollectPoolRoutes } from './routes/myDeploymentsCollectPool.js';
+import { registerDeploymentFeeActionRoutes } from './routes/deploymentFeeActions.js';
 import { registerAgentClaimCalldataRoutes } from './routes/agentClaimCalldata.js';
 import { registerAgentClaimRoutes } from './routes/agentClaim.js';
 import { registerAgentCaptchaRoutes } from './routes/agentCaptcha.js';
@@ -201,6 +202,7 @@ async function main() {
     registerAgentClaimRoutes(app);
     registerResolveSourceRoutes(app, neynar);
     registerDeploymentCatalogRoutes(app);
+    registerDeploymentFeeActionRoutes(app);
     registerTokenSwapRoutes(app);
     registerMyDeploymentsRoutes(app);
     registerDeployerProfileRoutes(app);

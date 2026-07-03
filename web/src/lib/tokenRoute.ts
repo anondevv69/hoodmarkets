@@ -28,6 +28,7 @@ export function openExplorePage(): void {
   url.searchParams.delete('buy');
   url.searchParams.delete('profile');
   url.searchParams.delete('user');
+  url.searchParams.delete('address');
   url.searchParams.set('tab', 'tokens');
   window.history.pushState({}, '', url);
   window.dispatchEvent(new PopStateEvent('popstate'));

@@ -1,7 +1,11 @@
 import type { Express, Request, Response } from 'express';
+import { getAddress } from 'viem';
 import { config } from '../config.js';
 import {
+  countDeploymentsAsFeeRecipient,
+  countDeploymentsByAgentWallet,
   countDeploymentsByXUsername,
+  listDeploymentCatalogByFeeRecipient,
   listDeploymentCatalogForUser,
   listDeploymentsByXUsername,
   type DeploymentCatalogRow,
@@ -17,6 +21,15 @@ function publicProfileUrl(xUsername: string): string {
   const handle = normalizeXUsername(xUsername);
   if (!handle) return WEB_BASE;
   return `${WEB_BASE}/?profile=x&user=${encodeURIComponent(handle)}`;
+}
+
+function walletProfileUrl(address: string): string {
+  try {
+    const addr = getAddress(address);
+    return `${WEB_BASE}/?profile=wallet&address=${encodeURIComponent(addr)}`;
+  } catch {
+    return WEB_BASE;
+  }
 }
 
 function mergeDeploymentsByToken(
@@ -78,6 +91,55 @@ export function registerDeployerProfileRoutes(app: Express): void {
       });
     } catch {
       res.status(500).json({ error: 'Failed to load deployer profile.' });
+    }
+  });
+
+  app.options('/api/deployer-profile/wallet/:address', (req, res) => {
+    const h = webDeployCorsHeadersRead(req.headers.origin);
+    for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
+    res.status(204).end();
+  });
+
+  app.get('/api/deployer-profile/wallet/:address', async (req: Request, res: Response) => {
+    const h = webDeployCorsHeadersRead(req.headers.origin);
+    for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
+
+    const raw = typeof req.params.address === 'string' ? req.params.address.trim() : '';
+    if (!/^0x[a-fA-F0-9]{40}$/.test(raw)) {
+      res.status(400).json({ error: 'address must be a valid 0x wallet.' });
+      return;
+    }
+    let wallet: string;
+    try {
+      wallet = getAddress(raw);
+    } catch {
+      res.status(400).json({ error: 'Invalid wallet address checksum.' });
+      return;
+    }
+
+    try {
+      const rawLimit = req.query.limit;
+      const limit = typeof rawLimit === 'string' ? Number.parseInt(rawLimit, 10) : 50;
+      const [feeRecipientTokenCount, initiatedLaunchCount, deployments] = await Promise.all([
+        countDeploymentsAsFeeRecipient(wallet),
+        countDeploymentsByAgentWallet(wallet),
+        listDeploymentCatalogByFeeRecipient(
+          wallet,
+          Number.isFinite(limit) ? limit : 50,
+          0,
+        ),
+      ]);
+
+      res.json({
+        platform: 'wallet',
+        walletAddress: wallet,
+        feeRecipientTokenCount,
+        initiatedLaunchCount,
+        profileUrl: walletProfileUrl(wallet),
+        deployments,
+      });
+    } catch {
+      res.status(500).json({ error: 'Failed to load wallet profile.' });
     }
   });
 

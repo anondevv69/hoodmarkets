@@ -818,6 +818,35 @@ label {
   padding: 1.1rem 1.25rem;
 }
 
+.claim-fees-intro {
+  margin-bottom: 0.75rem;
+  line-height: 1.45;
+}
+
+.claim-fees-status {
+  margin-bottom: 0.75rem;
+  font-size: 0.92rem;
+}
+
+.claim-fees-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.claim-fees-message,
+.claim-fees-tx {
+  margin-top: 0.75rem;
+}
+
+.claim-fees-tx {
+  font-size: 0.85rem;
+}
+
+.claim-fees-error {
+  margin-top: 0.75rem;
+}
+
 .claim-fees-card--platform {
   margin-top: 0.5rem;
 }
@@ -1064,6 +1093,43 @@ label {
 .deployer-profile-link {
   font-size: inherit;
   font-weight: inherit;
+}
+
+.token-page-header-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.token-hero-trade-links {
+  margin-top: 0.65rem;
+}
+
+.token-launch-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+
+.token-deploy-channel {
+  text-align: right;
+  min-width: 10rem;
+  max-width: 16rem;
+}
+
+.token-deploy-channel-headline {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.token-detail-grid-single {
+  grid-template-columns: 1fr;
+}
+
+.token-detail-full {
+  grid-column: 1 / -1;
 }
 
 /* Launch success */

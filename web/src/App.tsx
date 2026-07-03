@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { LaunchTab } from './components/LaunchTab';
 import { ProfileTab } from './components/ProfileTab';
 import { DeployerProfilePage } from './components/DeployerProfilePage';
+import { WalletProfilePage } from './components/WalletProfilePage';
 import { TokenPage } from './components/TokenPage';
 import { TickerTape } from './components/TickerTape';
 import { TokensTab } from './components/TokensTab';
@@ -83,6 +84,7 @@ export default function App() {
                 url.searchParams.delete('token');
                 url.searchParams.delete('profile');
                 url.searchParams.delete('user');
+                url.searchParams.delete('address');
                 url.searchParams.set('tab', 'tokens');
                 window.history.pushState({}, '', url);
                 setTokenAddress(null);
@@ -100,6 +102,7 @@ export default function App() {
                 url.searchParams.delete('token');
                 url.searchParams.delete('profile');
                 url.searchParams.delete('user');
+                url.searchParams.delete('address');
                 url.searchParams.set('tab', 'launch');
                 window.history.pushState({}, '', url);
                 setTokenAddress(null);
@@ -117,6 +120,7 @@ export default function App() {
                 url.searchParams.delete('token');
                 url.searchParams.delete('profile');
                 url.searchParams.delete('user');
+                url.searchParams.delete('address');
                 url.searchParams.set('tab', 'profile');
                 window.history.pushState({}, '', url);
                 setTokenAddress(null);
@@ -143,8 +147,10 @@ export default function App() {
         <div className="panel">
           {tokenAddress ? (
             <TokenPage tokenAddress={tokenAddress} />
-          ) : deployerProfile ? (
+          ) : deployerProfile?.platform === 'x' ? (
             <DeployerProfilePage username={deployerProfile.username} />
+          ) : deployerProfile?.platform === 'wallet' ? (
+            <WalletProfilePage walletAddress={deployerProfile.address} />
           ) : tab === 'tokens' ? (
             <TokensTab
               catalog={catalog}

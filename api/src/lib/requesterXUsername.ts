@@ -71,4 +71,5 @@ export function resolveRequesterXUsername(row: DeploymentCatalogRow): string | u
 export type DeploymentPublicExtras = {
   requesterXUsername?: string;
   requesterXLaunchCount?: number;
+  deployerWalletAddress?: string;
 };

@@ -5,16 +5,14 @@ import {
   fetchTokenMetricsFromDexscreener,
   type DexTokenMetrics,
 } from '../lib/dexscreenerVolume';
-import {
-  feeRecipientHeadline,
-  isHoodmarketsPlatformFeeRecipient,
-} from '../lib/feeRecipientDisplay';
+import { isHoodmarketsPlatformFeeRecipient } from '../lib/feeRecipientDisplay';
 import { isV3PoolId } from '../lib/poolId';
 import { buildTradingLinks } from '../lib/tradingLinks';
-import { formatDeploySource } from '../lib/deploySourceDisplay';
+import { formatDeployChannel } from '../lib/deploySourceDisplay';
 import { fetchTokenDescriptionFromChain } from '../lib/tokenOnChainMetadata';
 import { closeTokenPage } from '../lib/tokenRoute';
-import { formatLaunchTimeEastern } from '../lib/launchTime';
+import { openDeployerProfile, openWalletProfile } from '../lib/deployerProfileRoute';
+import { resolveRequesterXUsername } from '../lib/requesterXDisplay';
 import { CopyButton } from './CopyButton';
 import { ClaimFeesActions } from './ClaimFeesActions';
 import { DexMetricsStrip } from './DexMetricsStrip';
@@ -24,11 +22,63 @@ import { TokenSocialLinks } from './TokenSocialLinks';
 import { TradingLinksRow } from './TradingLinksRow';
 import { LaunchTweetEmbed } from './LaunchTweetEmbed';
 import { resolveTokenLaunchTweetUrl } from '../lib/launchTweet';
-import {
-  resolveRequesterXUsername,
-  xProfileUrl,
-} from '../lib/requesterXDisplay';
-import { openDeployerProfile } from '../lib/deployerProfileRoute';
+
+function PartyCountNote({
+  count,
+  singular,
+  plural,
+}: {
+  count: number | undefined;
+  singular: string;
+  plural: string;
+}) {
+  if (typeof count !== 'number' || count <= 0) return null;
+  return (
+    <p className="muted token-fee-note">
+      {count === 1 ? `1 ${singular}` : `${count} ${plural}`}
+    </p>
+  );
+}
+
+function WalletPartyRow({
+  label,
+  address,
+  count,
+  countSingular,
+  countPlural,
+  onProfile,
+}: {
+  label: string;
+  address: string;
+  count?: number;
+  countSingular: string;
+  countPlural: string;
+  onProfile: () => void;
+}) {
+  return (
+    <div className="token-detail-full">
+      <dt>{label}</dt>
+      <dd>
+        <span className="mono token-address-row">
+          <button type="button" className="btn-link mono" onClick={onProfile}>
+            {address}
+          </button>
+          <CopyButton text={address} />
+        </span>
+        <PartyCountNote count={count} singular={countSingular} plural={countPlural} />
+        <p className="muted token-fee-note">
+          <button type="button" className="btn-link" onClick={onProfile}>
+            View profile
+          </button>
+          {' · '}
+          <a href={tokenUrl(address)} target="_blank" rel="noreferrer">
+            Blockscout
+          </a>
+        </p>
+      </dd>
+    </div>
+  );
+}
 
 export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   const [token, setToken] = useState<TokenDetail | null>(null);
@@ -85,18 +135,16 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   const links = buildTradingLinks(token.tokenAddress, metrics);
   const feeLabel = token.feeRecipientLabel?.trim();
   const platformFees = isHoodmarketsPlatformFeeRecipient(feeLabel);
-  const feeHeadline = feeRecipientHeadline(token.feeRecipientAddress, feeLabel);
   const showV4PoolId = token.poolId && !isV3PoolId(token.poolId);
+  const launchTweetUrl = resolveTokenLaunchTweetUrl(token);
+  const requesterX = resolveRequesterXUsername({
+    requesterXUsername: token.requesterXUsername,
+    deployerLabel: token.deployerLabel,
+    agentMetadata: token.agentMetadata,
+    sourceUrl: token.sourceUrl,
+  });
 
-  const feeNote = platformFees
-    ? 'Trading fees on this launch go to hood.markets (24h deploy limit).'
-    : token.feeToSelf
-      ? 'Trading fees go to this wallet.'
-      : feeLabel && !platformFees
-        ? feeLabel
-        : null;
-
-  const deploySource = formatDeploySource({
+  const deployChannel = formatDeployChannel({
     platform: token.platform,
     deployerLabel: token.deployerLabel,
     clientKind: token.clientKind,
@@ -105,15 +153,10 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
     requesterXUsername: token.requesterXUsername,
     sourceUrl: token.sourceUrl,
   });
-  const launchTweetUrl = resolveTokenLaunchTweetUrl(token);
-  const requesterX = resolveRequesterXUsername({
-    requesterXUsername: token.requesterXUsername,
-    deployerLabel: token.deployerLabel,
-    agentMetadata: token.agentMetadata,
-    sourceUrl: token.sourceUrl,
-  });
-  const requesterLaunchCount = token.requesterXLaunchCount;
-  const walletLaunchCount = token.deployerDeploymentCount;
+
+  const deployerWallet = token.deployerWalletAddress?.trim() || null;
+  const deployerLaunchCount = token.deployerDeploymentCount;
+  const feeRecipientCount = token.feeRecipientDeploymentCount;
 
   return (
     <div className="token-page lp-fade-in">
@@ -124,12 +167,15 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
       <div className="lp-card token-page-hero">
         <div className="token-page-header">
           <TokenAvatar symbol={sym} imageUrl={token.tokenImageUrl} size={72} />
-          <div>
+          <div className="token-page-header-main">
             <h2 className="lp-display token-page-name">
               {token.tokenName}{' '}
               <span className="muted">${sym}</span>
             </h2>
             <DexMetricsStrip metrics={metrics} />
+            <div className="token-hero-trade-links">
+              <TradingLinksRow links={links} />
+            </div>
           </div>
         </div>
         <TokenSocialLinks websiteUrl={token.tokenWebsiteUrl} xUrl={token.tokenXUrl} />
@@ -141,10 +187,37 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
       {launchTweetUrl ? <LaunchTweetEmbed tweetUrl={launchTweetUrl} /> : null}
 
       <div className="lp-card token-page-details">
-        <p className="section-label">Launch details</p>
-        <dl className="token-detail-grid">
+        <div className="token-launch-details-header">
+          <p className="section-label">Launch details</p>
+          <div className="token-deploy-channel">
+            <p className="lp-display token-deploy-channel-headline">{deployChannel.headline}</p>
+            {deployChannel.subline ? (
+              <p className="muted token-fee-note">{deployChannel.subline}</p>
+            ) : null}
+            {deployChannel.xUsername ? (
+              <p className="token-fee-note">
+                <button
+                  type="button"
+                  className="btn-link lp-display"
+                  onClick={() => openDeployerProfile(deployChannel.xUsername!)}
+                >
+                  @{deployChannel.xUsername}
+                </button>
+              </p>
+            ) : null}
+            {deployChannel.tweetUrl ? (
+              <p className="token-fee-note">
+                <a href={deployChannel.tweetUrl} target="_blank" rel="noreferrer">
+                  Launch tweet
+                </a>
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <dl className="token-detail-grid token-detail-grid-single">
           {showV4PoolId ? (
-            <div>
+            <div className="token-detail-full">
               <dt>Uniswap v4 pool</dt>
               <dd className="mono">
                 <span className="token-address-row">
@@ -154,8 +227,9 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               </dd>
             </div>
           ) : null}
-          <div>
-            <dt>Contract</dt>
+
+          <div className="token-detail-full">
+            <dt>Token contract address</dt>
             <dd className="mono">
               <span className="token-address-row">
                 <a href={tokenUrl(token.tokenAddress)} target="_blank" rel="noreferrer">
@@ -165,89 +239,73 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               </span>
             </dd>
           </div>
-          <div>
-            <dt>Launched</dt>
-            <dd>{formatLaunchTimeEastern(token.createdAt)}</dd>
-          </div>
-          <div>
-            <dt>Launched via</dt>
-            <dd>
-              <span className="lp-display">{deploySource.title}</span>
-              {deploySource.detail ? (
-                <p className="muted token-fee-note">{deploySource.detail}</p>
-              ) : null}
-            </dd>
-          </div>
-          {requesterX ? (
-            <div>
-              <dt>Requested by</dt>
+
+          {requesterX && !deployerWallet ? (
+            <div className="token-detail-full">
+              <dt>Deployer</dt>
               <dd>
                 <button
                   type="button"
-                  className="btn-link lp-display deployer-profile-link"
+                  className="btn-link lp-display"
                   onClick={() => openDeployerProfile(requesterX)}
                 >
                   @{requesterX}
                 </button>
-                <span className="muted" style={{ marginLeft: '0.35rem' }}>
-                  ·{' '}
-                  <a href={xProfileUrl(requesterX)} target="_blank" rel="noreferrer">
-                    X
-                  </a>
-                </span>
-                {typeof requesterLaunchCount === 'number' && requesterLaunchCount > 0 ? (
-                  <p className="muted token-fee-note">
-                    <button
-                      type="button"
-                      className="btn-link"
-                      onClick={() => openDeployerProfile(requesterX)}
-                    >
-                      {requesterLaunchCount === 1
-                        ? '1 token launched on hood.markets'
-                        : `${requesterLaunchCount} tokens launched on hood.markets`}
-                    </button>
-                  </p>
-                ) : null}
-              </dd>
-            </div>
-          ) : null}
-          {!requesterX && typeof walletLaunchCount === 'number' && walletLaunchCount > 0 ? (
-            <div>
-              <dt>Deployer launches</dt>
-              <dd>
-                <span className="lp-display">{walletLaunchCount}</span>
+                <PartyCountNote
+                  count={token.requesterXLaunchCount}
+                  singular="launch on hood.markets"
+                  plural="launches on hood.markets"
+                />
                 <p className="muted token-fee-note">
-                  {walletLaunchCount === 1
-                    ? 'token from this deployer on hood.markets'
-                    : 'tokens from this deployer on hood.markets'}
+                  <button type="button" className="btn-link" onClick={() => openDeployerProfile(requesterX)}>
+                    View profile
+                  </button>
                 </p>
               </dd>
             </div>
-          ) : null}
-          <div className="token-detail-span-2">
-            <dt>Fee recipient</dt>
-            <dd>
-              {platformFees ? (
-                <span className="lp-display">{feeHeadline}</span>
-              ) : (
-                <span className="mono token-address-row">
-                  <a
-                    href={tokenUrl(token.feeRecipientAddress)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {token.feeRecipientAddress}
-                  </a>
-                  <CopyButton text={token.feeRecipientAddress} />
-                </span>
-              )}
-              {feeNote ? <p className="muted token-fee-note">{feeNote}</p> : null}
-              <div className="token-trade-links">
-                <TradingLinksRow links={links} />
-              </div>
-            </dd>
-          </div>
-          <div>
+          ) : deployerWallet ? (
+            <WalletPartyRow
+              label="Deployer"
+              address={deployerWallet}
+              count={deployerLaunchCount}
+              countSingular="launch on hood.markets"
+              countPlural="launches on hood.markets"
+              onProfile={() => openWalletProfile(deployerWallet)}
+            />
+          ) : (
+            <div className="token-detail-full">
+              <dt>Deployer</dt>
+              <dd>
+                <span className="lp-display">{token.deployerLabel || '—'}</span>
+                <PartyCountNote
+                  count={deployerLaunchCount}
+                  singular="launch on hood.markets"
+                  plural="launches on hood.markets"
+                />
+              </dd>
+            </div>
+          )}
+
+          {platformFees ? (
+            <div className="token-detail-full">
+              <dt>Fee recipient</dt>
+              <dd>
+                <span className="lp-display">hood.markets platform</span>
+                <p className="muted token-fee-note">Trading fees go to hood.markets.</p>
+              </dd>
+            </div>
+          ) : (
+            <WalletPartyRow
+              label="Fee recipient"
+              address={token.feeRecipientAddress}
+              count={feeRecipientCount}
+              countSingular="token on hood.markets"
+              countPlural="tokens on hood.markets"
+              onProfile={() => openWalletProfile(token.feeRecipientAddress)}
+            />
+          )}
+
+          <div className="token-detail-full">
             <dt>Deploy transaction</dt>
             <dd className="mono">
               <span className="token-address-row">
@@ -265,6 +323,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
         tokenAddress={token.tokenAddress}
         feeRecipientAddress={token.feeRecipientAddress}
         feeRecipientLabel={token.feeRecipientLabel}
+        publicCollect
       />
     </div>
   );

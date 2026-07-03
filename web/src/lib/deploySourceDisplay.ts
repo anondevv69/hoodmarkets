@@ -18,6 +18,83 @@ function parseAgentMetadata(raw?: string): Record<string, string> | undefined {
   }
 }
 
+export interface DeployChannelDisplay {
+  headline: string;
+  subline?: string;
+  xUsername?: string;
+  tweetUrl?: string;
+}
+
+export function formatDeployChannel(input: {
+  platform?: string;
+  deployerLabel?: string;
+  clientKind?: string;
+  agentMetadata?: string;
+  deployerId?: string;
+  requesterXUsername?: string;
+  sourceUrl?: string;
+}): DeployChannelDisplay {
+  const platform = (input.platform || 'web').toLowerCase();
+  const label = input.deployerLabel?.trim() || '';
+  const clientKind = (input.clientKind || 'web').toLowerCase();
+  const meta = parseAgentMetadata(input.agentMetadata);
+  const xUser = resolveRequesterXUsername({
+    requesterXUsername: input.requesterXUsername,
+    deployerLabel: label,
+    agentMetadata: input.agentMetadata,
+    sourceUrl: input.sourceUrl,
+  });
+  const isAgent =
+    clientKind === 'agent' ||
+    /^agent:/i.test(input.deployerId ?? '') ||
+    /agent wallet/i.test(label);
+  const tweetUrl = resolveTokenLaunchTweetUrl(input);
+
+  if (isAgent && isAgentXLaunch(isAgent, meta, label)) {
+    return {
+      headline: 'Deployed via Bankr on X',
+      ...(xUser ? { xUsername: xUser } : {}),
+      ...(tweetUrl ? { tweetUrl } : {}),
+    };
+  }
+
+  if (isAgent) {
+    return {
+      headline: 'Deployed via Bankr',
+      subline: meta?.agentProvider ? `Agent · ${meta.agentProvider}` : undefined,
+    };
+  }
+
+  if (platform === 'x') {
+    return {
+      headline: 'Deployed on X',
+      ...(xUser ? { xUsername: xUser } : { subline: label || undefined }),
+      ...(tweetUrl ? { tweetUrl } : {}),
+    };
+  }
+
+  if (/anonymous|no dev/i.test(label)) {
+    return { headline: 'Deployed on Web', subline: 'No Dev · anonymous' };
+  }
+
+  return {
+    headline: 'Deployed on Web',
+    subline: /signed in/i.test(label) ? 'Signed in' : label || undefined,
+  };
+}
+
+function resolveTokenLaunchTweetUrl(input: {
+  sourceUrl?: string;
+  agentMetadata?: string;
+}): string | undefined {
+  const src = input.sourceUrl?.trim();
+  if (src && /(?:twitter\.com|x\.com)\/.+\/status\//i.test(src)) return src;
+  const meta = parseAgentMetadata(input.agentMetadata);
+  const fromMeta = meta?.launchTweetUrl?.trim();
+  if (fromMeta && /(?:twitter\.com|x\.com)\/.+\/status\//i.test(fromMeta)) return fromMeta;
+  return undefined;
+}
+
 export interface DeploySourceDisplay {
   title: string;
   detail?: string;
