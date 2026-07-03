@@ -1,3 +1,9 @@
+import { normalizeXUsername } from './requesterXUsername.js';
+
+function normalizeAgentXUsername(raw: unknown): string | undefined {
+  return normalizeXUsername(raw);
+}
+
 /**
  * Optional fields for `feeTarget: agent_wallet` deploys (Bankr, custom agents, etc.).
  * Serialized to JSON in `deployment_catalog.agent_metadata`.
@@ -10,6 +16,8 @@ export interface AgentDeployMetadataBody {
   agentId?: unknown;
   /** `signature` (EIP-191), `payment` (treasury ETH), `captcha` (haiku JWT), or `x_confirm` (X in-thread confirm). */
   auth?: unknown;
+  /** X @handle of the user who requested the launch (Bankr X agent). */
+  xUsername?: unknown;
   /** Original X launch request (status URL). Stored in catalog `source_url` when set. */
   tweetUrl?: unknown;
   tweet_url?: unknown;
@@ -33,6 +41,7 @@ export function serializeAgentDeployMetadata(body: AgentDeployMetadataBody): str
   set('walletKind', body.walletKind, 64);
   set('agentId', body.agentId, 64);
   set('auth', body.auth, 16);
+  set('xUsername', normalizeAgentXUsername(body.xUsername), 16);
   set(
     'launchTweetUrl',
     body.launchTweetUrl ?? body.tweetUrl ?? body.tweet_url,

@@ -1,5 +1,7 @@
 /** Human-readable launch channel for token detail pages. */
 
+import { resolveRequesterXUsername } from './requesterXDisplay';
+
 function parseAgentMetadata(raw?: string): Record<string, string> | undefined {
   const s = raw?.trim();
   if (!s) return undefined;
@@ -27,16 +29,35 @@ export function formatDeploySource(input: {
   clientKind?: string;
   agentMetadata?: string;
   deployerId?: string;
+  requesterXUsername?: string;
+  sourceUrl?: string;
 }): DeploySourceDisplay {
   const platform = (input.platform || 'web').toLowerCase();
   const label = input.deployerLabel?.trim() || '';
   const clientKind = (input.clientKind || 'web').toLowerCase();
   const meta = parseAgentMetadata(input.agentMetadata);
   const provider = meta?.agentProvider?.trim();
+  const xUser = resolveRequesterXUsername({
+    requesterXUsername: input.requesterXUsername,
+    deployerLabel: label,
+    agentMetadata: input.agentMetadata,
+    sourceUrl: input.sourceUrl,
+  });
   const isAgent =
     clientKind === 'agent' ||
     /^agent:/i.test(input.deployerId ?? '') ||
     /agent wallet/i.test(label);
+
+  if (xUser && (platform === 'x' || isAgent)) {
+    return {
+      title: `@${xUser}`,
+      detail: isAgent
+        ? isAgentXLaunch(isAgent, meta, label)
+          ? 'Launched via Bankr on X'
+          : 'Launched via Bankr'
+        : 'Launched on X',
+    };
+  }
 
   if (isAgent) {
     if (provider?.toLowerCase() === 'bankr') {
@@ -76,4 +97,15 @@ export function formatDeploySource(input: {
     return { title: 'hood.markets web', detail: label };
   }
   return { title: 'hood.markets web' };
+}
+
+function isAgentXLaunch(
+  isAgent: boolean,
+  meta: Record<string, string> | undefined,
+  label: string,
+): boolean {
+  if (!isAgent) return false;
+  if (meta?.auth === 'x_confirm') return true;
+  if (label.startsWith('@') && !/agent wallet/i.test(label)) return true;
+  return false;
 }

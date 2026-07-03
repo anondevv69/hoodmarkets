@@ -63,6 +63,12 @@ export interface Deployment {
   agentMetadata?: string;
   /** Original post URL (X tweet, Warpcast cast, etc.) when stored at deploy. */
   sourceUrl?: string;
+  /** Launches by this catalog deployer id (wallet / Privy / social id). */
+  deployerDeploymentCount?: number;
+  /** X @handle who requested the launch (Bankr X agent or native X). */
+  requesterXUsername?: string;
+  /** Total hood.markets launches attributed to that X @handle. */
+  requesterXLaunchCount?: number;
 }
 
 export type TokenDetail = Deployment & {

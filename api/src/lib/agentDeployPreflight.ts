@@ -30,16 +30,10 @@ import {
 } from './webDeployRateLimit.js';
 import { deployRateLimitRollingHours } from './selfFeeLimit.js';
 import {
-  agentXDeployLimitErrorOrNull,
-  agentXDeployLimitReplyHint,
-  agentXDeployPaymentReplyHint,
+  buildAgentXDeployLimitBlock,
   isAgentXChannel,
+  type AgentXDeployLimitStatus,
 } from './agentXDeployLimit.js';
-import {
-  agentDeployPaymentEnabled,
-  agentDeployPaymentMinWei,
-} from './agentDeployPaymentFlow.js';
-import { formatEther } from 'viem';
 export type AgentPreflightIssueCode =
   | 'invalid_name'
   | 'invalid_symbol'
@@ -53,7 +47,6 @@ export type AgentPreflightIssueCode =
   | 'rate_limit_would_force_burn'
   | 'rate_limit_would_force_platform_fee'
   | 'agent_x_daily_limit'
-  | 'agent_x_payment_required'
   | 'third_party_rolling_warning';
 
 export type AgentPreflightIssue = {
@@ -90,6 +83,8 @@ export type AgentDeployPreflightResult = {
   blockMessage: string | null;
   /** Combined user-facing summary when deploy can proceed */
   proceedNotice: string | null;
+  /** Populated when X daily limit blocks deploy. */
+  xDailyLimit?: AgentXDeployLimitStatus;
 };
 
 function normalizeSymbol(raw: string): string {
@@ -111,6 +106,7 @@ export async function runAgentDeployPreflight(
 
   const blocks: AgentPreflightIssue[] = [];
   const warnings: AgentPreflightIssue[] = [];
+  let xDailyLimit: AgentXDeployLimitStatus | undefined;
 
   if (name.length < 2) {
     blocks.push({
@@ -256,24 +252,24 @@ export async function runAgentDeployPreflight(
 
   if (config.webOnlyMode) {
     if (isAgentXChannel(input.agentChannel)) {
-      const xLimitErr = await agentXDeployLimitErrorOrNull(deployerId);
-      if (xLimitErr) {
-        if (agentDeployPaymentEnabled()) {
-          const eth = formatEther(agentDeployPaymentMinWei());
-          warnings.push({
-            code: 'agent_x_payment_required',
-            severity: 'warn',
-            message: xLimitErr,
-            replyHint: agentXDeployPaymentReplyHint(),
-          });
-        } else {
-          blocks.push({
-            code: 'agent_x_daily_limit',
-            severity: 'block',
-            message: xLimitErr,
-            replyHint: agentXDeployLimitReplyHint(),
-          });
-        }
+      const limitBlock = await buildAgentXDeployLimitBlock(deployerId);
+      if (limitBlock.status.limited) {
+        xDailyLimit = limitBlock.status;
+        blocks.push({
+          code: 'agent_x_daily_limit',
+          severity: 'block',
+          message: limitBlock.message,
+          replyHint: limitBlock.replyHint,
+          ...(limitBlock.status.todayToken
+            ? {
+                existingToken: {
+                  tokenName: limitBlock.status.todayToken.tokenName,
+                  tokenSymbol: limitBlock.status.todayToken.tokenSymbol,
+                  tokenAddress: limitBlock.status.todayToken.tokenAddress,
+                },
+              }
+            : {}),
+        });
       }
     } else {
       const limited = await applyWebDeployRateLimit({
@@ -341,6 +337,7 @@ export async function runAgentDeployPreflight(
     warnings,
     blockMessage,
     proceedNotice,
+    ...(xDailyLimit ? { xDailyLimit } : {}),
   };
 }
 

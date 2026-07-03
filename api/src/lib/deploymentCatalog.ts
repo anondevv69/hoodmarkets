@@ -17,6 +17,11 @@ import {
   purgeDeprecatedV3CatalogEntries,
 } from './deprecatedV3Catalog.js';
 import { parseAgentMetadataJson } from './agentDeployMetadata.js';
+import {
+  normalizeXUsername,
+  resolveRequesterXUsername,
+  type DeploymentPublicExtras,
+} from './requesterXUsername.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '../../.data');
@@ -390,6 +395,40 @@ export async function countDeployerDeploymentsCurrentEasternDay(
           return;
         }
         resolve(Number(row?.c ?? 0));
+      },
+    );
+  });
+}
+
+/** Newest catalog row for this deployer in the current US Eastern day. */
+export async function getNewestDeployerDeploymentCurrentEasternDay(
+  platform: string,
+  deployerId: string,
+): Promise<DeploymentCatalogRow | null> {
+  if (!db) return null;
+  const { start, end } = getEasternDayRangeUtc();
+  const startSql = toSqliteUtc(start);
+  const endSql = toSqliteUtc(end);
+  const plat = platform.slice(0, 64);
+  const id = deployerId.slice(0, 256);
+  return new Promise((resolve) => {
+    db!.get(
+      `SELECT ${SELECT_DEPLOYMENT_ROW}
+       FROM deployment_catalog AS dc
+       WHERE dc.platform = ?
+         AND dc.deployer_id = ?
+         AND lower(dc.fee_recipient_address) != ?
+         AND dc.created_at >= ? AND dc.created_at < ?
+       ORDER BY dc.created_at DESC
+       LIMIT 1`,
+      [plat, id, DEAD_FEE_LOWER, startSql, endSql],
+      (err, row: DeploymentCatalogRow | undefined) => {
+        if (err) {
+          logger.warn('deploymentCatalog: newestDeployer eastern failed:', err.message);
+          resolve(null);
+          return;
+        }
+        resolve(hydrateDeploymentCatalogRow(row));
       },
     );
   });
@@ -1643,6 +1682,46 @@ export async function getDeploymentByTransactionHash(
       },
     );
   });
+}
+
+/**
+ * Count catalog rows attributed to the same X @handle (agent metadata, deployer label, or tweet URL).
+ */
+export async function countDeploymentsByXUsername(xUsername: string): Promise<number> {
+  if (!db) return 0;
+  const handle = normalizeXUsername(xUsername);
+  if (!handle) return 0;
+  const needle = `@${handle}`;
+  const jsonNeedle = `"xUsername":"${handle}"`;
+
+  return new Promise((resolve) => {
+    db!.get(
+      `SELECT COUNT(*) AS n FROM deployment_catalog AS dc
+       WHERE lower(COALESCE(dc.agent_metadata, '')) LIKE ?
+          OR instr(lower(COALESCE(dc.deployer_label, '')), ?) > 0
+          OR lower(trim(replace(COALESCE(dc.deployer_label, ''), '@', ''))) = ?
+          OR instr(lower(COALESCE(dc.source_url, '')), ?) > 0`,
+      [`%${jsonNeedle}%`, needle, handle, `/${handle}/status/`],
+      (err, row: { n?: number } | undefined) => {
+        if (err) {
+          logger.warn('countDeploymentsByXUsername failed:', err.message);
+          resolve(0);
+          return;
+        }
+        resolve(typeof row?.n === 'number' ? row.n : 0);
+      },
+    );
+  });
+}
+
+export async function enrichDeploymentForPublicApi(
+  row: DeploymentCatalogRow | null,
+): Promise<(DeploymentCatalogRow & DeploymentPublicExtras) | null> {
+  if (!row) return null;
+  const requesterXUsername = resolveRequesterXUsername(row);
+  if (!requesterXUsername) return row;
+  const requesterXLaunchCount = await countDeploymentsByXUsername(requesterXUsername);
+  return { ...row, requesterXUsername, requesterXLaunchCount };
 }
 
 /** Public token page: one catalog row by token contract address. */

@@ -54,11 +54,6 @@ import { runAfterPriorWebThirdPartyFeeWork } from '../lib/webThirdPartyFeeQueue.
 import { resolveAgentWalletAuth, normalizeAgentChannel } from '../lib/agentWalletDeployAuth.js';
 import { agentDeploySuccessReplyHint, resolveLaunchTweetUrl } from '../lib/agentDeployImage.js';
 import {
-  buildAgentDeployPaymentRequiredResponse,
-  verifyAndReserveAgentDeployPayment,
-  agentDeployPaymentEnabled,
-} from '../lib/agentDeployPaymentFlow.js';
-import {
   webInitialBuyDefaultEth,
   parseWebInitialBuyWei,
   webInitialBuyMinEth,
@@ -66,7 +61,6 @@ import {
   WEB_INITIAL_BUY_PRESETS_ETH,
 } from '../lib/deployBondEnv.js';
 import {
-  releaseAgentPaymentTx,
   listSelfFeeTokensForFeeRecipient,
   listThirdPartyFeeTokensForFeeRecipientRollingHours,
   listDeploymentCatalogByDeployer,
@@ -114,11 +108,10 @@ import {
   webDeployRateLimitPlatformNotice,
 } from '../lib/webDeployRateLimit.js';
 import {
-  agentXDeployLimitErrorOrNull,
-  agentXDeployLimitReplyHint,
-  agentXDeployPaymentReplyHint,
+  buildAgentXDeployLimitBlock,
   isAgentXChannel,
 } from '../lib/agentXDeployLimit.js';
+import { resolveRequesterXUsernameFromDeployInput } from '../lib/requesterXUsername.js';
 
 function walletCompleteResultFromCatalogRow(
   row: DeploymentCatalogRow,
@@ -539,8 +532,6 @@ export function registerWebDeployRoutes(
     const h = webDeployCorsHeaders(req.headers.origin);
     for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
 
-    let paymentTxToRelease: string | null = null;
-
     try {
       const body = req.body as DeployWebBody;
       const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -645,8 +636,9 @@ export function registerWebDeployRoutes(
       let agentVerifiedFee: Address | null = null;
       let agentMetadataJson: string | undefined;
       let agentProviderForLabel = '';
-      let agentAuthIsPayment = false;
       let agentChannel: string | null = null;
+      let agentAuthKind: 'captcha' | 'x_confirm' | 'trusted_agent' = 'captcha';
+      let requesterXUsername: string | undefined;
 
       if (isAgentWalletDeploy) {
         webClientKind = 'agent';
@@ -655,9 +647,17 @@ export function registerWebDeployRoutes(
         agentChannel =
           agentAuth.agentChannel ??
           normalizeAgentChannel(req.headers as any, body);
+        requesterXUsername = resolveRequesterXUsernameFromDeployInput({
+          xUsername: body.xUsername?.trim() || paste.xUsername,
+          tweetUrl: launchTweetUrl ?? body.tweetUrl ?? body.tweet_url,
+          sourceUrl: body.sourceUrl,
+          launchTweetUrl,
+        });
+        agentAuthKind = agentAuth.auth;
         agentMetadataJson = serializeAgentDeployMetadata({
           ...body,
           ...(launchTweetUrl ? { launchTweetUrl } : {}),
+          ...(requesterXUsername ? { xUsername: requesterXUsername } : {}),
           auth: agentAuth.auth,
           agentId: agentAuth.agentId,
         });
@@ -777,50 +777,14 @@ export function registerWebDeployRoutes(
       let rateLimitForcedBurn = false;
 
       if (agentWalletDeploy && isAgentXChannel(agentChannel)) {
-        const xLimitErr = await agentXDeployLimitErrorOrNull(userId);
-        if (xLimitErr && agentVerifiedFee) {
-          const paymentTxHash =
-            typeof body.paymentTxHash === 'string' ? body.paymentTxHash.trim() : '';
-          const deployCommitment =
-            typeof body.deployCommitment === 'string' ? body.deployCommitment.trim() : '';
-
-          if (paymentTxHash && deployCommitment) {
-            try {
-              paymentTxToRelease = await verifyAndReserveAgentDeployPayment({
-                publicClient: agentPaymentPublicClient,
-                paymentTxHash,
-                deployCommitment,
-                commitmentInput: {
-                  name,
-                  symbol,
-                  agentFeeRecipient: agentVerifiedFee,
-                  description: userDescription,
-                  imageUrl,
-                },
-              });
-              agentAuthIsPayment = true;
-            } catch (e: unknown) {
-              const msg = e instanceof Error ? e.message : 'Payment verification failed';
-              res.status(402).json({ error: msg, payment_required: true });
-              return;
-            }
-          } else if (agentDeployPaymentEnabled()) {
-            res.status(402).json(
-              buildAgentDeployPaymentRequiredResponse({
-                name,
-                symbol,
-                agentFeeRecipient: agentVerifiedFee,
-                description: userDescription,
-                imageUrl,
-                limitMessage: xLimitErr,
-                replyHint: agentXDeployPaymentReplyHint(),
-              }),
-            );
-            return;
-          } else {
-            res.status(409).json({ error: xLimitErr, replyHint: agentXDeployLimitReplyHint() });
-            return;
-          }
+        const limitBlock = await buildAgentXDeployLimitBlock(userId);
+        if (limitBlock.status.limited) {
+          res.status(409).json({
+            error: limitBlock.message,
+            replyHint: limitBlock.replyHint,
+            xDailyLimit: limitBlock.status,
+          });
+          return;
         }
       } else if (config.webOnlyMode && (fee.kind === 'self' || agentWalletDeploy)) {
         const limited = await applyWebDeployRateLimit({
@@ -1104,9 +1068,13 @@ export function registerWebDeployRoutes(
       const deployerLabel = anonymousNoDev
         ? 'Web (No Dev · anonymous)'
         : agentWalletDeploy
-          ? agentProviderForLabel
-            ? `Web (agent wallet · ${agentProviderForLabel}${agentAuthIsPayment ? ' · payment' : ''} · captcha)`
-            : `Web (agent wallet${agentAuthIsPayment ? ' · payment' : ''} · agent-captcha)`
+          ? requesterXUsername && isAgentXChannel(agentChannel)
+            ? `@${requesterXUsername}`
+            : requesterXUsername
+              ? `@${requesterXUsername} · Bankr`
+              : agentProviderForLabel
+                ? `Web (agent wallet · ${agentProviderForLabel}${agentAuthKind === 'x_confirm' ? ' · X' : ' · captcha'})`
+                : `Web (agent wallet${agentAuthKind === 'x_confirm' ? ' · X' : ' · agent-captcha'})`
           : fee.kind === 'self' && !rateLimitForcedBurn && !rateLimitForcedPlatformFee
             ? resolved.feeRecipientLabel.slice(0, 256)
             : initiatorAttribution === 'signed-in user'
@@ -1403,9 +1371,6 @@ export function registerWebDeployRoutes(
         await executeDeploy();
       }
     } catch (e: any) {
-      if (paymentTxToRelease) {
-        void releaseAgentPaymentTx(paymentTxToRelease);
-      }
       const msg = formatDeployError(e);
       logger.warn('Web deploy failed', { error: msg });
       let status = 500;

@@ -2,6 +2,7 @@ import type { Express, Request, Response } from 'express';
 import { getAddress } from 'viem';
 import {
   countVisibleDeploymentCatalog,
+  enrichDeploymentForPublicApi,
   getDeploymentByTokenAddress,
   listDeploymentCatalog,
   listDeploymentCatalogByDeployerPlatformHandle,
@@ -58,7 +59,9 @@ export function registerDeploymentCatalogRoutes(app: Express): void {
     }
 
     try {
-      const deployment = await getDeploymentByTokenAddress(raw);
+      const deployment = await enrichDeploymentForPublicApi(
+        await getDeploymentByTokenAddress(raw),
+      );
       if (!deployment) {
         res.status(404).json({ error: 'Token not found in hoodmarkets catalog.' });
         return;
