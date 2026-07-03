@@ -228,6 +228,23 @@ May include `approve` step then `sell`. Amount in token units (`1M`, `1000000`).
 
 ---
 
+## POST /api/agent/claim-for-recipient
+
+**Third-party / helper claim** — anyone (including Bankr on X) can trigger. Funds go to the **catalog fee recipient**, not the caller.
+
+```http
+POST https://api.hood.markets/api/agent/claim-for-recipient
+Content-Type: application/json
+
+{ "tokenAddress": "0x78594eD700e343846B4d0Bbba79Ee0cb50Deaa8D" }
+```
+
+No JWT. Use when user says "claim fees for EA's token" or gives a contract without being the fee wallet.
+
+Response: `ok`, `txHash`, `explorerUrl`, `feeRecipientAddress`, `tokenSymbol`, `feeModel`, `launchType`, `tokenPageUrl`.
+
+---
+
 ## POST /api/agent/claim
 
 Server broadcasts claim (gas paid by hood.markets). Requires haiku JWT.
