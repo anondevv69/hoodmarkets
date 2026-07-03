@@ -3,10 +3,11 @@ import { getAddress } from 'viem';
 import { config } from '../config.js';
 import {
   countDeploymentsAsFeeRecipient,
-  countDeploymentsByAgentWallet,
+  countDeploymentsInitiatedByWallet,
   countDeploymentsByXUsername,
   listDeploymentCatalogByFeeRecipient,
   listDeploymentCatalogForUser,
+  listDeploymentsInitiatedByWallet,
   listDeploymentsByXUsername,
   type DeploymentCatalogRow,
 } from '../lib/deploymentCatalog.js';
@@ -120,15 +121,21 @@ export function registerDeployerProfileRoutes(app: Express): void {
     try {
       const rawLimit = req.query.limit;
       const limit = typeof rawLimit === 'string' ? Number.parseInt(rawLimit, 10) : 50;
-      const [feeRecipientTokenCount, initiatedLaunchCount, deployments] = await Promise.all([
-        countDeploymentsAsFeeRecipient(wallet),
-        countDeploymentsByAgentWallet(wallet),
-        listDeploymentCatalogByFeeRecipient(
-          wallet,
-          Number.isFinite(limit) ? limit : 50,
-          0,
-        ),
-      ]);
+      const [feeRecipientTokenCount, initiatedLaunchCount, feeRecipientDeployments, initiatedDeployments] =
+        await Promise.all([
+          countDeploymentsAsFeeRecipient(wallet),
+          countDeploymentsInitiatedByWallet(wallet),
+          listDeploymentCatalogByFeeRecipient(
+            wallet,
+            Number.isFinite(limit) ? limit : 50,
+            0,
+          ),
+          listDeploymentsInitiatedByWallet(
+            wallet,
+            Number.isFinite(limit) ? limit : 50,
+            0,
+          ),
+        ]);
 
       res.json({
         platform: 'wallet',
@@ -136,7 +143,8 @@ export function registerDeployerProfileRoutes(app: Express): void {
         feeRecipientTokenCount,
         initiatedLaunchCount,
         profileUrl: walletProfileUrl(wallet),
-        deployments,
+        deployments: feeRecipientDeployments,
+        initiatedDeployments,
       });
     } catch {
       res.status(500).json({ error: 'Failed to load wallet profile.' });

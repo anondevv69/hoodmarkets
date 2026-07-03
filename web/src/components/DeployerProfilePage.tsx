@@ -92,7 +92,7 @@ export function DeployerProfilePage({ username }: { username: string }) {
             @{handle}
           </a>
         </h2>
-        <p className="muted">Tokens launched on hood.markets</p>
+        <p className="muted deployer-profile-subtitle">Tokens launched on hood.markets</p>
       </div>
 
       <div className="profile-stats">

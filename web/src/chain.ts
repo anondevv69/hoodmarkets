@@ -20,6 +20,10 @@ export function tokenUrl(address: string): string {
   return `${ROBINHOOD_EXPLORER}/token/${address}`;
 }
 
+export function addressUrl(address: string): string {
+  return `${ROBINHOOD_EXPLORER}/address/${address}`;
+}
+
 export function txUrl(hash: string): string {
   return `${ROBINHOOD_EXPLORER}/tx/${hash}`;
 }

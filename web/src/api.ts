@@ -214,6 +214,7 @@ export interface WalletProfileResponse {
   initiatedLaunchCount: number;
   profileUrl: string;
   deployments: Deployment[];
+  initiatedDeployments: Deployment[];
 }
 
 export async function fetchWalletProfile(walletAddress: string): Promise<WalletProfileResponse> {

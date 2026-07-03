@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchWalletProfile, type Deployment } from '../api';
-import { shortenAddress, tokenUrl } from '../chain';
+import { addressUrl, shortenAddress } from '../chain';
 import {
   fetchTokenMetricsFromDexscreener,
   formatUsdVol,
   type DexTokenMetrics,
 } from '../lib/dexscreenerVolume';
 import { closeDeployerProfile } from '../lib/deployerProfileRoute';
-import { CopyButton } from './CopyButton';
 import { TokenCard } from './TokenCard';
 
 function StatCard({ label, value }: { label: string; value: string }) {
@@ -19,8 +18,36 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
+function TokenSection({
+  title,
+  tokens,
+  metricsByAddress,
+}: {
+  title: string;
+  tokens: Deployment[];
+  metricsByAddress: Record<string, DexTokenMetrics | undefined>;
+}) {
+  if (tokens.length === 0) return null;
+  return (
+    <section className="profile-token-section">
+      <h3 className="profile-section-title">{title}</h3>
+      <ul className="token-list profile-token-list">
+        {tokens.map((t) => (
+          <TokenCard
+            key={t.tokenAddress}
+            deployment={t}
+            metrics={metricsByAddress[t.tokenAddress]}
+            showDeployer={false}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function WalletProfilePage({ walletAddress }: { walletAddress: string }) {
-  const [tokens, setTokens] = useState<Deployment[]>([]);
+  const [feeRecipientTokens, setFeeRecipientTokens] = useState<Deployment[]>([]);
+  const [initiatedTokens, setInitiatedTokens] = useState<Deployment[]>([]);
   const [feeRecipientTokenCount, setFeeRecipientTokenCount] = useState(0);
   const [initiatedLaunchCount, setInitiatedLaunchCount] = useState(0);
   const [metricsByAddress, setMetricsByAddress] = useState<
@@ -37,10 +64,16 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
       try {
         const profile = await fetchWalletProfile(walletAddress);
         if (cancelled) return;
-        setTokens(profile.deployments);
+        setFeeRecipientTokens(profile.deployments);
+        setInitiatedTokens(profile.initiatedDeployments ?? []);
         setFeeRecipientTokenCount(profile.feeRecipientTokenCount);
         setInitiatedLaunchCount(profile.initiatedLaunchCount);
-        const addresses = profile.deployments.map((r) => r.tokenAddress);
+        const addresses = [
+          ...new Set([
+            ...profile.deployments.map((r) => r.tokenAddress),
+            ...(profile.initiatedDeployments ?? []).map((r) => r.tokenAddress),
+          ]),
+        ];
         if (addresses.length > 0) {
           const metrics = await fetchTokenMetricsFromDexscreener(addresses);
           if (!cancelled) setMetricsByAddress(metrics);
@@ -58,13 +91,18 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
 
   const combinedMcap = useMemo(() => {
     let sum = 0;
-    for (const t of tokens) {
+    const seen = new Set<string>();
+    for (const t of [...feeRecipientTokens, ...initiatedTokens]) {
+      if (seen.has(t.tokenAddress)) continue;
+      seen.add(t.tokenAddress);
       const m = metricsByAddress[t.tokenAddress];
       const mc = m?.marketCapUsd ?? m?.fdvUsd;
       if (mc && mc > 0) sum += mc;
     }
     return sum;
-  }, [tokens, metricsByAddress]);
+  }, [feeRecipientTokens, initiatedTokens, metricsByAddress]);
+
+  const hasAnyTokens = feeRecipientTokens.length > 0 || initiatedTokens.length > 0;
 
   if (loading) return <p className="muted">Loading profile…</p>;
   if (error) {
@@ -88,39 +126,47 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
 
       <div className="lp-card deployer-profile-hero">
         <p className="section-label">Wallet profile</p>
-        <h2 className="lp-display deployer-profile-handle mono">
-          <a href={tokenUrl(walletAddress)} target="_blank" rel="noreferrer">
-            {shortenAddress(walletAddress)}
+        <h2 className="lp-display deployer-profile-handle mono">{shortenAddress(walletAddress)}</h2>
+        <p className="muted deployer-profile-subtitle">
+          {feeRecipientTokenCount > 0 && initiatedLaunchCount > 0
+            ? 'Fee recipient and deployer on hood.markets'
+            : initiatedLaunchCount > 0
+              ? 'Launches initiated on hood.markets'
+              : 'Fee recipient on hood.markets'}
+        </p>
+        <p className="deployer-profile-explorer">
+          <a href={addressUrl(walletAddress)} target="_blank" rel="noreferrer">
+            View on Blockscout
           </a>
-          <CopyButton text={walletAddress} />
-        </h2>
-        <p className="muted">Fee recipient tokens on hood.markets</p>
+        </p>
       </div>
 
       <div className="profile-stats">
-        <StatCard label="Fee recipient tokens" value={String(feeRecipientTokenCount)} />
         {initiatedLaunchCount > 0 ? (
           <StatCard label="Launches initiated" value={String(initiatedLaunchCount)} />
         ) : null}
+        <StatCard label="Fee recipient tokens" value={String(feeRecipientTokenCount)} />
         <StatCard
           label="Combined market cap"
           value={combinedMcap > 0 ? formatUsdVol(combinedMcap) : '—'}
         />
       </div>
 
-      {tokens.length === 0 ? (
-        <p className="muted">No tokens found for this wallet yet.</p>
+      {!hasAnyTokens ? (
+        <p className="muted profile-empty-note">No tokens found for this wallet yet.</p>
       ) : (
-        <ul className="token-list">
-          {tokens.map((t) => (
-            <TokenCard
-              key={t.tokenAddress}
-              deployment={t}
-              metrics={metricsByAddress[t.tokenAddress]}
-              showDeployer={false}
-            />
-          ))}
-        </ul>
+        <>
+          <TokenSection
+            title="Launches initiated"
+            tokens={initiatedTokens}
+            metricsByAddress={metricsByAddress}
+          />
+          <TokenSection
+            title="Fee recipient tokens"
+            tokens={feeRecipientTokens}
+            metricsByAddress={metricsByAddress}
+          />
+        </>
       )}
     </div>
   );
