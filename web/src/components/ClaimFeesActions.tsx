@@ -10,18 +10,23 @@ import {
 } from '../api';
 import { txUrl, shortenAddress } from '../chain';
 import { isHoodmarketsPlatformFeeRecipient } from '../lib/feeRecipientDisplay';
+import { isSimpleLaunchDeployment } from '../lib/launchType';
 import { openWalletProfile } from '../lib/deployerProfileRoute';
 
 export function ClaimFeesActions({
   tokenAddress,
   feeRecipientAddress,
   feeRecipientLabel,
+  poolId,
+  factoryAddress,
   /** When true (token page), anyone can trigger collect/claim — funds always go to fee recipient. */
   publicCollect = false,
 }: {
   tokenAddress: string;
   feeRecipientAddress: string;
   feeRecipientLabel?: string;
+  poolId?: string | null;
+  factoryAddress?: string | null;
   publicCollect?: boolean;
 }) {
   const { authenticated, getAccessToken } = usePrivy();
@@ -64,7 +69,12 @@ export function ClaimFeesActions({
     return null;
   }
 
-  const isV3 = feeStatus?.feeModel === 'v3';
+  const catalogSimple = isSimpleLaunchDeployment({ poolId, factoryAddress });
+  /** Prefer catalog poolId/factory — fee-status loads async and wrongly defaulted to V4 while pending. */
+  const isV3 =
+    feeStatus?.feeModel === 'v4'
+      ? false
+      : feeStatus?.feeModel === 'v3' || catalogSimple;
 
   async function onCollect() {
     setError(null);

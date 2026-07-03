@@ -22,7 +22,10 @@ export function isV3CatalogDeployment(
   if (poolId.startsWith('v3:')) return true;
   const v3Factory = config.hoodmarketsV3.factory?.trim().toLowerCase();
   const rowFactory = row.factoryAddress?.trim().toLowerCase() ?? '';
-  return !!v3Factory && !!rowFactory && rowFactory === v3Factory;
+  if (v3Factory && rowFactory && rowFactory === v3Factory) return true;
+  // No V4 pool id shape and empty factory — treat as simple (legacy rows).
+  if (!poolId && !rowFactory && config.defaultLaunchMode === 'simple') return true;
+  return false;
 }
 
 /**
