@@ -1687,21 +1687,31 @@ export async function getDeploymentByTransactionHash(
 /**
  * Count catalog rows attributed to the same X @handle (agent metadata, deployer label, or tweet URL).
  */
+export function xUsernameCatalogMatchParams(handle: string): string[] {
+  const jsonNeedle = `%\"xUsername\":\"${handle}\"%`;
+  return [jsonNeedle, `@${handle}`, handle, `/${handle}/status/`];
+}
+
+export const X_USERNAME_CATALOG_MATCH_SQL = `(
+  lower(COALESCE(dc.agent_metadata, '')) LIKE ?
+  OR instr(lower(COALESCE(dc.deployer_label, '')), ?) > 0
+  OR lower(trim(replace(COALESCE(dc.deployer_label, ''), '@', ''))) = ?
+  OR instr(lower(COALESCE(dc.source_url, '')), ?) > 0
+)`;
+
+/**
+ * Count catalog rows attributed to the same X @handle (agent metadata, deployer label, or tweet URL).
+ */
 export async function countDeploymentsByXUsername(xUsername: string): Promise<number> {
   if (!db) return 0;
   const handle = normalizeXUsername(xUsername);
   if (!handle) return 0;
-  const needle = `@${handle}`;
-  const jsonNeedle = `"xUsername":"${handle}"`;
 
   return new Promise((resolve) => {
     db!.get(
       `SELECT COUNT(*) AS n FROM deployment_catalog AS dc
-       WHERE lower(COALESCE(dc.agent_metadata, '')) LIKE ?
-          OR instr(lower(COALESCE(dc.deployer_label, '')), ?) > 0
-          OR lower(trim(replace(COALESCE(dc.deployer_label, ''), '@', ''))) = ?
-          OR instr(lower(COALESCE(dc.source_url, '')), ?) > 0`,
-      [`%${jsonNeedle}%`, needle, handle, `/${handle}/status/`],
+       WHERE ${X_USERNAME_CATALOG_MATCH_SQL}`,
+      xUsernameCatalogMatchParams(handle),
       (err, row: { n?: number } | undefined) => {
         if (err) {
           logger.warn('countDeploymentsByXUsername failed:', err.message);
@@ -1709,6 +1719,38 @@ export async function countDeploymentsByXUsername(xUsername: string): Promise<nu
           return;
         }
         resolve(typeof row?.n === 'number' ? row.n : 0);
+      },
+    );
+  });
+}
+
+/** All catalog rows attributed to an X @handle (Bankr agent, native X bot, web with label). */
+export async function listDeploymentsByXUsername(
+  xUsername: string,
+  limit = 50,
+  offset = 0,
+): Promise<DeploymentCatalogRow[]> {
+  if (!db) return [];
+  const handle = normalizeXUsername(xUsername);
+  if (!handle) return [];
+  const lim = Math.min(Math.max(1, limit), 100);
+  const off = Math.max(0, offset);
+
+  return new Promise((resolve) => {
+    db!.all(
+      `SELECT ${SELECT_DEPLOYMENT_ROW}
+       FROM deployment_catalog AS dc
+       WHERE ${X_USERNAME_CATALOG_MATCH_SQL}${visibleCatalogSql()}
+       ORDER BY dc.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...xUsernameCatalogMatchParams(handle), visibleCatalogParam(), lim, off],
+      (err, rows: DeploymentCatalogRow[] | undefined) => {
+        if (err) {
+          logger.warn('listDeploymentsByXUsername failed:', err.message);
+          resolve([]);
+          return;
+        }
+        resolve(hydrateDeploymentCatalogRows(rows ?? []));
       },
     );
   });

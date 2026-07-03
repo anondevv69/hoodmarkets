@@ -174,6 +174,48 @@ export async function fetchMyDeployments(
   return data.deployments ?? [];
 }
 
+export interface DeployerProfileResponse {
+  platform: 'x';
+  xUsername: string;
+  launchCount: number;
+  profileUrl: string;
+  deployments: Deployment[];
+}
+
+export interface MyDeployerProfileResponse {
+  xUsername: string | null;
+  xLinked: boolean;
+  xLaunchCount: number;
+  walletLaunchCount: number;
+  totalLaunchCount: number;
+  publicProfileUrl: string | null;
+  deployments: Deployment[];
+}
+
+export async function fetchDeployerProfileByX(
+  username: string,
+  limit = 50,
+): Promise<DeployerProfileResponse> {
+  const handle = username.trim().replace(/^@/, '');
+  const res = await fetch(
+    `${API_BASE}/api/deployer-profile/x/${encodeURIComponent(handle)}?limit=${limit}`,
+  );
+  return parseJson<DeployerProfileResponse>(res);
+}
+
+export async function fetchMyDeployerProfile(
+  token: string,
+  walletAddress?: string,
+): Promise<MyDeployerProfileResponse> {
+  const params = new URLSearchParams();
+  if (walletAddress) params.set('walletAddress', walletAddress);
+  const qs = params.toString();
+  const res = await fetch(`${API_BASE}/api/my-deployer-profile${qs ? `?${qs}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return parseJson<MyDeployerProfileResponse>(res);
+}
+
 export async function fetchWebDeployConfig(): Promise<WebDeployConfig> {
   const res = await fetch(`${API_BASE}/api/web-deploy-config`);
   return parseJson<WebDeployConfig>(res);

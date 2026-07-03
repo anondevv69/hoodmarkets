@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { LaunchTab } from './components/LaunchTab';
 import { ProfileTab } from './components/ProfileTab';
+import { DeployerProfilePage } from './components/DeployerProfilePage';
 import { TokenPage } from './components/TokenPage';
 import { TickerTape } from './components/TickerTape';
 import { TokensTab } from './components/TokensTab';
 import { useExploreTokens } from './hooks/useExploreTokens';
 import { useEnsureRobinhoodChain } from './hooks/useEnsureRobinhoodChain';
+import { readDeployerProfileFromUrl } from './lib/deployerProfileRoute';
 import { openExplorePage, readTokenFromUrl } from './lib/tokenRoute';
 
 type Tab = 'tokens' | 'launch' | 'profile';
@@ -26,7 +28,7 @@ const TAB_COPY: Record<Tab, { title: string; sub: string }> = {
 };
 
 function readTabFromUrl(): Tab {
-  if (readTokenFromUrl()) return 'tokens';
+  if (readTokenFromUrl() || readDeployerProfileFromUrl()) return 'tokens';
   const t = new URLSearchParams(window.location.search).get('tab');
   if (t === 'launch' || t === 'profile' || t === 'tokens') return t;
   return 'launch';
@@ -36,18 +38,20 @@ export default function App() {
   useEnsureRobinhoodChain();
   const [tab, setTab] = useState<Tab>(readTabFromUrl);
   const [tokenAddress, setTokenAddress] = useState<string | null>(readTokenFromUrl);
+  const [deployerProfile, setDeployerProfile] = useState(readDeployerProfileFromUrl);
 
   useEffect(() => {
     const sync = () => {
       setTokenAddress(readTokenFromUrl());
+      setDeployerProfile(readDeployerProfileFromUrl());
       setTab(readTabFromUrl());
     };
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
   }, []);
 
-  const copy = tokenAddress ? null : TAB_COPY[tab];
-  const showExploreChrome = !tokenAddress;
+  const copy = tokenAddress || deployerProfile ? null : TAB_COPY[tab];
+  const showExploreChrome = !tokenAddress && !deployerProfile;
   const {
     tokens: exploreTokens,
     catalog,
@@ -77,9 +81,12 @@ export default function App() {
               onClick={() => {
                 const url = new URL(window.location.href);
                 url.searchParams.delete('token');
+                url.searchParams.delete('profile');
+                url.searchParams.delete('user');
                 url.searchParams.set('tab', 'tokens');
                 window.history.pushState({}, '', url);
                 setTokenAddress(null);
+                setDeployerProfile(null);
                 setTab('tokens');
               }}
             >
@@ -91,9 +98,12 @@ export default function App() {
               onClick={() => {
                 const url = new URL(window.location.href);
                 url.searchParams.delete('token');
+                url.searchParams.delete('profile');
+                url.searchParams.delete('user');
                 url.searchParams.set('tab', 'launch');
                 window.history.pushState({}, '', url);
                 setTokenAddress(null);
+                setDeployerProfile(null);
                 setTab('launch');
               }}
             >
@@ -105,9 +115,12 @@ export default function App() {
               onClick={() => {
                 const url = new URL(window.location.href);
                 url.searchParams.delete('token');
+                url.searchParams.delete('profile');
+                url.searchParams.delete('user');
                 url.searchParams.set('tab', 'profile');
                 window.history.pushState({}, '', url);
                 setTokenAddress(null);
+                setDeployerProfile(null);
                 setTab('profile');
               }}
             >
@@ -130,6 +143,8 @@ export default function App() {
         <div className="panel">
           {tokenAddress ? (
             <TokenPage tokenAddress={tokenAddress} />
+          ) : deployerProfile ? (
+            <DeployerProfilePage username={deployerProfile.username} />
           ) : tab === 'tokens' ? (
             <TokensTab
               catalog={catalog}

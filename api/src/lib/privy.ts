@@ -487,6 +487,35 @@ export function createIdentity(
  * Short label for on-chain metadata: who initiated a web deploy (from `linked_accounts` on GET /v1/users/:id).
  * Priority: Farcaster → X → Telegram → Discord → GitHub → email.
  */
+export function extractTwitterUsernameFromPrivyUser(user: unknown): string | null {
+  if (!user || typeof user !== 'object') return null;
+  const accounts: unknown[] = Array.isArray((user as { linked_accounts?: unknown[] }).linked_accounts)
+    ? (user as { linked_accounts: unknown[] }).linked_accounts
+    : [];
+
+  const usernameFrom = (a: unknown): string | null => {
+    if (!a || typeof a !== 'object') return null;
+    const o = a as { username?: unknown; name?: unknown; display_name?: unknown };
+    const raw = o.username ?? o.name ?? o.display_name;
+    if (typeof raw !== 'string' || !raw.trim()) return null;
+    return raw.trim().replace(/^@/, '');
+  };
+
+  for (const a of accounts) {
+    if (!a || typeof a !== 'object') continue;
+    const typ = String((a as { type?: unknown }).type ?? '').toLowerCase();
+    if (typ.includes('twitter') || typ.includes('x_oauth') || typ === 'x') {
+      const u = usernameFrom(a);
+      if (u) return u;
+    }
+  }
+  return null;
+}
+
+/**
+ * Short label for on-chain metadata: who initiated a web deploy (from `linked_accounts` on GET /v1/users/:id).
+ * Priority: Farcaster → X → Telegram → Discord → GitHub → email.
+ */
 export function formatWebDeployInitiatorAttribution(user: any): string {
   if (!user) return 'signed-in user';
 

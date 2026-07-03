@@ -22,6 +22,7 @@ import { registerResolveSourceRoutes } from './routes/resolveSource.js';
 import { registerDeploymentCatalogRoutes } from './routes/deploymentCatalog.js';
 import { registerTokenSwapRoutes } from './routes/tokenSwap.js';
 import { registerMyDeploymentsRoutes } from './routes/myDeployments.js';
+import { registerDeployerProfileRoutes } from './routes/deployerProfile.js';
 import { registerMyDeploymentsClaimRoutes } from './routes/myDeploymentsClaim.js';
 import { registerMyDeploymentsCollectPoolRoutes } from './routes/myDeploymentsCollectPool.js';
 import { registerAgentClaimCalldataRoutes } from './routes/agentClaimCalldata.js';
@@ -202,6 +203,7 @@ async function main() {
     registerDeploymentCatalogRoutes(app);
     registerTokenSwapRoutes(app);
     registerMyDeploymentsRoutes(app);
+    registerDeployerProfileRoutes(app);
     registerMyDeploymentsClaimRoutes(app);
     registerMyDeploymentsCollectPoolRoutes(app);
     registerAgentCaptchaRoutes(app);

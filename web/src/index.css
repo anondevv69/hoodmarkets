@@ -1011,6 +1011,61 @@ label {
   gap: 0.5rem;
 }
 
+.profile-linked-account {
+  margin-bottom: 1rem;
+  padding: 1rem 1.15rem;
+}
+
+.profile-x-linked,
+.profile-x-unlinked {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.85rem;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+.deployer-profile-page .deployer-profile-hero {
+  margin-bottom: 1rem;
+}
+
+.deployer-profile-handle {
+  font-size: 1.5rem;
+  margin: 0.25rem 0 0;
+}
+
+.deployer-profile-handle a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.deployer-profile-handle a:hover {
+  color: var(--accent);
+}
+
+.deployer-profile-link {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
 /* Launch success */
 .launch-done {
   max-width: 560px;

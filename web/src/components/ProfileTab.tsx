@@ -1,13 +1,16 @@
-import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { useEffect, useMemo, useState } from 'react';
-import { fetchMyDeployments, type Deployment } from '../api';
+import { useLinkAccount, usePrivy, useWallets } from '@privy-io/react-auth';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { fetchMyDeployerProfile, type Deployment } from '../api';
 import { shortenAddress } from '../chain';
 import { formatUsdVol } from '../lib/dexscreenerVolume';
-import { TokenCard } from './TokenCard';
 import {
   fetchTokenMetricsFromDexscreener,
   type DexTokenMetrics,
 } from '../lib/dexscreenerVolume';
+import { openDeployerProfile } from '../lib/deployerProfileRoute';
+import { hasTwitterLinked, twitterUsernameFromPrivyUser } from '../lib/privyLinkedAccounts';
+import { xProfileUrl } from '../lib/requesterXDisplay';
+import { TokenCard } from './TokenCard';
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
@@ -21,26 +24,55 @@ function StatCard({ label, value }: { label: string; value: string }) {
 function goLaunch() {
   const url = new URL(window.location.href);
   url.searchParams.delete('token');
+  url.searchParams.delete('profile');
+  url.searchParams.delete('user');
   url.searchParams.set('tab', 'launch');
   window.history.pushState({}, '', url);
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
 export function ProfileTab() {
-  const { ready, authenticated, login, logout, getAccessToken } = usePrivy();
+  const { ready, authenticated, login, logout, getAccessToken, user } = usePrivy();
+  const { linkTwitter } = useLinkAccount();
   const { wallets } = useWallets();
   const [tokens, setTokens] = useState<Deployment[]>([]);
+  const [totalLaunchCount, setTotalLaunchCount] = useState(0);
+  const [xLaunchCount, setXLaunchCount] = useState(0);
+  const [walletLaunchCount, setWalletLaunchCount] = useState(0);
   const [metricsByAddress, setMetricsByAddress] = useState<
     Record<string, DexTokenMetrics | undefined>
   >({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [linkingX, setLinkingX] = useState(false);
 
   const walletAddress = wallets[0]?.address;
+  const linkedX = twitterUsernameFromPrivyUser(user);
+  const xIsLinked = hasTwitterLinked(user);
+
+  const loadProfile = useCallback(async () => {
+    const token = await getAccessToken();
+    if (!token) throw new Error('Not signed in');
+    const profile = await fetchMyDeployerProfile(token, walletAddress);
+    setTokens(profile.deployments);
+    setTotalLaunchCount(profile.totalLaunchCount);
+    setXLaunchCount(profile.xLaunchCount);
+    setWalletLaunchCount(profile.walletLaunchCount);
+    const addresses = profile.deployments.map((r) => r.tokenAddress);
+    if (addresses.length > 0) {
+      const metrics = await fetchTokenMetricsFromDexscreener(addresses);
+      setMetricsByAddress(metrics);
+    } else {
+      setMetricsByAddress({});
+    }
+  }, [getAccessToken, walletAddress]);
 
   useEffect(() => {
     if (!authenticated) {
       setTokens([]);
+      setTotalLaunchCount(0);
+      setXLaunchCount(0);
+      setWalletLaunchCount(0);
       return;
     }
 
@@ -49,16 +81,7 @@ export function ProfileTab() {
       setLoading(true);
       setError(null);
       try {
-        const token = await getAccessToken();
-        if (!token) throw new Error('Not signed in');
-        const rows = await fetchMyDeployments(token, walletAddress);
-        if (cancelled) return;
-        setTokens(rows);
-        const addresses = rows.map((r) => r.tokenAddress);
-        if (addresses.length > 0) {
-          const metrics = await fetchTokenMetricsFromDexscreener(addresses);
-          if (!cancelled) setMetricsByAddress(metrics);
-        }
+        await loadProfile();
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load profile');
       } finally {
@@ -69,7 +92,7 @@ export function ProfileTab() {
     return () => {
       cancelled = true;
     };
-  }, [authenticated, getAccessToken, walletAddress]);
+  }, [authenticated, loadProfile, user?.id]);
 
   const combinedMcap = useMemo(() => {
     let sum = 0;
@@ -81,6 +104,11 @@ export function ProfileTab() {
     return sum;
   }, [tokens, metricsByAddress]);
 
+  const handleLinkX = () => {
+    setLinkingX(true);
+    linkTwitter();
+  };
+
   if (!ready) return <p className="muted">Loading…</p>;
 
   if (!authenticated) {
@@ -90,7 +118,9 @@ export function ProfileTab() {
           👤
         </div>
         <p className="empty-state-title">Sign in to see your launches</p>
-        <p className="muted empty-state-sub">Your deployed tokens and fee wallets appear here.</p>
+        <p className="muted empty-state-sub">
+          Your deployed tokens, fee wallets, and X launches appear here.
+        </p>
         <button type="button" className="btn btn-primary" onClick={login} style={{ marginTop: '1rem' }}>
           Sign in
         </button>
@@ -109,9 +139,54 @@ export function ProfileTab() {
         </button>
       </div>
 
-      {tokens.length > 0 ? (
+      <div className="lp-card profile-linked-account">
+        <p className="section-label">X account</p>
+        {xIsLinked && linkedX ? (
+          <div className="profile-x-linked">
+            <a
+              href={xProfileUrl(linkedX)}
+              target="_blank"
+              rel="noreferrer"
+              className="lp-display"
+            >
+              @{linkedX}
+            </a>
+            <p className="muted token-fee-note">
+              {xLaunchCount === 1
+                ? '1 launch on hood.markets attributed to this X handle'
+                : `${xLaunchCount} launches on hood.markets attributed to this X handle`}
+            </p>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => openDeployerProfile(linkedX)}
+            >
+              View public profile
+            </button>
+          </div>
+        ) : (
+          <div className="profile-x-unlinked">
+            <p className="muted">
+              Link your X account to see Bankr / @bankrbot launches and a public deployer profile.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleLinkX}
+              disabled={linkingX}
+            >
+              {linkingX ? 'Opening X…' : 'Link X account'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {totalLaunchCount > 0 || walletLaunchCount > 0 ? (
         <div className="profile-stats">
-          <StatCard label="Tokens launched" value={String(tokens.length)} />
+          <StatCard label="Tokens launched" value={String(totalLaunchCount)} />
+          {xIsLinked && xLaunchCount !== totalLaunchCount ? (
+            <StatCard label="Via website wallet" value={String(walletLaunchCount)} />
+          ) : null}
           <StatCard
             label="Combined market cap"
             value={combinedMcap > 0 ? formatUsdVol(combinedMcap) : '—'}

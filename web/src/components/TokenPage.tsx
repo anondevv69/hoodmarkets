@@ -28,6 +28,7 @@ import {
   resolveRequesterXUsername,
   xProfileUrl,
 } from '../lib/requesterXDisplay';
+import { openDeployerProfile } from '../lib/deployerProfileRoute';
 
 export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   const [token, setToken] = useState<TokenDetail | null>(null);
@@ -181,19 +182,30 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
             <div>
               <dt>Requested by</dt>
               <dd>
-                <a
-                  href={xProfileUrl(requesterX)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="lp-display"
+                <button
+                  type="button"
+                  className="btn-link lp-display deployer-profile-link"
+                  onClick={() => openDeployerProfile(requesterX)}
                 >
                   @{requesterX}
-                </a>
+                </button>
+                <span className="muted" style={{ marginLeft: '0.35rem' }}>
+                  ·{' '}
+                  <a href={xProfileUrl(requesterX)} target="_blank" rel="noreferrer">
+                    X
+                  </a>
+                </span>
                 {typeof requesterLaunchCount === 'number' && requesterLaunchCount > 0 ? (
                   <p className="muted token-fee-note">
-                    {requesterLaunchCount === 1
-                      ? '1 token launched on hood.markets'
-                      : `${requesterLaunchCount} tokens launched on hood.markets`}
+                    <button
+                      type="button"
+                      className="btn-link"
+                      onClick={() => openDeployerProfile(requesterX)}
+                    >
+                      {requesterLaunchCount === 1
+                        ? '1 token launched on hood.markets'
+                        : `${requesterLaunchCount} tokens launched on hood.markets`}
+                    </button>
                   </p>
                 ) : null}
               </dd>
