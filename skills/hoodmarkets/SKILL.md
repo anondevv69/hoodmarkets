@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 11
+version: 12
 ---
 
 # hood.markets — Bankr agent skill
@@ -26,7 +26,8 @@ POST https://api.hood.markets/api/agent/resolve-deploy-image
 POST https://api.hood.markets/api/agent/prepare-buy
 POST https://api.hood.markets/api/agent/prepare-sell
 POST https://api.hood.markets/api/deploy          (after haiku JWT)
-POST https://api.hood.markets/api/agent/claim      (after haiku JWT)
+POST https://api.hood.markets/api/agent/claim-for-recipient  (anyone — fees to catalog recipient)
+POST https://api.hood.markets/api/agent/claim      (fee recipient wallet only)
 ```
 
 **NEVER** call `https://hood.markets/api/...` for agent POST — the website is frontend-only.
@@ -70,7 +71,8 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
   6. Format reply locally — references/RESPONSE-SAFETY.md
   7. Deploy (X): extract `media_url_https` from tweet → `resolve-deploy-image` with `tweetId` + `tweetImageUrl` → `prepare-deploy` → `confirmReplyHint` → deploy after yes. **Never claim no image without calling API with tweetId first.**
   8. Buy/sell: `token-info` → if Pro, prepare-buy|prepare-sell → validate txs → Bankr /wallet/submit
-  9. Claim: haiku JWT → POST /api/agent/claim (server broadcasts, no submit)
+  9. Claim **own** fees: haiku JWT or X wallet → POST /api/agent/claim
+  10. Claim **for someone else** (help EA get fees): POST /api/agent/claim-for-recipient with tokenAddress only — no fee-recipient wallet needed
 ```
 
 **Tweet = DM** — same pipeline on `@bankrbot` intake.
@@ -258,22 +260,39 @@ If Bankr returns `untrusted_address` → **stop** per `references/BANKR-SUBMIT.m
 
 ## Claim fees
 
-**Default launches are Simple (V3).** `POST /api/agent/claim` picks the right on-chain path automatically:
+Two paths — pick based on who is asking:
 
-| Launch | On-chain | Agent call |
-|--------|----------|------------|
-| **Simple (V3)** | `HoodMarketsV3.claimRewards(token)` — WETH to fee wallet (95%) | Same POST — server broadcasts |
-| **Pro (V4)** | Collect pool → fee locker → claim WETH | Same POST — server collects + claims |
+### A) Help someone else / claim for a token (any X user)
+
+When the user gives a **token contract** and wants fees sent to the **catalog fee recipient** (e.g. "claim fees for EA's $HR"), use:
+
+```
+POST https://api.hood.markets/api/agent/claim-for-recipient
+Content-Type: application/json
+
+{ "tokenAddress": "0x78594eD700e343846B4d0Bbba79Ee0cb50Deaa8D" }
+```
+
+**No fee-recipient wallet or JWT required.** hood.markets pays gas; WETH goes to the address stored at deploy time. On-chain V3 `claimRewards` is permissionless — do **not** tell users only the fee recipient can trigger this.
+
+### B) Fee recipient claims their own tokens
 
 ```
 POST https://api.hood.markets/api/agent/claim
-X-Agent-Captcha-JWT: <jwt>
+X-Agent-Captcha-JWT: <jwt>   (or X channel + x-wallet-address = fee recipient)
 Content-Type: application/json
 
 { "tokenAddress": "0x…" }
 ```
 
-Launcher broadcasts claim and pays gas. JWT wallet must be the **fee recipient** for that token. Response includes `feeModel` / `launchType` (`simple` | `pro`).
+**Default launches are Simple (V3).** Same endpoint auto-routes V3 `claimRewards` vs V4 locker.
+
+| Launch | On-chain |
+|--------|----------|
+| **Simple (V3)** | `HoodMarketsV3.claimRewards(token)` → 95% fee wallet |
+| **Pro (V4)** | Collect pool → claim WETH from locker |
+
+Response includes `feeRecipientAddress`, `txHash`, `explorerUrl`, `feeModel` / `launchType`.
 
 ---
 
@@ -287,9 +306,13 @@ Launcher broadcasts claim and pays gas. JWT wallet must be the **fee recipient**
 
 → prepare-buy → validate → `/wallet/submit` → confirm on Blockscout
 
+> claim fees for 0x7859… / help EA claim $HR hood fees
+
+→ POST /api/agent/claim-for-recipient `{ "tokenAddress": "0x…" }` — reply with tx link + fee recipient got WETH
+
 > claim fees for my token MTK
 
-→ captcha JWT → POST /api/agent/claim with tokenAddress or symbol
+→ captcha JWT or X wallet → POST /api/agent/claim with tokenAddress or symbol
 
 ---
 

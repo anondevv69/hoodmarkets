@@ -28,6 +28,7 @@ import { registerMyDeploymentsCollectPoolRoutes } from './routes/myDeploymentsCo
 import { registerDeploymentFeeActionRoutes } from './routes/deploymentFeeActions.js';
 import { registerAgentClaimCalldataRoutes } from './routes/agentClaimCalldata.js';
 import { registerAgentClaimRoutes } from './routes/agentClaim.js';
+import { registerAgentClaimForRecipientRoutes } from './routes/agentClaimForRecipient.js';
 import { registerAgentCaptchaRoutes } from './routes/agentCaptcha.js';
 import { registerZeroExSwapRoutes } from './routes/zeroexSwap.js';
 import { registerBotSwapRoutes } from './routes/botSwap.js';
@@ -200,6 +201,7 @@ async function main() {
     registerWebDeployRoutes(app, deployer, neynar);
     registerAgentClaimCalldataRoutes(app);
     registerAgentClaimRoutes(app);
+    registerAgentClaimForRecipientRoutes(app);
     registerResolveSourceRoutes(app, neynar);
     registerDeploymentCatalogRoutes(app);
     registerDeploymentFeeActionRoutes(app);
