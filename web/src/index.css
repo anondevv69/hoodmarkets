@@ -460,6 +460,10 @@ label {
   color: var(--text);
 }
 
+.token-avatar-wrap {
+  flex-shrink: 0;
+}
+
 .token-avatar {
   width: 44px;
   height: 44px;
@@ -479,6 +483,7 @@ label {
 .token-avatar-img {
   object-fit: cover;
   display: block;
+  border-radius: 10px;
 }
 
 .token-card-title-row {

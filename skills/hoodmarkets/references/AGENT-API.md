@@ -239,9 +239,11 @@ Content-Type: application/json
 { "tokenAddress": "0x78594eD700e343846B4d0Bbba79Ee0cb50Deaa8D" }
 ```
 
-No JWT. Use when user says "claim fees for EA's token" or gives a contract without being the fee wallet.
+No JWT. **Do not call Bankr `/wallet/submit`** — hood.markets broadcasts the claim.
 
-Response: `ok`, `txHash`, `explorerUrl`, `feeRecipientAddress`, `tokenSymbol`, `feeModel`, `launchType`, `tokenPageUrl`.
+Response: `ok`, `serverBroadcast: true`, **`claimReplyHint`** (use as success reply), `txHash`, `explorerUrl`, `feeRecipientAddress`, `tokenName`, `tokenSymbol`, `feeModel`, `launchType`, `tokenPageUrl`, optional `feeAmountEth`.
+
+**If `ok: true`, claim succeeded** — post `claimReplyHint` even though Bankr did not sign a wallet tx.
 
 ---
 
@@ -265,7 +267,9 @@ Content-Type: application/json
 }
 ```
 
-Success includes `feeModel` (`v3`|`v4`), `launchType` (`simple`|`pro`), `txHash`, `explorerUrl`.
+Success includes `feeModel` (`v3`|`v4`), `launchType` (`simple`|`pro`), `txHash`, `explorerUrl`, **`claimReplyHint`**, `serverBroadcast: true`.
+
+**No Bankr `/wallet/submit`.** Post `claimReplyHint` when `ok: true`.
 
 ---
 

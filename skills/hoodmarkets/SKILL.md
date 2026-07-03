@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 12
+version: 13
 ---
 
 # hood.markets — Bankr agent skill
@@ -73,6 +73,7 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
   8. Buy/sell: `token-info` → if Pro, prepare-buy|prepare-sell → validate txs → Bankr /wallet/submit
   9. Claim **own** fees: haiku JWT or X wallet → POST /api/agent/claim
   10. Claim **for someone else** (help EA get fees): POST /api/agent/claim-for-recipient with tokenAddress only — no fee-recipient wallet needed
+  11. **Claim success:** if API returns `ok: true` + `claimReplyHint`, post that hint — hood.markets already broadcast the tx (`serverBroadcast: true`). **Never** use Bankr `/wallet/submit` for claims. **Never** say "I didn't submit a transaction" when `ok: true`.
 ```
 
 **Tweet = DM** — same pipeline on `@bankrbot` intake.
@@ -273,7 +274,11 @@ Content-Type: application/json
 { "tokenAddress": "0x78594eD700e343846B4d0Bbba79Ee0cb50Deaa8D" }
 ```
 
-**No fee-recipient wallet or JWT required.** hood.markets pays gas; WETH goes to the address stored at deploy time. On-chain V3 `claimRewards` is permissionless — do **not** tell users only the fee recipient can trigger this.
+**No JWT. No Bankr `/wallet/submit`.** hood.markets server broadcasts and pays gas.
+
+Response: `ok`, `serverBroadcast: true`, `claimReplyHint` (post as-is on success), `txHash`, `feeRecipientAddress`, `tokenName`, `tokenSymbol`, `feeModel`, `tokenPageUrl`.
+
+If `ok: true`, the claim succeeded even though Bankr did not sign a wallet transaction.
 
 ### B) Fee recipient claims their own tokens
 
@@ -308,11 +313,11 @@ Response includes `feeRecipientAddress`, `txHash`, `explorerUrl`, `feeModel` / `
 
 > claim fees for 0x7859… / help EA claim $HR hood fees
 
-→ POST /api/agent/claim-for-recipient `{ "tokenAddress": "0x…" }` — reply with tx link + fee recipient got WETH
+→ POST /api/agent/claim-for-recipient `{ "tokenAddress": "0x…" }` — if `ok: true`, reply with **`claimReplyHint`** from JSON (do not require Bankr wallet submit)
 
 > claim fees for my token MTK
 
-→ captcha JWT or X wallet → POST /api/agent/claim with tokenAddress or symbol
+→ captcha JWT or X wallet → POST /api/agent/claim — if `ok: true`, reply with **`claimReplyHint`**
 
 ---
 
