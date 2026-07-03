@@ -33,7 +33,6 @@ function goLaunch() {
 
 export function ProfileTab() {
   const { ready, authenticated, login, logout, getAccessToken, user } = usePrivy();
-  const { linkTwitter } = useLinkAccount();
   const { wallets } = useWallets();
   const [tokens, setTokens] = useState<Deployment[]>([]);
   const [totalLaunchCount, setTotalLaunchCount] = useState(0);
@@ -45,6 +44,18 @@ export function ProfileTab() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [linkingX, setLinkingX] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  const { linkTwitter } = useLinkAccount({
+    onSuccess: () => {
+      setLinkingX(false);
+      setLinkError(null);
+    },
+    onError: (err) => {
+      setLinkingX(false);
+      setLinkError(typeof err === 'string' ? err : 'Could not link X account. Try again.');
+    },
+  });
 
   const walletAddress = wallets[0]?.address;
   const linkedX = twitterUsernameFromPrivyUser(user);
@@ -104,9 +115,19 @@ export function ProfileTab() {
     return sum;
   }, [tokens, metricsByAddress]);
 
+  useEffect(() => {
+    if (xIsLinked) setLinkingX(false);
+  }, [xIsLinked]);
+
   const handleLinkX = () => {
+    setLinkError(null);
     setLinkingX(true);
-    linkTwitter();
+    try {
+      linkTwitter();
+    } catch (e) {
+      setLinkingX(false);
+      setLinkError(e instanceof Error ? e.message : 'Could not open X linking.');
+    }
   };
 
   if (!ready) return <p className="muted">Loading…</p>;
@@ -169,14 +190,18 @@ export function ProfileTab() {
             <p className="muted">
               Link your X account to see Bankr / @bankrbot launches and a public deployer profile.
             </p>
+            <p className="muted token-fee-note">
+              Opens an X authorization popup. Allow popups for hood.markets if nothing appears.
+            </p>
             <button
               type="button"
               className="btn btn-primary"
               onClick={handleLinkX}
               disabled={linkingX}
             >
-              {linkingX ? 'Opening X…' : 'Link X account'}
+              {linkingX ? 'Waiting for X…' : 'Link X account'}
             </button>
+            {linkError ? <p className="error" style={{ marginTop: '0.75rem' }}>{linkError}</p> : null}
           </div>
         )}
       </div>

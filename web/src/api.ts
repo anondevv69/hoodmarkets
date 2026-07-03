@@ -505,6 +505,7 @@ export interface ClaimFeesResult {
 export interface TokenFeeStatus {
   feeRecipientAddress: string;
   platformFees: boolean;
+  feeModel: 'v3' | 'v4';
   pendingWethWei: string;
   pendingWethHuman: string;
   feeClaimedAt?: string;

@@ -2,6 +2,11 @@ import type { Express, Request, Response } from 'express';
 import { BASE_WETH } from '../lib/liquidFactoryDeploy.js';
 import { claimWethTradingFeesForFeeOwner } from '../lib/feeLockerClaim.js';
 import {
+  claimV3RewardsForToken,
+  friendlyV3ClaimError,
+  isV3CatalogDeployment,
+} from '../lib/hoodmarketsV3Fees.js';
+import {
   getDeploymentCatalogRowForPrivyClaimAuth,
   markDeploymentFeeClaimed,
 } from '../lib/deploymentCatalog.js';
@@ -59,6 +64,21 @@ export function registerMyDeploymentsClaimRoutes(app: Express): void {
       const launchedToken = tokenAddress as `0x${string}`;
       const claimAsset = BASE_WETH;
 
+      if (isV3CatalogDeployment(target)) {
+        const out = await claimV3RewardsForToken(launchedToken);
+        await markDeploymentFeeClaimed(tokenAddress, out.txHash);
+        res.json({
+          ok: true,
+          txHash: out.txHash,
+          basescanUrl: out.basescanUrl,
+          feeModel: 'v3',
+          feeOwner,
+          token: launchedToken,
+          message: out.message,
+        });
+        return;
+      }
+
       const claimed = await claimWethTradingFeesForFeeOwner(feeOwner);
       if (!claimed.ok) {
         res.status(400).json({
@@ -90,7 +110,10 @@ export function registerMyDeploymentsClaimRoutes(app: Express): void {
         message: `Claim broadcasted. ${feeHuman.toFixed(6)} ETH (WETH) claimed for ${feeOwner}.`,
       });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Claim failed';
+      const raw = e instanceof Error ? e.message : 'Claim failed';
+      const msg = /execution reverted|revert/i.test(raw.toLowerCase())
+        ? friendlyV3ClaimError(raw)
+        : raw;
       const status = /authorization|bearer|access token|privy/i.test(msg) ? 401 : 500;
       res.status(status).json({ error: msg });
     }

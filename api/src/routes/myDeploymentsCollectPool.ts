@@ -1,9 +1,14 @@
 import type { Express, Request, Response } from 'express';
-import { getDeploymentCatalogRowForPrivyClaimAuth } from '../lib/deploymentCatalog.js';
+import { getDeploymentCatalogRowForPrivyClaimAuth, markDeploymentFeeClaimed } from '../lib/deploymentCatalog.js';
 import {
   collectPoolFeesForLaunchedToken,
   friendlyCollectPoolError,
 } from '../lib/deploymentFeeActions.js';
+import {
+  claimV3RewardsForToken,
+  friendlyV3ClaimError,
+  isV3CatalogDeployment,
+} from '../lib/hoodmarketsV3Fees.js';
 import { verifyPrivyBearerToken } from '../lib/privyAccessToken.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 
@@ -45,11 +50,21 @@ export function registerMyDeploymentsCollectPoolRoutes(app: Express): void {
         return;
       }
 
-      const out = await collectPoolFeesForLaunchedToken(tokenAddress as `0x${string}`);
-      res.json({ ok: true, ...out });
+      const tok = tokenAddress as `0x${string}`;
+      if (isV3CatalogDeployment(row)) {
+        const out = await claimV3RewardsForToken(tok);
+        await markDeploymentFeeClaimed(tokenAddress, out.txHash);
+        res.json({ ok: true, ...out, feeModel: 'v3' });
+        return;
+      }
+
+      const out = await collectPoolFeesForLaunchedToken(tok);
+      res.json({ ok: true, ...out, feeModel: 'v4' });
     } catch (e: unknown) {
       const raw = e instanceof Error ? e.message : 'Collect failed';
-      const msg = friendlyCollectPoolError(raw);
+      const msg = /execution reverted|revert/i.test(raw.toLowerCase())
+        ? friendlyV3ClaimError(raw)
+        : friendlyCollectPoolError(raw);
       const status = /authorization|bearer|access token|privy/i.test(raw)
         ? 401
         : /execution reverted|revert/i.test(raw.toLowerCase())
