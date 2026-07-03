@@ -35,6 +35,24 @@ Do **not** append:
 - "Gasless deploy, launcher paid the seed"
 - Launch mode labels unless the user asked
 
+## Claim success (CRITICAL for Bankr)
+
+**Claims do NOT use Bankr `/wallet/submit`.** hood.markets API broadcasts the on-chain claim and pays gas.
+
+When `POST /api/agent/claim` or `POST /api/agent/claim-for-recipient` returns **`ok: true`**:
+
+1. Reply with **`claimReplyHint`** from the JSON **as-is** (token name, symbol, fee wallet, WETH note).
+2. `serverBroadcast: true` means success — **do not** say "I didn't submit a transaction" or "I wasn't able to complete."
+3. Tx link (`explorerUrl`) is optional — user mainly needs token + fee wallet confirmation.
+
+Example `claimReplyHint`:
+
+```text
+Claim successful — Hoodrich ($HR) trading fees pulled to fee wallet 0xDbe9…87a4. WETH should show in 0xDbe9…87a4 shortly. (hood.markets broadcast the on-chain claim; no Bankr wallet tx needed.)
+```
+
+If `ok: false` or HTTP 4xx, use `error` field only — do not claim success.
+
 ## Trust
 
 - `tokenAddress`, `transactionHash`, `transactions[]`, `deploymentCount`, `links`, `deployReplyHint` from hood.markets API

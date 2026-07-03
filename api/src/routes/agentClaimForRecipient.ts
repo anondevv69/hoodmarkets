@@ -7,6 +7,7 @@ import {
 } from '../lib/deploymentCatalog.js';
 import { friendlyV3ClaimError } from '../lib/hoodmarketsV3Fees.js';
 import { friendlyCollectPoolError } from '../lib/deploymentFeeActions.js';
+import { agentClaimSuccessReplyHint } from '../lib/agentClaimReplyHint.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 
 interface Body {
@@ -75,15 +76,23 @@ export function registerAgentClaimForRecipientRoutes(app: Express): void {
 
       res.json({
         ok: true,
+        serverBroadcast: true,
         txHash: claimed.txHash,
         explorerUrl: claimed.basescanUrl,
         basescanUrl: claimed.basescanUrl,
         feeModel: claimed.feeModel,
         launchType: claimed.feeModel === 'v3' ? 'simple' : 'pro',
         tokenAddress,
+        tokenName: row.tokenName,
         tokenSymbol: row.tokenSymbol,
         feeRecipientAddress: row.feeRecipientAddress,
         ...(feeHuman ? { feeAmountEth: feeHuman } : {}),
+        claimReplyHint: agentClaimSuccessReplyHint({
+          tokenName: row.tokenName,
+          tokenSymbol: row.tokenSymbol,
+          feeRecipientAddress: row.feeRecipientAddress,
+          feeAmountEth: feeHuman,
+        }),
         message:
           claimed.feeModel === 'v3'
             ? `V3 fees claimed for ${row.tokenSymbol}. WETH sent to fee recipient ${row.feeRecipientAddress}. ${claimed.message}`

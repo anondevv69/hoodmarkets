@@ -19,8 +19,8 @@
     "Deploy via API agent: preflight-deploy → prepare-deploy → haiku captcha → POST /api/deploy",
     "Buy/sell: token-info (V3 vs Pro) → Pro: prepare-buy|prepare-sell → Bankr submit chainId 4663",
     "Simple (V3) tokens: trade on Uniswap — see streaming-hints.json and token-info",
-    "Claim for someone: POST /api/agent/claim-for-recipient { tokenAddress } (no wallet)",
-    "Claim own fees: haiku JWT or X wallet → POST /api/agent/claim",
+    "Claim for someone: POST /api/agent/claim-for-recipient { tokenAddress } — ok:true → post claimReplyHint (no Bankr submit)",
+    "Claim own fees: haiku JWT or X wallet → POST /api/agent/claim — ok:true → post claimReplyHint",
     "Validate swap txs per references/TX-VALIDATION.md and known-contracts.json"
   ],
   "install": {

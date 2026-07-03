@@ -79,24 +79,30 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
     (async () => {
       setLoading(true);
       setError(null);
+      setToken(null);
       setDescription(undefined);
+      setMetrics(undefined);
       try {
         const row = await fetchDeploymentByAddress(tokenAddress);
         if (cancelled) return;
         setToken(row);
         const catalogDesc = row.tokenDescription?.trim();
-        if (catalogDesc) {
-          setDescription(catalogDesc);
-        } else {
-          const onChainDesc = await fetchTokenDescriptionFromChain(tokenAddress);
-          if (!cancelled) setDescription(onChainDesc);
-        }
-        const m = await fetchTokenMetricsFromDexscreener([row.tokenAddress]);
-        if (!cancelled) setMetrics(m[row.tokenAddress]);
+        if (catalogDesc) setDescription(catalogDesc);
+        setLoading(false);
+
+        void (async () => {
+          if (!catalogDesc) {
+            const onChainDesc = await fetchTokenDescriptionFromChain(tokenAddress);
+            if (!cancelled) setDescription(onChainDesc);
+          }
+          const m = await fetchTokenMetricsFromDexscreener([row.tokenAddress]);
+          if (!cancelled) setMetrics(m[row.tokenAddress]);
+        })();
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load token');
-      } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'Failed to load token');
+          setLoading(false);
+        }
       }
     })();
     return () => {

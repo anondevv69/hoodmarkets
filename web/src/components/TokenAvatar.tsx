@@ -20,31 +20,51 @@ export function TokenAvatar({
 }) {
   const candidates = useMemo(() => buildTokenImageCandidates(imageUrl), [imageUrl]);
   const [candidateIndex, setCandidateIndex] = useState(0);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     setCandidateIndex(0);
+    setLoaded(false);
   }, [imageUrl]);
-  const src = candidates[candidateIndex];
 
-  if (src && candidateIndex < candidates.length) {
-    return (
-      <img
-        src={src}
-        alt=""
-        className="token-avatar token-avatar-img"
-        width={size}
-        height={size}
-        loading={priority ? 'eager' : 'lazy'}
-        fetchPriority={priority ? 'high' : 'auto'}
-        decoding="async"
-        onError={() => setCandidateIndex((i) => i + 1)}
-      />
-    );
-  }
+  const src = candidates[candidateIndex];
+  const showImage = !!src && candidateIndex < candidates.length;
 
   return (
-    <div className="token-avatar" style={{ width: size, height: size, fontSize: size * 0.36 }}>
-      {initials(symbol)}
+    <div
+      className="token-avatar-wrap"
+      style={{ width: size, height: size, position: 'relative', flexShrink: 0 }}
+    >
+      <div
+        className="token-avatar"
+        style={{ width: size, height: size, fontSize: size * 0.36 }}
+        aria-hidden={showImage && loaded}
+      >
+        {initials(symbol)}
+      </div>
+      {showImage ? (
+        <img
+          src={src}
+          alt=""
+          className="token-avatar token-avatar-img"
+          width={size}
+          height={size}
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
+          decoding="async"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            opacity: loaded ? 1 : 0,
+            transition: 'opacity 0.15s ease',
+          }}
+          onLoad={() => setLoaded(true)}
+          onError={() => {
+            setLoaded(false);
+            setCandidateIndex((i) => i + 1);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
