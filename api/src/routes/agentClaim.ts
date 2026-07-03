@@ -8,7 +8,7 @@ import { BASE_WETH } from '../lib/liquidFactoryDeploy.js';
 import { ROBINHOOD_CHAIN_ID } from '../lib/robinhoodChain.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 import { resolveAgentWalletAuth } from '../lib/agentWalletDeployAuth.js';
-import { agentClaimSuccessReplyHint } from '../lib/agentClaimReplyHint.js';
+import { agentClaimSuccessAgentFields, agentClaimSuccessReplyHint } from '../lib/agentClaimReplyHint.js';
 
 interface ClaimBody {
   tokenAddress?: string;
@@ -106,12 +106,18 @@ export function registerAgentClaimRoutes(app: Express): void {
         claimed.feeAmountWei > 0n
           ? (Number(claimed.feeAmountWei) / 1e18).toFixed(6)
           : undefined;
+      const claimReplyHint = agentClaimSuccessReplyHint({
+        tokenName: resolved.row.tokenName,
+        tokenSymbol: resolved.row.tokenSymbol,
+        feeRecipientAddress: walletFromCaptcha,
+        feeAmountEth: feeAmountEth,
+      });
 
       await markDeploymentFeeClaimed(launchedToken, claimed.txHash);
 
       res.json({
         ok: true,
-        serverBroadcast: true,
+        ...agentClaimSuccessAgentFields(claimReplyHint, claimed.txHash),
         chainId: ROBINHOOD_CHAIN_ID,
         txHash: claimed.txHash,
         explorerUrl: claimed.basescanUrl,
@@ -125,12 +131,6 @@ export function registerAgentClaimRoutes(app: Express): void {
         tokenSymbol: resolved.row.tokenSymbol,
         tokenName: resolved.row.tokenName,
         claimAsset,
-        claimReplyHint: agentClaimSuccessReplyHint({
-          tokenName: resolved.row.tokenName,
-          tokenSymbol: resolved.row.tokenSymbol,
-          feeRecipientAddress: walletFromCaptcha,
-          feeAmountEth: feeAmountEth,
-        }),
         message:
           claimed.feeModel === 'v3'
             ? `V3 swap fees claimed for ${resolved.row.tokenSymbol} — WETH sent to ${walletFromCaptcha}. ${claimed.message}`

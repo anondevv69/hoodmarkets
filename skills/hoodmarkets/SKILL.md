@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 13
+version: 14
 ---
 
 # hood.markets — Bankr agent skill
@@ -73,7 +73,7 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
   8. Buy/sell: `token-info` → if Pro, prepare-buy|prepare-sell → validate txs → Bankr /wallet/submit
   9. Claim **own** fees: haiku JWT or X wallet → POST /api/agent/claim
   10. Claim **for someone else** (help EA get fees): POST /api/agent/claim-for-recipient with tokenAddress only — no fee-recipient wallet needed
-  11. **Claim success:** if API returns `ok: true` + `claimReplyHint`, post that hint — hood.markets already broadcast the tx (`serverBroadcast: true`). **Never** use Bankr `/wallet/submit` for claims. **Never** say "I didn't submit a transaction" when `ok: true`.
+  11. **Claim success:** if API returns `ok: true`, post **`replyHint`** verbatim (same as deploy). Fields: `completed: true`, `bankrWalletSubmitRequired: false`. **Never** `/wallet/submit`. **Never** say "I didn't submit a transaction" when `ok: true`. Read `references/CLAIM-BANKR.md`.
 ```
 
 **Tweet = DM** — same pipeline on `@bankrbot` intake.
@@ -276,9 +276,9 @@ Content-Type: application/json
 
 **No JWT. No Bankr `/wallet/submit`.** hood.markets server broadcasts and pays gas.
 
-Response: `ok`, `serverBroadcast: true`, `claimReplyHint` (post as-is on success), `txHash`, `feeRecipientAddress`, `tokenName`, `tokenSymbol`, `feeModel`, `tokenPageUrl`.
+Response: `ok`, `replyHint` (**post this** — same text as `claimReplyHint`), `completed`, `bankrWalletSubmitRequired: false`, `transactionHash`, `feeRecipientAddress`, `tokenName`, `tokenSymbol`, `tokenPageUrl`.
 
-If `ok: true`, the claim succeeded even though Bankr did not sign a wallet transaction.
+If `ok: true`, the claim succeeded — post `replyHint`. Do not check Bankr wallet submit.
 
 ### B) Fee recipient claims their own tokens
 
@@ -313,11 +313,11 @@ Response includes `feeRecipientAddress`, `txHash`, `explorerUrl`, `feeModel` / `
 
 > claim fees for 0x7859… / help EA claim $HR hood fees
 
-→ POST /api/agent/claim-for-recipient `{ "tokenAddress": "0x…" }` — if `ok: true`, reply with **`claimReplyHint`** from JSON (do not require Bankr wallet submit)
+→ POST /api/agent/claim-for-recipient `{ "tokenAddress": "0x…" }` — if `ok: true`, reply with **`replyHint`** only
 
 > claim fees for my token MTK
 
-→ captcha JWT or X wallet → POST /api/agent/claim — if `ok: true`, reply with **`claimReplyHint`**
+→ captcha JWT or X wallet → POST /api/agent/claim — if `ok: true`, reply with **`replyHint`**
 
 ---
 
@@ -327,6 +327,7 @@ Response includes `feeRecipientAddress`, `txHash`, `explorerUrl`, `feeModel` / `
 |------|---------|
 | `references/API-HOST.md` | Correct API base URL + allowlist |
 | `references/AGENT-API.md` | Endpoint reference |
+| `references/CLAIM-BANKR.md` | Claim success without Bankr wallet submit |
 | `references/TX-VALIDATION.md` | Validate txs before Bankr submit |
 | `references/BANKR-SUBMIT.md` | Bankr security scan rules |
 | `references/RESPONSE-SAFETY.md` | Format replies locally |
