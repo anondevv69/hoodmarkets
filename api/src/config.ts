@@ -623,7 +623,8 @@ export const config = {
       process.env.AGENT_DEPLOY_SKIP_CAPTCHA_CHANNELS || 'x,twitter',
     ),
     /**
-     * Free server-side launches via X/Bankr (`agentChannel: x`) per Eastern calendar day per wallet.
+     * Max server-side launches via X/Bankr (`agentChannel: x`) per Eastern calendar day per wallet.
+     * Over limit → HTTP 409 with today's token + reset time; users deploy more at hood.markets.
      * `0` = unlimited. Env: `AGENT_X_MAX_DEPLOYS_PER_EASTERN_DAY` (default 1).
      */
     maxXDeploysPerEasternDay: (() => {
@@ -687,9 +688,8 @@ export const config = {
   },
 
   /**
-   * Agent deploy without EIP-191: native ETH to this treasury on **Robinhood Chain** from `agentFeeRecipient`.
-   * When set, X/Bankr launches over the daily free cap return HTTP 402 until `paymentTxHash` is sent.
-   * Env: `AGENT_DEPLOY_PAYMENT_TREASURY`, optional `AGENT_DEPLOY_PAYMENT_WEI` (default pool seed + gas buffer).
+   * Legacy agent deploy payment treasury (Robinhood ETH). X/Bankr daily cap is now a hard block (409);
+   * paid relaunches on X are disabled — users deploy at hood.markets instead.
    */
   agentDeployPayment: {
     treasury: (process.env.AGENT_DEPLOY_PAYMENT_TREASURY || '').trim(),

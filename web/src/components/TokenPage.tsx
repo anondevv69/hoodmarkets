@@ -24,6 +24,10 @@ import { TokenSocialLinks } from './TokenSocialLinks';
 import { TradingLinksRow } from './TradingLinksRow';
 import { LaunchTweetEmbed } from './LaunchTweetEmbed';
 import { resolveTokenLaunchTweetUrl } from '../lib/launchTweet';
+import {
+  resolveRequesterXUsername,
+  xProfileUrl,
+} from '../lib/requesterXDisplay';
 
 export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   const [token, setToken] = useState<TokenDetail | null>(null);
@@ -97,8 +101,18 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
     clientKind: token.clientKind,
     agentMetadata: token.agentMetadata,
     deployerId: token.deployerId,
+    requesterXUsername: token.requesterXUsername,
+    sourceUrl: token.sourceUrl,
   });
   const launchTweetUrl = resolveTokenLaunchTweetUrl(token);
+  const requesterX = resolveRequesterXUsername({
+    requesterXUsername: token.requesterXUsername,
+    deployerLabel: token.deployerLabel,
+    agentMetadata: token.agentMetadata,
+    sourceUrl: token.sourceUrl,
+  });
+  const requesterLaunchCount = token.requesterXLaunchCount;
+  const walletLaunchCount = token.deployerDeploymentCount;
 
   return (
     <div className="token-page lp-fade-in">
@@ -163,6 +177,41 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               ) : null}
             </dd>
           </div>
+          {requesterX ? (
+            <div>
+              <dt>Requested by</dt>
+              <dd>
+                <a
+                  href={xProfileUrl(requesterX)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="lp-display"
+                >
+                  @{requesterX}
+                </a>
+                {typeof requesterLaunchCount === 'number' && requesterLaunchCount > 0 ? (
+                  <p className="muted token-fee-note">
+                    {requesterLaunchCount === 1
+                      ? '1 token launched on hood.markets'
+                      : `${requesterLaunchCount} tokens launched on hood.markets`}
+                  </p>
+                ) : null}
+              </dd>
+            </div>
+          ) : null}
+          {!requesterX && typeof walletLaunchCount === 'number' && walletLaunchCount > 0 ? (
+            <div>
+              <dt>Deployer launches</dt>
+              <dd>
+                <span className="lp-display">{walletLaunchCount}</span>
+                <p className="muted token-fee-note">
+                  {walletLaunchCount === 1
+                    ? 'token from this deployer on hood.markets'
+                    : 'tokens from this deployer on hood.markets'}
+                </p>
+              </dd>
+            </div>
+          ) : null}
           <div className="token-detail-span-2">
             <dt>Fee recipient</dt>
             <dd>

@@ -67,6 +67,10 @@ GET https://api.hood.markets/api/agent/preflight-deploy?wallet=0x…&name=My+Tok
 | `rate_limit_would_force_burn` | Legacy non-web-only mode only — fees → burn |
 | `third_party_rolling_warning` | Recent launch on this wallet — fees may burn |
 
+| `blocks[].code` | User-facing meaning |
+|-----------------|---------------------|
+| `agent_x_daily_limit` | **1 X launch/day used** — `replyHint` + `xDailyLimit.todayToken` + `resetsAtEastern`; send user to hood.markets for more |
+
 `POST` with JSON `{ wallet, name, symbol, launchMode }` also supported.
 
 ---
@@ -116,7 +120,7 @@ Resolves: `tweetImageUrl` → `tweet` object → **syndication API** (`tweetId`/
 
 Returns deploy checklist (server deploy — **no** Bankr submit). Runs **preflight** automatically.
 
-**X / Twitter:** pass `"agentChannel": "x"` and **`tweetUrl`** (status URL of launch tweet) → API resolves logo via oEmbed → `user_confirm` with `confirmSummary`, then deploy.
+**X / Twitter:** pass `"agentChannel": "x"`, **`tweetUrl`** (status URL of launch tweet), and **`xUsername`** (requester's @handle without `@`). API resolves logo via oEmbed → `user_confirm` with `confirmSummary`, then deploy. Token page shows requester + how many tokens they launched on hood.markets.
 
 **Image (required):** pass `tweetUrl` on X (preferred), or `tweetImageUrl`, `imageUrl`, `tweetMedia`, `tweet`, or `tweetText` with inline URL. **400** if missing — use `replyHint`.
 
@@ -130,6 +134,7 @@ Content-Type: application/json
   "symbol": "MTK",
   "launchMode": "simple",
   "agentChannel": "x",
+  "xUsername": "Rayblancoeth",
   "tweetUrl": "https://x.com/Rayblancoeth/status/…",
   "tweetText": "launch My Token $MTK on hoodmarkets"
 }
@@ -137,13 +142,13 @@ Content-Type: application/json
 
 **409** when preflight blocks — use `blocks[0].replyHint` and `blocks[0].existingToken` (token address when ticker/name taken).
 
-**200 response fields:** `steps[]`, `captchaRequired`, `confirmSummary`, `confirmReplyHint` (no launch mode line), `imageUrl`, `imageSource`. The deploy step **`body`** includes **`tweetUrl`** and **`sourceUrl`** when the launch tweet was passed — required for the token page embed.
+**200 response fields:** `steps[]`, `captchaRequired`, `confirmSummary`, `confirmReplyHint` (no launch mode line), `imageUrl`, `imageSource`. The deploy step **`body`** includes **`xUsername`**, **`tweetUrl`**, and **`sourceUrl`** when available — required for token page requester + tweet embed.
 
-**Deploy success:** `POST /api/deploy` returns `deployReplyHint` — post verbatim on X (no DexScreener/simple-mode footer). Token page shows the original launch tweet when `sourceUrl` is stored.
+**Deploy success:** `POST /api/deploy` returns `deployReplyHint` — post verbatim on X (no DexScreener/simple-mode footer). Token page shows **who requested** the launch and their **hood.markets launch count**, plus the original tweet when `sourceUrl` is stored.
 
 ### Deploy — X channel (after user confirms)
 
-Use **`steps[deploy].body`** from prepare-deploy (includes `tweetUrl` when available). Do not strip `tweetUrl` / `sourceUrl`.
+Use **`steps[deploy].body`** from prepare-deploy (includes `xUsername`, `tweetUrl` when available). Do not strip `xUsername`, `tweetUrl`, or `sourceUrl`.
 
 ```http
 POST https://api.hood.markets/api/deploy

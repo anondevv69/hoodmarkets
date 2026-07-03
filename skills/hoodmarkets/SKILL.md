@@ -142,13 +142,23 @@ See **`references/AGENT-API.md`** for bodies and response fields.
 
 Deploy is **gasless for the user** — hood.markets launcher wallet pays gas + launch seed.
 
+### X daily limit (1 launch / day on @bankrbot)
+
+Each Bankr wallet gets **1 subsidized launch per Eastern calendar day** on X (`agentChannel: "x"`). A second attempt the same day returns **409** with:
+
+- `replyHint` — short copy for the tweet reply (use as-is)
+- `xDailyLimit.todayToken` — name, symbol, address, `tokenPageUrl` of today's launch
+- `xDailyLimit.resetsAtEastern` — when the X limit resets (midnight Eastern)
+
+**Do not retry deploy on X after 409.** Tell the user they already launched today, link `todayToken.tokenPageUrl`, and send them to **https://hood.markets** to launch more (sign in + wallet pays gas).
+
 ### On X / Twitter (`agentChannel: "x"`)
 
 1. Pass **`tweetUrl`** (full status URL of the launch tweet) — API pulls the attached photo via oEmbed even when Bankr cannot see media in context.
-2. Optionally also pass `tweetImageUrl`, `tweet`, `tweetMedia`, or `imageUrl` if available in Bankr's payload.
-3. Call `POST /api/agent/prepare-deploy` with `agentChannel: "x"`, wallet, name, symbol, and fields above.
-4. Use **`confirmReplyHint`** from the API as-is for your confirm message (logo + fees only — no launch mode line).
-5. Wait for user **yes/confirm**, then deploy — **no haiku**. Use the **`steps[].body`** from `prepare-deploy` as-is (includes **`tweetUrl`** / **`sourceUrl`** so the launch tweet appears on the token page):
+2. Pass **`xUsername`** (the X @handle of the user who asked to launch — without `@`) so the token page shows who requested it and their launch count. If omitted, API infers from `tweetUrl`.
+3. Optionally also pass `tweetImageUrl`, `tweet`, `tweetMedia`, or `imageUrl` if available in Bankr's payload.
+4. Call `POST /api/agent/prepare-deploy` with `agentChannel: "x"`, wallet, name, symbol, and fields above.
+5. Wait for user **yes/confirm**, then deploy — **no haiku**. Use the **`steps[].body`** from `prepare-deploy` as-is (includes **`xUsername`**, **`tweetUrl`** / **`sourceUrl`** so the token page shows the requester and launch tweet):
 
 ```http
 POST https://api.hood.markets/api/deploy
@@ -165,6 +175,7 @@ Content-Type: application/json
   "agentChannel": "x",
   "launchMode": "simple",
   "imageUrl": "https://…",
+  "xUsername": "user",
   "tweetUrl": "https://x.com/user/status/…",
   "sourceUrl": "https://x.com/user/status/…",
   "wallet": "0x…"
