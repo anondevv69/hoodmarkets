@@ -10,6 +10,11 @@ import {
   getDeploymentByTokenAddress,
   markDeploymentFeeClaimed,
 } from '../lib/deploymentCatalog.js';
+import {
+  claimV3RewardsForToken,
+  friendlyV3ClaimError,
+  isV3CatalogDeployment,
+} from '../lib/hoodmarketsV3Fees.js';
 import { isHoodmarketsPlatformFeeRecipientLabel } from '../lib/platformFeeRecipient.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 
@@ -63,12 +68,16 @@ export function registerDeploymentFeeActionRoutes(app: Express): void {
 
       const platformFees = isHoodmarketsPlatformFeeRecipientLabel(row.feeRecipientLabel);
       const feeOwner = row.feeRecipientAddress as `0x${string}`;
-      const pendingWei = platformFees ? 0n : await readPendingWethFeesForFeeOwner(feeOwner);
+      const feeModel = isV3CatalogDeployment(row) ? 'v3' : 'v4';
+
+      const pendingWei =
+        platformFees || feeModel === 'v3' ? 0n : await readPendingWethFeesForFeeOwner(feeOwner);
       const pendingHuman = Number(pendingWei) / 1e18;
 
       res.json({
         feeRecipientAddress: feeOwner,
         platformFees,
+        feeModel,
         pendingWethWei: pendingWei.toString(),
         pendingWethHuman: pendingHuman.toFixed(6),
         feeClaimedAt: row.feeClaimedAt?.trim() || undefined,
@@ -101,11 +110,25 @@ export function registerDeploymentFeeActionRoutes(app: Express): void {
         return;
       }
 
+      if (isV3CatalogDeployment(row)) {
+        const out = await claimV3RewardsForToken(tokenAddress);
+        await markDeploymentFeeClaimed(tokenAddress, out.txHash);
+        res.json({
+          ok: true,
+          ...out,
+          feeModel: 'v3',
+          feeRecipientAddress: row.feeRecipientAddress,
+        });
+        return;
+      }
+
       const out = await collectPoolFeesForLaunchedToken(tokenAddress);
-      res.json({ ok: true, ...out, feeRecipientAddress: row.feeRecipientAddress });
+      res.json({ ok: true, ...out, feeModel: 'v4', feeRecipientAddress: row.feeRecipientAddress });
     } catch (e: unknown) {
       const raw = e instanceof Error ? e.message : 'Collect failed';
-      const msg = friendlyCollectPoolError(raw);
+      const row = await getDeploymentByTokenAddress(tokenAddress);
+      const msg =
+        row && isV3CatalogDeployment(row) ? friendlyV3ClaimError(raw) : friendlyCollectPoolError(raw);
       const status = /execution reverted|revert/i.test(raw.toLowerCase()) ? 400 : 500;
       res.status(status).json({ error: msg });
     }
@@ -132,6 +155,20 @@ export function registerDeploymentFeeActionRoutes(app: Express): void {
         return;
       }
 
+      if (isV3CatalogDeployment(row)) {
+        const out = await claimV3RewardsForToken(tokenAddress);
+        await markDeploymentFeeClaimed(tokenAddress, out.txHash);
+        res.json({
+          ok: true,
+          txHash: out.txHash,
+          basescanUrl: out.basescanUrl,
+          feeModel: 'v3',
+          feeRecipientAddress: row.feeRecipientAddress,
+          message: out.message,
+        });
+        return;
+      }
+
       const feeOwner = row.feeRecipientAddress as `0x${string}`;
       const claimed = await claimWethFeesForLaunchedToken(feeOwner);
       if (!claimed.ok) {
@@ -139,6 +176,7 @@ export function registerDeploymentFeeActionRoutes(app: Express): void {
           error: claimed.error,
           feeAmount: '0',
           feeRecipientAddress: feeOwner,
+          feeModel: 'v4',
         });
         return;
       }
@@ -152,11 +190,16 @@ export function registerDeploymentFeeActionRoutes(app: Express): void {
         basescanUrl: claimed.basescanUrl,
         feeAmountHuman: feeHuman.toFixed(6),
         feeRecipientAddress: feeOwner,
+        feeModel: 'v4',
         message: `Claimed ${feeHuman.toFixed(6)} ETH (WETH) to ${feeOwner}.`,
       });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Claim failed';
-      res.status(500).json({ error: msg });
+      const raw = e instanceof Error ? e.message : 'Claim failed';
+      const row = await getDeploymentByTokenAddress(tokenAddress);
+      const msg =
+        row && isV3CatalogDeployment(row) ? friendlyV3ClaimError(raw) : raw;
+      const status = /execution reverted|revert/i.test(raw.toLowerCase()) ? 400 : 500;
+      res.status(status).json({ error: msg });
     }
   });
 }

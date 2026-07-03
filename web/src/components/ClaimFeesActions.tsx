@@ -67,6 +67,8 @@ export function ClaimFeesActions({
     return null;
   }
 
+  const isV3 = feeStatus?.feeModel === 'v3';
+
   async function onCollect() {
     setError(null);
     setMessage(null);
@@ -120,16 +122,16 @@ export function ClaimFeesActions({
   }
 
   const pending = feeStatus?.pendingWethHuman;
-  const hasPending = pending && Number.parseFloat(pending) > 0;
+  const hasPending = !isV3 && pending && Number.parseFloat(pending) > 0;
 
   return (
     <div className="lp-card claim-fees-card">
       <p className="section-label">Trading fees</p>
       <p className="muted claim-fees-intro">
-        {publicCollect ? (
+        {isV3 ? (
           <>
-            Pool trading fees accrue in the Uniswap position until someone collects them into the
-            locker, then claims WETH to the{' '}
+            This is a Simple (V3) launch. Swap fees accrue in the Uniswap V3 pool and
+            are sent directly to the{' '}
             <button
               type="button"
               className="btn-link"
@@ -137,25 +139,39 @@ export function ClaimFeesActions({
             >
               fee recipient
             </button>{' '}
-            ({shortenAddress(feeRecipientAddress)}). Anyone can trigger these steps — hood.markets
-            pays gas and funds always go to the fee recipient.
+            ({shortenAddress(feeRecipientAddress)}) when claimed. hood.markets broadcasts the
+            on-chain transaction and pays gas — anyone can trigger it.
+          </>
+        ) : publicCollect ? (
+          <>
+            Pro (V4) launches: pool fees go into a locker, then WETH is claimed to the{' '}
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => openWalletProfile(feeRecipientAddress)}
+            >
+              fee recipient
+            </button>{' '}
+            ({shortenAddress(feeRecipientAddress)}). hood.markets pays gas.
           </>
         ) : (
           <>
             Pull pool fees into the locker, then claim WETH to your wallet. Gas is paid by
-            hood.markets. Fees only build up after others trade your pool.
+            hood.markets.
           </>
         )}
       </p>
 
       {statusLoading ? (
-        <p className="muted claim-fees-status">Checking locker balance…</p>
+        <p className="muted claim-fees-status">Checking fee status…</p>
       ) : feeStatus ? (
         <p className="claim-fees-status">
-          {hasPending ? (
-            <span className="lp-display">{pending} WETH</span>
+          {isV3 ? (
+            <span className="muted">V3 fees are claimed in one step from the pool contract.</span>
+          ) : hasPending ? (
+            <span className="lp-display">{pending} WETH in fee locker</span>
           ) : (
-            <span className="muted">No WETH in the fee locker yet</span>
+            <span className="muted">No WETH in the fee locker yet — collect pool fees first</span>
           )}
           {feeStatus.feeClaimedAt ? (
             <span className="muted">
@@ -167,22 +183,35 @@ export function ClaimFeesActions({
       ) : null}
 
       <div className="claim-fees-actions">
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          disabled={collecting || claiming}
-          onClick={() => void onCollect()}
-        >
-          {collecting ? 'Collecting…' : '1. Collect pool fees'}
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          disabled={collecting || claiming}
-          onClick={() => void onClaim()}
-        >
-          {claiming ? 'Claiming…' : '2. Claim to fee recipient'}
-        </button>
+        {isV3 ? (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            disabled={collecting || claiming}
+            onClick={() => void onClaim()}
+          >
+            {claiming ? 'Claiming…' : 'Claim trading fees'}
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled={collecting || claiming}
+              onClick={() => void onCollect()}
+            >
+              {collecting ? 'Collecting…' : '1. Collect pool fees'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={collecting || claiming}
+              onClick={() => void onClaim()}
+            >
+              {claiming ? 'Claiming…' : '2. Claim to fee recipient'}
+            </button>
+          </>
+        )}
       </div>
 
       {message ? <p className="muted claim-fees-message">{message}</p> : null}

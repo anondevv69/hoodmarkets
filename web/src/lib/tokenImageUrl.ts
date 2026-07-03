@@ -6,7 +6,7 @@ const RAW_CID = /^(bafkrei[a-z0-9]{52,}|Qm[1-9A-HJ-NP-Za-km-z]{44,})$/i;
 const GATEWAY_FALLBACKS = [
   (import.meta.env.VITE_IPFS_GATEWAY_URL as string | undefined)?.trim().replace(/\/$/, ''),
   'https://ipfs.io/ipfs',
-  'https://cloudflare-ipfs.com/ipfs',
+  'https://dweb.link/ipfs',
   'https://alternative-sparrow-qk8yx.lighthouseweb3.xyz/ipfs',
 ].filter((g): g is string => !!g);
 
