@@ -31,6 +31,7 @@ export type WebWalletDeployV3PrepareInput = {
   xUrl?: string;
   platform?: string;
   clientKind?: 'web' | 'agent';
+  feesToPlatformOnly?: boolean;
 };
 
 export type WebWalletDeployV3PrepareResult = {
@@ -72,6 +73,10 @@ export async function buildWebWalletDeployPrepareV3(
     image,
     metadata,
     context,
+    feesToPlatformOnly: input.feesToPlatformOnly,
+    platformFeeRecipient: input.feesToPlatformOnly
+      ? config.platformFeeRecipient || undefined
+      : undefined,
   });
 
   return {
@@ -93,6 +98,8 @@ export type WebWalletDeployV3CompleteInput = {
   expectedMsgValueWei: bigint;
   /** When set, tx must be sent from this wallet (e.g. deployer paying seed for someone else). */
   expectedSigner?: string;
+  /** Creator reward recipient from deployment config (deployer wallet or platform when rate-limited). */
+  expectedCreatorRewardRecipient?: string;
 };
 
 export type WebWalletDeployV3CompleteResult = {
@@ -114,7 +121,10 @@ export async function completeWebWalletDeployV3(
   const expectedAdmin = getAddress(input.expectedTokenAdmin);
   const deploymentConfig = deserializeV3DeploymentConfig(input.deploymentConfig);
   const rewardRecipient = getAddress(v3DeploymentConfigRewardRecipient(deploymentConfig));
-  if (rewardRecipient !== expectedAdmin) {
+  const expectedRewardRecipient = input.expectedCreatorRewardRecipient?.trim()
+    ? getAddress(input.expectedCreatorRewardRecipient)
+    : expectedAdmin;
+  if (rewardRecipient !== expectedRewardRecipient) {
     throw new Error('Deployment config fee wallet mismatch.');
   }
 

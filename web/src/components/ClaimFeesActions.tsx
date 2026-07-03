@@ -42,7 +42,6 @@ export function ClaimFeesActions({
   const [txHash, setTxHash] = useState<string | null>(null);
 
   const refreshStatus = useCallback(async () => {
-    if (platformFees) return;
     setStatusLoading(true);
     try {
       const status = await fetchTokenFeeStatus(tokenAddress);
@@ -52,17 +51,15 @@ export function ClaimFeesActions({
     } finally {
       setStatusLoading(false);
     }
-  }, [platformFees, tokenAddress]);
+  }, [tokenAddress]);
 
   useEffect(() => {
     void refreshStatus();
   }, [refreshStatus]);
 
-  if (platformFees) {
-    return null;
-  }
-
-  const showActions = publicCollect || (authenticated && isFeeOwner);
+  const showActions = platformFees
+    ? publicCollect
+    : publicCollect || (authenticated && isFeeOwner);
   if (!showActions) {
     return null;
   }
@@ -128,7 +125,13 @@ export function ClaimFeesActions({
     <div className="lp-card claim-fees-card">
       <p className="section-label">Trading fees</p>
       <p className="muted claim-fees-intro">
-        {isV3 ? (
+        {platformFees ? (
+          <>
+            This launch hit the 24h self-fee limit — trading fees go to the hood.markets platform
+            wallet ({shortenAddress(feeRecipientAddress)}). Anyone can trigger the on-chain claim;
+            hood.markets pays gas and WETH is sent to the platform treasury.
+          </>
+        ) : isV3 ? (
           <>
             This is a Simple (V3) launch. Swap fees accrue in the Uniswap V3 pool and
             are sent directly to the{' '}

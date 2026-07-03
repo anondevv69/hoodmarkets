@@ -105,11 +105,6 @@ export function registerDeploymentFeeActionRoutes(app: Express): void {
         res.status(404).json({ error: 'Token not found in hoodmarkets catalog.' });
         return;
       }
-      if (isHoodmarketsPlatformFeeRecipientLabel(row.feeRecipientLabel)) {
-        res.status(400).json({ error: 'Trading fees for this token go to the hood.markets platform wallet.' });
-        return;
-      }
-
       if (isV3CatalogDeployment(row)) {
         const out = await claimV3RewardsForToken(tokenAddress);
         await markDeploymentFeeClaimed(tokenAddress, out.txHash);
@@ -150,11 +145,6 @@ export function registerDeploymentFeeActionRoutes(app: Express): void {
         res.status(404).json({ error: 'Token not found in hoodmarkets catalog.' });
         return;
       }
-      if (isHoodmarketsPlatformFeeRecipientLabel(row.feeRecipientLabel)) {
-        res.status(400).json({ error: 'Trading fees for this token go to the hood.markets platform wallet.' });
-        return;
-      }
-
       if (isV3CatalogDeployment(row)) {
         const out = await claimV3RewardsForToken(tokenAddress);
         await markDeploymentFeeClaimed(tokenAddress, out.txHash);

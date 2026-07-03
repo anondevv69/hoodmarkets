@@ -986,6 +986,7 @@ export function registerWebDeployRoutes(
             xUrl,
             platform: 'web',
             clientKind: webClientKind,
+            feesToPlatformOnly: rateLimitForcedPlatformFee,
           });
           res.json(prepare);
           return;
@@ -1096,6 +1097,11 @@ export function registerWebDeployRoutes(
           ? `Agent${agentProviderForLabel ? ` · ${agentProviderForLabel}` : ''} · ${resolved.walletAddress.slice(0, 6)}…${resolved.walletAddress.slice(-4)}`
           : resolved.feeRecipientLabel;
 
+      const catalogFeeRecipientAddress =
+        rateLimitForcedPlatformFee && config.platformFeeRecipient
+          ? config.platformFeeRecipient
+          : resolved.walletAddress;
+
       let result: Awaited<ReturnType<LiquidDeployer['deployToken']>>;
 
       if (useWalletDeploy && walletPhase === 'complete') {
@@ -1133,7 +1139,10 @@ export function registerWebDeployRoutes(
             res.status(400).json({ error: 'Deployment config does not match token name or symbol.' });
             return;
           }
-          if (getAddress(v3DeploymentConfigRewardRecipient(v3cfg)) !== getAddress(resolved.walletAddress)) {
+          if (
+            getAddress(v3DeploymentConfigRewardRecipient(v3cfg)) !==
+            getAddress(catalogFeeRecipientAddress)
+          ) {
             res.status(400).json({ error: 'Deployment config fee wallet mismatch.' });
             return;
           }
@@ -1144,6 +1153,7 @@ export function registerWebDeployRoutes(
             expectedSigner: walletDeploySigner ?? resolved.walletAddress,
             deploymentConfig: v3Serialized,
             expectedMsgValueWei: userInitialBuyWei,
+            expectedCreatorRewardRecipient: catalogFeeRecipientAddress,
           });
 
           const catalogImage = v3cfg.tokenConfig.image || undefined;
@@ -1151,7 +1161,7 @@ export function registerWebDeployRoutes(
             platform: 'web',
             deployerId: userId,
             deployerLabel,
-            feeRecipientAddress: resolved.walletAddress,
+            feeRecipientAddress: catalogFeeRecipientAddress,
             feeRecipientLabel: feeRecipientLabelForCatalog,
             tokenName: name,
             tokenSymbol: symbol,
@@ -1211,7 +1221,7 @@ export function registerWebDeployRoutes(
           platform: 'web',
           deployerId: userId,
           deployerLabel,
-          feeRecipientAddress: resolved.walletAddress,
+          feeRecipientAddress: catalogFeeRecipientAddress,
           feeRecipientLabel: feeRecipientLabelForCatalog,
           tokenName: name,
           tokenSymbol: symbol,

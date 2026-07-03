@@ -201,6 +201,12 @@ export class LiquidDeployer {
             metadata,
             context,
             devBuyAmount: params.devBuyAmount,
+            ...(params.feesToPlatformOnly && config.platformFeeRecipient
+              ? {
+                  feesToPlatformOnly: true,
+                  platformFeeRecipient: config.platformFeeRecipient,
+                }
+              : {}),
           })
         : await deployTokenOnchain(
             this.publicClient,
