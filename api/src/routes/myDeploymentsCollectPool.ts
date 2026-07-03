@@ -1,10 +1,9 @@
 import type { Express, Request, Response } from 'express';
-import { createPublicClient, createWalletClient, encodeFunctionData, http } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { config } from '../config.js';
 import { getDeploymentCatalogRowForPrivyClaimAuth } from '../lib/deploymentCatalog.js';
-import { LIQUID_LP_LOCKER_COLLECT_ABI } from '../lib/liquidLpLockerCollectAbi.js';
-import { robinhood, robinhoodTxUrl } from '../lib/robinhoodChain.js';
+import {
+  collectPoolFeesForLaunchedToken,
+  friendlyCollectPoolError,
+} from '../lib/deploymentFeeActions.js';
 import { verifyPrivyBearerToken } from '../lib/privyAccessToken.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 
@@ -12,20 +11,6 @@ interface Body {
   tokenAddress?: string;
   /** Connected wallet — authorizes tokens deployed for you by someone else (fee recipient match). */
   walletAddress?: string;
-}
-
-function friendlyCollectError(msg: string): string {
-  const lower = msg.toLowerCase();
-  if (lower.includes('execution reverted')) {
-    return (
-      'Could not collect pool fees yet. The pool may still be in its anti-sniper window, ' +
-      'or no LP fees have accrued. Try again after more trading activity.'
-    );
-  }
-  if (lower.includes('insufficient funds')) {
-    return 'Launcher wallet is low on gas. Contact hood.markets support.';
-  }
-  return msg;
 }
 
 /**
@@ -60,56 +45,11 @@ export function registerMyDeploymentsCollectPoolRoutes(app: Express): void {
         return;
       }
 
-      const token = tokenAddress as `0x${string}`;
-      const lpLocker = config.liquid.lpLocker;
-      if (!lpLocker) {
-        res.status(500).json({ error: 'LP locker address is not configured on the API.' });
-        return;
-      }
-
-      const account = privateKeyToAccount(config.deployerPrivateKey);
-      const publicClient = createPublicClient({
-        chain: robinhood,
-        transport: http(config.chainRpcUrl),
-      });
-      const walletClient = createWalletClient({
-        chain: robinhood,
-        transport: http(config.chainRpcUrl),
-        account,
-      });
-
-      const data = encodeFunctionData({
-        abi: LIQUID_LP_LOCKER_COLLECT_ABI,
-        functionName: 'collectRewards',
-        args: [token],
-      });
-
-      await publicClient.simulateContract({
-        address: lpLocker,
-        abi: LIQUID_LP_LOCKER_COLLECT_ABI,
-        functionName: 'collectRewards',
-        args: [token],
-        account: account.address,
-      });
-
-      const txHash = await walletClient.sendTransaction({
-        to: lpLocker,
-        data,
-        value: 0n,
-      });
-
-      const basescanUrl = robinhoodTxUrl(txHash);
-
-      res.json({
-        ok: true,
-        txHash,
-        basescanUrl,
-        message:
-          'Pool fees collected into the fee locker (if any were available). Use Claim fees after trading generates fees.',
-      });
+      const out = await collectPoolFeesForLaunchedToken(tokenAddress as `0x${string}`);
+      res.json({ ok: true, ...out });
     } catch (e: unknown) {
       const raw = e instanceof Error ? e.message : 'Collect failed';
-      const msg = friendlyCollectError(raw);
+      const msg = friendlyCollectPoolError(raw);
       const status = /authorization|bearer|access token|privy/i.test(raw)
         ? 401
         : /execution reverted|revert/i.test(raw.toLowerCase())

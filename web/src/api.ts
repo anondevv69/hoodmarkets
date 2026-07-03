@@ -69,6 +69,10 @@ export interface Deployment {
   requesterXUsername?: string;
   /** Total hood.markets launches attributed to that X @handle. */
   requesterXLaunchCount?: number;
+  /** Wallet that initiated the deploy when known (agent or Privy). */
+  deployerWalletAddress?: string;
+  /** Catalog rows where this fee wallet receives fees (including this row). */
+  feeRecipientDeploymentCount?: number;
 }
 
 export type TokenDetail = Deployment & {
@@ -201,6 +205,22 @@ export async function fetchDeployerProfileByX(
     `${API_BASE}/api/deployer-profile/x/${encodeURIComponent(handle)}?limit=${limit}`,
   );
   return parseJson<DeployerProfileResponse>(res);
+}
+
+export interface WalletProfileResponse {
+  platform: 'wallet';
+  walletAddress: string;
+  feeRecipientTokenCount: number;
+  initiatedLaunchCount: number;
+  profileUrl: string;
+  deployments: Deployment[];
+}
+
+export async function fetchWalletProfile(walletAddress: string): Promise<WalletProfileResponse> {
+  const res = await fetch(
+    `${API_BASE}/api/deployer-profile/wallet/${encodeURIComponent(walletAddress.trim())}`,
+  );
+  return parseJson<WalletProfileResponse>(res);
 }
 
 export async function fetchMyDeployerProfile(
@@ -477,6 +497,40 @@ export interface ClaimFeesResult {
   txHash?: string;
   basescanUrl?: string;
   feeAmountHuman?: string;
+  feeRecipientAddress?: string;
+  error?: string;
+}
+
+export interface TokenFeeStatus {
+  feeRecipientAddress: string;
+  platformFees: boolean;
+  pendingWethWei: string;
+  pendingWethHuman: string;
+  feeClaimedAt?: string;
+  feeClaimTxHash?: string;
+}
+
+export async function fetchTokenFeeStatus(tokenAddress: string): Promise<TokenFeeStatus> {
+  const res = await fetch(`${API_BASE}/api/deployments/${tokenAddress}/fee-status`);
+  return parseJson<TokenFeeStatus>(res);
+}
+
+export async function collectPoolFeesPublic(tokenAddress: string): Promise<ClaimFeesResult> {
+  const res = await fetch(`${API_BASE}/api/deployments/${tokenAddress}/collect-pool-fees`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return parseJson<ClaimFeesResult>(res);
+}
+
+export async function claimTradingFeesPublic(tokenAddress: string): Promise<ClaimFeesResult> {
+  const res = await fetch(`${API_BASE}/api/deployments/${tokenAddress}/claim-fees`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return parseJson<ClaimFeesResult>(res);
 }
 
 export async function collectPoolFees(
