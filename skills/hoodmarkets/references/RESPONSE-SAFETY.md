@@ -41,14 +41,15 @@ Do **not** append:
 
 When `POST /api/agent/claim` or `POST /api/agent/claim-for-recipient` returns **`ok: true`**:
 
-1. Reply with **`claimReplyHint`** from the JSON **as-is** (token name, symbol, fee wallet, WETH note).
-2. `serverBroadcast: true` means success — **do not** say "I didn't submit a transaction" or "I wasn't able to complete."
-3. Tx link (`explorerUrl`) is optional — user mainly needs token + fee wallet confirmation.
+1. Reply with **`replyHint`** from the JSON **as-is** (identical to `claimReplyHint`).
+2. `completed: true` and `bankrWalletSubmitRequired: false` — **do not** say "I didn't submit a transaction" or "I wasn't able to complete."
+3. Tx link (`explorerUrl`) is optional — user mainly needs token name + fee wallet + success.
+4. See `references/CLAIM-BANKR.md`.
 
-Example `claimReplyHint`:
+Example `replyHint`:
 
 ```text
-Claim successful — Hoodrich ($HR) trading fees pulled to fee wallet 0xDbe9…87a4. WETH should show in 0xDbe9…87a4 shortly. (hood.markets broadcast the on-chain claim; no Bankr wallet tx needed.)
+Claim successful — Hoodrich ($HR) trading fees sent to fee wallet 0xDbe9…87a4. WETH should show up in that wallet shortly.
 ```
 
 If `ok: false` or HTTP 4xx, use `error` field only — do not claim success.

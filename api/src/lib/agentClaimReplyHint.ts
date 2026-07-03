@@ -24,7 +24,31 @@ export function agentClaimSuccessReplyHint(input: {
       ? ` (~${input.feeAmountEth} WETH)`
       : '';
   return (
-    `Claim successful — ${label} trading fees pulled to fee wallet ${wallet}${amount}. ` +
-    `WETH should show in ${wallet} shortly. (hood.markets broadcast the on-chain claim; no Bankr wallet tx needed.)`
+    `Claim successful — ${label} trading fees sent to fee wallet ${wallet}${amount}. ` +
+    `WETH should show up in that wallet shortly.`
   );
+}
+
+/** Extra JSON fields so Bankr treats hood.markets server-broadcast claims as completed. */
+export function agentClaimSuccessAgentFields(
+  claimReplyHint: string,
+  txHash: string,
+): {
+  completed: true;
+  serverBroadcast: true;
+  bankrWalletSubmitRequired: false;
+  transactionSubmitted: true;
+  claimReplyHint: string;
+  replyHint: string;
+  transactionHash: string;
+} {
+  return {
+    completed: true,
+    serverBroadcast: true,
+    bankrWalletSubmitRequired: false,
+    transactionSubmitted: true,
+    claimReplyHint,
+    replyHint: claimReplyHint,
+    transactionHash: txHash,
+  };
 }

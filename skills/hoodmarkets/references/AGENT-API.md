@@ -241,9 +241,9 @@ Content-Type: application/json
 
 No JWT. **Do not call Bankr `/wallet/submit`** — hood.markets broadcasts the claim.
 
-Response: `ok`, `serverBroadcast: true`, **`claimReplyHint`** (use as success reply), `txHash`, `explorerUrl`, `feeRecipientAddress`, `tokenName`, `tokenSymbol`, `feeModel`, `launchType`, `tokenPageUrl`, optional `feeAmountEth`.
+Response: `ok`, `replyHint` (**post verbatim**), `claimReplyHint` (same text), `completed`, `bankrWalletSubmitRequired: false`, `transactionHash`, `txHash`, `feeRecipientAddress`, `tokenName`, `tokenSymbol`, `feeModel`, `launchType`, `tokenPageUrl`, optional `feeAmountEth`.
 
-**If `ok: true`, claim succeeded** — post `claimReplyHint` even though Bankr did not sign a wallet tx.
+**If `ok: true`, claim succeeded** — post `replyHint`. Do not use Bankr `/wallet/submit`. Do not say Bankr failed to submit.
 
 ---
 
@@ -267,9 +267,9 @@ Content-Type: application/json
 }
 ```
 
-Success includes `feeModel` (`v3`|`v4`), `launchType` (`simple`|`pro`), `txHash`, `explorerUrl`, **`claimReplyHint`**, `serverBroadcast: true`.
+Success includes `replyHint`, `claimReplyHint`, `completed`, `bankrWalletSubmitRequired: false`, `transactionHash`, `feeModel`, `launchType`.
 
-**No Bankr `/wallet/submit`.** Post `claimReplyHint` when `ok: true`.
+**No Bankr `/wallet/submit`.** Post `replyHint` when `ok: true`.
 
 ---
 
