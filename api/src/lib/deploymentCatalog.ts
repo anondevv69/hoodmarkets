@@ -1736,6 +1736,112 @@ export async function countDeploymentsByAgentWallet(walletAddress: string): Prom
   });
 }
 
+type PrivyCatalogRow = DeploymentCatalogRow & { privyUserId: string };
+
+function mergeDeploymentsByTokenAddress(
+  ...groups: DeploymentCatalogRow[][]
+): DeploymentCatalogRow[] {
+  const seen = new Set<string>();
+  const out: DeploymentCatalogRow[] = [];
+  for (const group of groups) {
+    for (const row of group) {
+      const key = row.tokenAddress.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(row);
+    }
+  }
+  out.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+  return out;
+}
+
+/** Launches this wallet initiated (agent deploys, self-fee, or Privy web deploys). */
+export async function listDeploymentsInitiatedByWallet(
+  walletAddress: string,
+  limit = 50,
+  offset = 0,
+): Promise<DeploymentCatalogRow[]> {
+  if (!db) return [];
+  let walletLower: string;
+  let agentDeployerId: string;
+  try {
+    walletLower = getAddress(walletAddress).toLowerCase();
+    agentDeployerId = `agent:${getAddress(walletAddress)}`;
+  } catch {
+    return [];
+  }
+
+  const directRows = await new Promise<DeploymentCatalogRow[]>((resolve) => {
+    db!.all(
+      `SELECT ${SELECT_DEPLOYMENT_ROW}
+       FROM deployment_catalog AS dc
+       WHERE (
+         dc.deployer_id = ?
+         OR (dc.fee_to_self = 1 AND lower(dc.fee_recipient_address) = ?)
+       )${visibleCatalogSql()}
+       ORDER BY dc.created_at DESC`,
+      [agentDeployerId, walletLower, visibleCatalogParam()],
+      (err, rows: DeploymentCatalogRow[] | undefined) => {
+        if (err) {
+          logger.warn('listDeploymentsInitiatedByWallet direct failed:', err.message);
+          resolve([]);
+          return;
+        }
+        resolve(hydrateDeploymentCatalogRows(rows ?? []));
+      },
+    );
+  });
+
+  const privyRows = await new Promise<PrivyCatalogRow[]>((resolve) => {
+    db!.all(
+      `SELECT ${SELECT_DEPLOYMENT_ROW}, dc.privy_user_id AS privyUserId
+       FROM deployment_catalog AS dc
+       WHERE TRIM(COALESCE(dc.privy_user_id, '')) != ''
+         AND dc.deployer_id = dc.privy_user_id
+         AND dc.fee_to_self = 0${visibleCatalogSql()}
+       ORDER BY dc.created_at DESC`,
+      [visibleCatalogParam()],
+      (err, rows: PrivyCatalogRow[] | undefined) => {
+        if (err) {
+          logger.warn('listDeploymentsInitiatedByWallet privy failed:', err.message);
+          resolve([]);
+          return;
+        }
+        resolve(rows ?? []);
+      },
+    );
+  });
+
+  const { getEmbeddedEthAddressForPrivyUserId } = await import('./privy.js');
+  const walletByPrivy = new Map<string, string | null>();
+  const privyMatches: DeploymentCatalogRow[] = [];
+  for (const row of privyRows) {
+    const uid = row.privyUserId?.trim();
+    if (!uid) continue;
+    let embedded = walletByPrivy.get(uid);
+    if (embedded === undefined) {
+      try {
+        embedded = (await getEmbeddedEthAddressForPrivyUserId(uid))?.toLowerCase() ?? null;
+      } catch {
+        embedded = null;
+      }
+      walletByPrivy.set(uid, embedded);
+    }
+    if (embedded === walletLower) privyMatches.push(row);
+  }
+
+  const merged = mergeDeploymentsByTokenAddress(directRows, privyMatches);
+  return merged.slice(
+    Math.max(0, offset),
+    Math.max(0, offset) + Math.min(Math.max(1, limit), 200),
+  );
+}
+
+export async function countDeploymentsInitiatedByWallet(walletAddress: string): Promise<number> {
+  const rows = await listDeploymentsInitiatedByWallet(walletAddress, 500, 0);
+  return rows.length;
+}
+
 /**
  * Count catalog rows attributed to the same X @handle (agent metadata, deployer label, or tweet URL).
  */

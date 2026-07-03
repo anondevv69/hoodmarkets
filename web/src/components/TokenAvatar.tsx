@@ -10,10 +10,13 @@ export function TokenAvatar({
   symbol,
   imageUrl,
   size = 44,
+  priority = false,
 }: {
   symbol: string;
   imageUrl?: string | null;
   size?: number;
+  /** Eager-load for above-the-fold hero avatars. */
+  priority?: boolean;
 }) {
   const candidates = useMemo(() => buildTokenImageCandidates(imageUrl), [imageUrl]);
   const [candidateIndex, setCandidateIndex] = useState(0);
@@ -31,7 +34,9 @@ export function TokenAvatar({
         className="token-avatar token-avatar-img"
         width={size}
         height={size}
-        loading="lazy"
+        loading={priority ? 'eager' : 'lazy'}
+        fetchPriority={priority ? 'high' : 'auto'}
+        decoding="async"
         onError={() => setCandidateIndex((i) => i + 1)}
       />
     );
