@@ -26,6 +26,9 @@ export type HoodMarketsV3DeployInput = {
   context: string;
   /** ETH attached to `deployToken` for optional initial buy (wei). */
   devBuyAmount: bigint;
+  /** Rate-limit excess: route the creator share (95%) to the platform wallet on-chain. */
+  feesToPlatformOnly?: boolean;
+  platformFeeRecipient?: Address;
 };
 
 export type HoodMarketsV3DeployResult = {
@@ -83,9 +86,15 @@ export function buildHoodMarketsV3DeploymentConfig(input: {
   image: string;
   metadata: string;
   context: string;
+  feesToPlatformOnly?: boolean;
+  platformFeeRecipient?: Address;
 }): HoodMarketsV3DeploymentConfig {
   const salt = keccak256(toHex(randomBytes(32)));
   const tokenAdmin = getAddress(input.tokenAdmin);
+  const creatorRewardRecipient =
+    input.feesToPlatformOnly && input.platformFeeRecipient
+      ? getAddress(input.platformFeeRecipient)
+      : tokenAdmin;
 
   return {
     tokenConfig: {
@@ -113,7 +122,7 @@ export function buildHoodMarketsV3DeploymentConfig(input: {
       /** 95% of swap fees to creator; 5% platform is fixed in HoodMarketsV3LpLocker. */
       creatorReward: 95n,
       creatorAdmin: tokenAdmin,
-      creatorRewardRecipient: tokenAdmin,
+      creatorRewardRecipient,
       interfaceAdmin: tokenAdmin,
       interfaceRewardRecipient: '0x0000000000000000000000000000000000000000' as Address,
     },
@@ -128,6 +137,8 @@ function buildDeploymentConfig(input: HoodMarketsV3DeployInput) {
     image: input.image,
     metadata: input.metadata,
     context: input.context,
+    feesToPlatformOnly: input.feesToPlatformOnly,
+    platformFeeRecipient: input.platformFeeRecipient,
   });
 }
 

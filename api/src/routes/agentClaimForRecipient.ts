@@ -7,7 +7,6 @@ import {
 } from '../lib/deploymentCatalog.js';
 import { friendlyV3ClaimError } from '../lib/hoodmarketsV3Fees.js';
 import { friendlyCollectPoolError } from '../lib/deploymentFeeActions.js';
-import { isHoodmarketsPlatformFeeRecipientLabel } from '../lib/platformFeeRecipient.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 
 interface Body {
@@ -55,13 +54,6 @@ export function registerAgentClaimForRecipientRoutes(app: Express): void {
         res.status(404).json({ error: 'Token not found in hoodmarkets catalog.' });
         return;
       }
-      if (isHoodmarketsPlatformFeeRecipientLabel(row.feeRecipientLabel)) {
-        res.status(400).json({
-          error: 'Trading fees for this token go to the hood.markets platform wallet.',
-        });
-        return;
-      }
-
       const claimed = await claimFeesForDeployment(row, tokenAddress);
       if (!claimed.ok) {
         const raw = claimed.error;
