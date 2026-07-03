@@ -127,6 +127,11 @@ POST https://api.hood.markets/api/agent/prepare-sell
 
 ## Step 2c — Claim fees (launcher pays gas)
 
+Same endpoint for **Simple (V3)** and **Pro (V4)** — API picks the contract:
+
+- **V3** (`poolId` `v3:…`): `HoodMarketsV3.claimRewards(token)` → WETH to fee wallet
+- **V4**: collect pool fees → claim from fee locker
+
 ```
 POST https://api.hood.markets/api/agent/claim
 X-Agent-Captcha-JWT: <jwt>
@@ -135,7 +140,7 @@ Content-Type: application/json
 { "tokenAddress": "0x…" }
 ```
 
-JWT wallet must be the **fee recipient** for that token.
+JWT wallet must be the **fee recipient**. Response includes `feeModel` / `launchType`.
 
 ---
 

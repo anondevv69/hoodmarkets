@@ -1,37 +1,13 @@
 import type { Express, Request, Response } from 'express';
-import { createPublicClient, createWalletClient, encodeFunctionData, http } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { config } from '../config.js';
 import { resolveAgentClaimDeployment } from '../lib/claimDeploymentAuth.js';
+import { claimFeesForDeployment } from '../lib/claimFeesForDeployment.js';
 import { markDeploymentFeeClaimed } from '../lib/deploymentCatalog.js';
+import { friendlyV3ClaimError } from '../lib/hoodmarketsV3Fees.js';
+import { friendlyCollectPoolError } from '../lib/deploymentFeeActions.js';
 import { BASE_WETH } from '../lib/liquidFactoryDeploy.js';
-import { robinhood, robinhoodTxUrl, ROBINHOOD_CHAIN_ID } from '../lib/robinhoodChain.js';
+import { ROBINHOOD_CHAIN_ID } from '../lib/robinhoodChain.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 import { resolveAgentWalletAuth } from '../lib/agentWalletDeployAuth.js';
-
-/** Fee locker ABI for checking and claiming fees */
-const FEE_LOCKER_ABI = [
-  {
-    type: 'function',
-    name: 'feesToClaim',
-    inputs: [
-      { name: 'feeOwner', type: 'address' },
-      { name: 'token', type: 'address' },
-    ],
-    outputs: [{ name: 'balance', type: 'uint256' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'claim',
-    inputs: [
-      { name: 'feeOwner', type: 'address' },
-      { name: 'token', type: 'address' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-] as const;
 
 interface ClaimBody {
   tokenAddress?: string;
@@ -44,16 +20,22 @@ interface ClaimBody {
   agentFeeRecipient?: string;
 }
 
+function friendlyAgentClaimError(feeModel: 'v3' | 'v4', raw: string): string {
+  if (feeModel === 'v3') return friendlyV3ClaimError(raw);
+  if (/no weth trading fees/i.test(raw)) {
+    return (
+      'No WETH fees in the locker yet. For Pro (V4) tokens, pool fees must accrue from trading first. ' +
+      'Try again after more volume, or claim from the token page on hood.markets.'
+    );
+  }
+  return friendlyCollectPoolError(raw);
+}
+
 /**
- * Auto-claim flow for agents:
+ * Auto-claim flow for agents (Bankr / X):
  * 1. Agent solves haiku CAPTCHA (gets JWT with walletAddress)
  * 2. Agent calls this endpoint with tokenAddress + JWT
- * 3. We check if there are claimable fees
- * 4. We broadcast the claim transaction from our deployer wallet
- * 5. We return the transaction hash and amount claimed
- *
- * Requires fresh haiku-solved CAPTCHA JWT in X-Agent-Captcha-JWT header.
- * No agent wallet needed — we broadcast the tx.
+ * 3. Server broadcasts the correct on-chain claim (V3 factory or V4 fee locker)
  */
 export function registerAgentClaimRoutes(app: Express): void {
   app.options('/api/agent/claim', (req, res) => {
@@ -62,13 +44,12 @@ export function registerAgentClaimRoutes(app: Express): void {
     res.status(204).end();
   });
 
-  /** GET is wrong here — browsers and some “ping” tools use GET and see 404. Return 405 + hint. */
   app.get('/api/agent/claim', (req: Request, res: Response) => {
     const h = webDeployCorsHeaders(req.headers.origin);
     for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
     res.status(405).json({
       error:
-        'Use HTTP POST, not GET. hoodmarkets broadcasts the claim and pays gas. Send JSON with tokenAddress (0x…) and/or tokenSymbol and/or tokenName to identify your deployment, plus header X-Agent-Captcha-JWT (haiku JWT). Only the recorded fee recipient may claim.',
+        'Use HTTP POST, not GET. hood.markets broadcasts the claim and pays gas. Send JSON with tokenAddress (0x…) and/or tokenSymbol and/or tokenName to identify your deployment, plus header X-Agent-Captcha-JWT (haiku JWT). Only the recorded fee recipient may claim.',
       method: 'POST',
       path: '/api/agent/claim',
     });
@@ -109,81 +90,43 @@ export function registerAgentClaimRoutes(app: Express): void {
       const launchedToken = resolved.tokenAddress;
       const claimAsset = BASE_WETH;
 
-      // Create public client to check claimable fees
-      const publicClient = createPublicClient({
-        chain: robinhood,
-        transport: http(config.chainRpcUrl),
-      });
-
-      // Trading/LP fees accrue as WETH in the locker (second arg), not the liquid token address.
-      const feesClaim = await publicClient.readContract({
-        address: config.liquid.feeLocker,
-        abi: FEE_LOCKER_ABI,
-        functionName: 'feesToClaim',
-        args: [walletFromCaptcha, claimAsset],
-      });
-
-      if (feesClaim === 0n) {
+      const claimed = await claimFeesForDeployment(resolved.row, launchedToken);
+      if (!claimed.ok) {
         res.status(400).json({
-          error: 'No fees to claim for this token.',
+          error: friendlyAgentClaimError(claimed.feeModel, claimed.error),
+          feeModel: claimed.feeModel,
           feeAmount: '0',
+          launchType: claimed.feeModel === 'v3' ? 'simple' : 'pro',
         });
         return;
       }
 
-      // Create wallet client to sign and broadcast the claim tx
-      const account = privateKeyToAccount(config.deployerPrivateKey);
-      const walletClient = createWalletClient({
-        chain: robinhood,
-        transport: http(config.chainRpcUrl),
-        account,
-      });
+      const feeAmountEth =
+        claimed.feeAmountWei > 0n
+          ? (Number(claimed.feeAmountWei) / 1e18).toFixed(6)
+          : undefined;
 
-      // Encode the claim function call
-      const callData = encodeFunctionData({
-        abi: FEE_LOCKER_ABI,
-        functionName: 'claim',
-        args: [walletFromCaptcha, claimAsset],
-      });
-
-      // Send the transaction
-      const txHash = await walletClient.sendTransaction({
-        to: config.liquid.feeLocker,
-        data: callData,
-        value: 0n,
-      });
-
-      // Wait for on-chain confirmation before marking as claimed
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-      if (receipt.status !== 'success') {
-        res.status(500).json({
-          error: `Claim transaction reverted (tx: ${txHash})`,
-          txHash,
-        });
-        return;
-      }
-
-      // Format fee amount in ETH for readability
-      const feeAmountWei = BigInt(feesClaim.toString());
-      const feeAmountEth = Number(feeAmountWei) / 1e18;
-
-      const explorerUrl = robinhoodTxUrl(txHash);
-
-      await markDeploymentFeeClaimed(launchedToken, txHash);
+      await markDeploymentFeeClaimed(launchedToken, claimed.txHash);
 
       res.json({
         ok: true,
         chainId: ROBINHOOD_CHAIN_ID,
-        txHash,
-        explorerUrl,
-        basescanUrl: explorerUrl,
-        feeAmount: feesClaim.toString(),
-        feeAmountEth: feeAmountEth.toFixed(6),
+        txHash: claimed.txHash,
+        explorerUrl: claimed.basescanUrl,
+        basescanUrl: claimed.basescanUrl,
+        feeModel: claimed.feeModel,
+        launchType: claimed.feeModel === 'v3' ? 'simple' : 'pro',
+        feeAmount: claimed.feeAmountWei.toString(),
+        ...(feeAmountEth ? { feeAmountEth } : {}),
         feeOwner: walletFromCaptcha,
         token: launchedToken,
         claimAsset,
-        message: `Claimed ${feeAmountEth.toFixed(6)} ETH (WETH) for ${resolved.row.tokenSymbol} to ${walletFromCaptcha}`,
-        claimLink: explorerUrl,
+        message:
+          claimed.feeModel === 'v3'
+            ? `V3 swap fees claimed for ${resolved.row.tokenSymbol} — WETH sent to ${walletFromCaptcha}. ${claimed.message}`
+            : `Claimed ${feeAmountEth} ETH (WETH) for ${resolved.row.tokenSymbol} to ${walletFromCaptcha}`,
+        claimLink: claimed.basescanUrl,
+        ...(claimed.collectTxHash ? { collectTxHash: claimed.collectTxHash } : {}),
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Claim failed';

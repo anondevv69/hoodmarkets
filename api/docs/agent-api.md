@@ -90,6 +90,13 @@ Simple (V3) tokens (`poolId` starts with `v3:`) → use Uniswap / DexScreener in
 
 ## Step 2c — Claim fees (launcher pays gas)
 
+**Simple (V3)** and **Pro (V4)** use the same endpoint — the API routes to the correct contract.
+
+| Launch | Contract action |
+|--------|-----------------|
+| Simple (V3) | `HoodMarketsV3.claimRewards(token)` @ `0xcFE4D69Ac8e5F79a95d99e991162902f68029f09` |
+| Pro (V4) | LP locker collect → fee locker `claim(feeOwner, WETH)` |
+
 ```
 POST https://api.hood.markets/api/agent/claim
 X-Agent-Captcha-JWT: <jwt>
@@ -97,6 +104,8 @@ Content-Type: application/json
 
 { "tokenAddress": "0x…" }
 ```
+
+Response: `feeModel`, `launchType`, `txHash`, `explorerUrl`. V3 may omit `feeAmountEth` when amount is not read from logs.
 
 ---
 

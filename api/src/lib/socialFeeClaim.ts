@@ -1,7 +1,8 @@
 import { getAddress } from 'viem';
 import { resolveSocialClaimDeployment } from './claimDeploymentAuth.js';
+import { claimFeesForDeployment } from './claimFeesForDeployment.js';
 import { markDeploymentFeeClaimed } from './deploymentCatalog.js';
-import { claimWethTradingFeesForFeeOwner } from './feeLockerClaim.js';
+import { friendlyV3ClaimError } from './hoodmarketsV3Fees.js';
 
 export type SocialFeeClaimOutcome =
   | {
@@ -10,11 +11,12 @@ export type SocialFeeClaimOutcome =
       txHash: string;
       feeAmountHuman: string;
       tokenAddress: string;
+      feeModel: 'v3' | 'v4';
     }
   | { ok: false; message: string };
 
 /**
- * Resolve catalog + broadcast WETH fee claim for a social deployer (same fee wallet as at deploy time).
+ * Resolve catalog + broadcast trading fee claim for a social deployer (X, Telegram, etc.).
  */
 export async function runSocialTradingFeesClaim(params: {
   platform: string;
@@ -44,19 +46,30 @@ export async function runSocialTradingFeesClaim(params: {
     return { ok: false, message: resolved.error };
   }
 
-  const feeOwner = getAddress(resolved.row.feeRecipientAddress) as `0x${string}`;
-  const claimed = await claimWethTradingFeesForFeeOwner(feeOwner);
+  const token = resolved.tokenAddress as `0x${string}`;
+  const claimed = await claimFeesForDeployment(resolved.row, token);
   if (!claimed.ok) {
-    return { ok: false, message: claimed.error };
+    const msg =
+      claimed.feeModel === 'v3'
+        ? friendlyV3ClaimError(claimed.error)
+        : claimed.error;
+    return { ok: false, message: msg };
   }
 
-  const feeHuman = Number(claimed.feeAmountWei) / 1e18;
+  const feeHuman =
+    claimed.feeAmountWei > 0n
+      ? (Number(claimed.feeAmountWei) / 1e18).toFixed(6)
+      : claimed.feeModel === 'v3'
+        ? '0'
+        : '0';
+
   await markDeploymentFeeClaimed(resolved.tokenAddress, claimed.txHash);
   return {
     ok: true,
     basescanUrl: claimed.basescanUrl,
     txHash: claimed.txHash,
-    feeAmountHuman: feeHuman.toFixed(6),
+    feeAmountHuman: feeHuman,
     tokenAddress: resolved.tokenAddress,
+    feeModel: claimed.feeModel,
   };
 }

@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 10
+version: 11
 ---
 
 # hood.markets — Bankr agent skill
@@ -258,6 +258,13 @@ If Bankr returns `untrusted_address` → **stop** per `references/BANKR-SUBMIT.m
 
 ## Claim fees
 
+**Default launches are Simple (V3).** `POST /api/agent/claim` picks the right on-chain path automatically:
+
+| Launch | On-chain | Agent call |
+|--------|----------|------------|
+| **Simple (V3)** | `HoodMarketsV3.claimRewards(token)` — WETH to fee wallet (95%) | Same POST — server broadcasts |
+| **Pro (V4)** | Collect pool → fee locker → claim WETH | Same POST — server collects + claims |
+
 ```
 POST https://api.hood.markets/api/agent/claim
 X-Agent-Captcha-JWT: <jwt>
@@ -266,7 +273,7 @@ Content-Type: application/json
 { "tokenAddress": "0x…" }
 ```
 
-Launcher broadcasts claim and pays gas. JWT wallet must be the **fee recipient** for that token.
+Launcher broadcasts claim and pays gas. JWT wallet must be the **fee recipient** for that token. Response includes `feeModel` / `launchType` (`simple` | `pro`).
 
 ---
 
