@@ -19,7 +19,7 @@
     "Deploy via API agent: preflight-deploy → prepare-deploy → haiku captcha → POST /api/deploy",
     "Buy/sell: token-info (V3 vs Pro) → Pro: prepare-buy|prepare-sell → Bankr submit chainId 4663",
     "Simple (V3) tokens: trade on Uniswap — see streaming-hints.json and token-info",
-    "Claim fees: haiku JWT + POST /api/agent/claim (server pays gas)",
+    "Claim fees: haiku JWT + POST /api/agent/claim — V3 claimRewards or V4 locker (auto)",
     "Validate swap txs per references/TX-VALIDATION.md and known-contracts.json"
   ],
   "install": {

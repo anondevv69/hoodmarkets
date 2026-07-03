@@ -3,11 +3,15 @@ import { encodeFunctionData } from 'viem';
 import { config } from '../config.js';
 import { resolveAgentClaimDeployment } from '../lib/claimDeploymentAuth.js';
 import { BASE_WETH } from '../lib/liquidFactoryDeploy.js';
+import {
+  HOODMARKETS_V3_CLAIM_ABI,
+  isV3CatalogDeployment,
+} from '../lib/hoodmarketsV3Fees.js';
 import { ROBINHOOD_CHAIN_ID } from '../lib/robinhoodChain.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 import { readAgentCaptchaToken, verifyAgentCaptchaJwt } from '../lib/agentCaptchaVerify.js';
 
-/** Minimal fee locker ABI fragment for claim calldata */
+/** V4 fee locker — claim WETH after pool collect */
 const FEE_LOCKER_CLAIM_ABI = [
   {
     type: 'function',
@@ -30,9 +34,9 @@ interface ClaimBody {
 }
 
 /**
- * Returns unsigned tx calldata for `claim(feeOwner, token)` so the agent broadcasts with their wallet.
- * Requires fresh haiku-solved CAPTCHA JWT in X-Agent-Captcha-JWT header.
- * No EIP-191 signature needed — CAPTCHA JWT verification is the authorization.
+ * Returns unsigned tx calldata so the agent can broadcast claim with their own wallet.
+ * V3 simple launches → HoodMarketsV3.claimRewards(token).
+ * V4 pro launches → fee locker claim(feeOwner, WETH) after pool collect.
  */
 export function registerAgentClaimCalldataRoutes(app: Express): void {
   app.options('/api/agent/claim-calldata', (req, res) => {
@@ -65,7 +69,6 @@ export function registerAgentClaimCalldataRoutes(app: Express): void {
         return;
       }
 
-      // Extract wallet address from CAPTCHA JWT — this is the authorized fee recipient for claiming
       const walletFromCaptcha = captchaPayload.walletAddress;
 
       const tokenAddressRaw = typeof body.tokenAddress === 'string' ? body.tokenAddress.trim() : '';
@@ -83,6 +86,36 @@ export function registerAgentClaimCalldataRoutes(app: Express): void {
         return;
       }
 
+      const token = resolved.tokenAddress as `0x${string}`;
+      const isV3 = isV3CatalogDeployment(resolved.row);
+
+      if (isV3) {
+        const factory = config.hoodmarketsV3.factory;
+        if (!factory) {
+          res.status(500).json({ error: 'HoodMarkets V3 factory is not configured on the API.' });
+          return;
+        }
+        const data = encodeFunctionData({
+          abi: HOODMARKETS_V3_CLAIM_ABI,
+          functionName: 'claimRewards',
+          args: [token],
+        });
+        res.json({
+          ok: true,
+          chainId: ROBINHOOD_CHAIN_ID,
+          to: factory,
+          data,
+          value: '0x0',
+          feeRecipient: walletFromCaptcha,
+          tokenAddress: token,
+          feeModel: 'v3',
+          launchType: 'simple',
+          hint:
+            'Simple (V3) launch: call HoodMarketsV3.claimRewards(token). WETH goes directly to the fee recipient (95%) and platform (5%). Prefer POST /api/agent/claim so hood.markets pays gas.',
+        });
+        return;
+      }
+
       const claimAsset = BASE_WETH;
       const data = encodeFunctionData({
         abi: FEE_LOCKER_CLAIM_ABI,
@@ -97,10 +130,12 @@ export function registerAgentClaimCalldataRoutes(app: Express): void {
         data,
         value: '0x0',
         feeRecipient: walletFromCaptcha,
-        tokenAddress: resolved.tokenAddress,
+        tokenAddress: token,
         claimAsset,
+        feeModel: 'v4',
+        launchType: 'pro',
         hint:
-          'Sign and broadcast from the fee recipient wallet. Claim pulls WETH from the Liquid fee locker for this deployment.',
+          'Pro (V4) launch: collect pool fees into the locker first, then claim WETH from the fee locker. Prefer POST /api/agent/claim so hood.markets pays gas.',
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Claim calldata failed';

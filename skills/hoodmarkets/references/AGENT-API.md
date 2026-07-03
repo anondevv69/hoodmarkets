@@ -232,6 +232,11 @@ May include `approve` step then `sell`. Amount in token units (`1M`, `1000000`).
 
 Server broadcasts claim (gas paid by hood.markets). Requires haiku JWT.
 
+**V3 vs V4 (automatic):**
+
+- **Simple (V3)** — `poolId` prefix `v3:` or V3 factory `0xcFE4…9f09` → calls `HoodMarketsV3.claimRewards(tokenAddress)`. One step; WETH to fee wallet.
+- **Pro (V4)** → collects LP fees into locker, then claims WETH from fee locker.
+
 ```http
 POST https://api.hood.markets/api/agent/claim
 X-Agent-Captcha-JWT: <jwt>
@@ -242,6 +247,8 @@ Content-Type: application/json
   "tokenSymbol": "MTK"
 }
 ```
+
+Success includes `feeModel` (`v3`|`v4`), `launchType` (`simple`|`pro`), `txHash`, `explorerUrl`.
 
 ---
 
