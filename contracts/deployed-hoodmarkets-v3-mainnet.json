@@ -1,13 +1,13 @@
 {
   "chainId": 4663,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "hoodmarketsV3": {
-    "factory": "0xbd794cd9E10728Bb1CB5056A92830C3e945cE7b4",
-    "vault": "0xf445351e478bB73d0A5812B0812c5eb9e374f00D",
-    "lpLocker": "0x9875B9Ead485dc1C86a03625531bf677A9276089",
-    "fractionDeployer": "0x39D0e6FB3aaC391a1CC2C3FcAd182c29FEe0c75f",
+    "factory": "0x4c18e43f8b8b63f42a944b98b8af29f576c7ffa8",
+    "vault": "0x1b84cbb1837f17d6d433195b7e57e869b3522848",
+    "lpLocker": "0x5296c54c3f5d8d0e0ced4a95bc6b85d6db715ad5",
+    "fractionDeployer": "0x77aea5d5eaae608d932bfd1e99fcf83e983c3641",
     "platformFeeRecipient": "0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98",
     "owner": "0xFA45A3b8d1662E3432D1B5bE3F37e4923D1b796C",
-    "previousFactory": "0xcFE4D69Ac8e5F79a95d99e991162902f68029f09"
+    "previousFactory": "0xbd794cd9E10728Bb1CB5056A92830C3e945cE7b4"
   }
 }
