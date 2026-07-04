@@ -2,15 +2,18 @@
 
 > **Developer hub:** [hood.markets/Dev](https://hood.markets/Dev)
 
+> **For agents:** Copy this file or point your agent at `https://hood.markets/sdk.md` — contract addresses, SDK usage, and integration paths below.
+
 > Robinhood Chain (4663) · Use our **Uniswap V3** factories on **your own website** or fork the repo and run your own launchpad.
 
 hood.markets is open infrastructure: deploy tokens from any frontend, agent, or script. You do not need to use hood.markets UI — point at the same on-chain contracts (or redeploy your own stack from the repo).
 
 | Resource | Link |
 |----------|------|
-| **SDK (npm)** | [npmjs.com/package/hoodmarkets-sdk](https://www.npmjs.com/package/hoodmarkets-sdk) |
 | **SDK (GitHub)** | [github.com/anondevv69/hoodmarkets-sdk](https://github.com/anondevv69/hoodmarkets-sdk) |
+| **Agent reference (this file)** | [hood.markets/sdk.md](https://hood.markets/sdk.md) |
 | **Contracts / monorepo** | [github.com/anondevv69/hoodmarkets](https://github.com/anondevv69/hoodmarkets) |
+| **Agent API** | [hood.markets/agent.md](https://hood.markets/agent.md) |
 
 ---
 
@@ -38,6 +41,7 @@ Source of truth: [`deployed-robinhood-mainnet.json`](https://github.com/anondevv
 | HoodMarketsV3 LP locker | `0x209eFAA86568f0Ea0E25d1F0E62f92e81c51a72a` |
 | Platform fee wallet (5%) | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
 | Contract owner | `0xFA45A3b8d1662E3432D1B5bE3F37e4923D1b796C` |
+| Uniswap V3 SwapRouter02 | `0xCaf681a66D020601342297493863E78C959E5cb2` |
 
 WETH: `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` · Explorer: [robinhoodchain.blockscout.com](https://robinhoodchain.blockscout.com)
 
@@ -45,8 +49,10 @@ WETH: `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` · Explorer: [robinhoodchain.
 
 ## TypeScript SDK
 
+Install from GitHub until the npm package is published:
+
 ```bash
-npm install hoodmarkets-sdk viem
+npm install github:anondevv69/hoodmarkets-sdk viem
 ```
 
 ```ts

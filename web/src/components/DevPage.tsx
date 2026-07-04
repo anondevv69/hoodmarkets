@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { addressUrl } from '../chain';
 
 const SDK_REPO = 'https://github.com/anondevv69/hoodmarkets-sdk';
-const SDK_NPM = 'https://www.npmjs.com/package/hoodmarkets-sdk';
+const SDK_MD = '/sdk.md';
 const CONTRACTS_REPO = 'https://github.com/anondevv69/hoodmarkets/tree/main/contracts';
 const AGENT_SKILL = 'https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets';
 const API_BASE = 'https://api.hood.markets';
@@ -92,6 +92,11 @@ export function DevPage() {
           <a className="dev-link" href={CONTRACTS_REPO} target="_blank" rel="noreferrer">
             github.com/anondevv69/hoodmarkets/contracts
           </a>
+          {' · '}
+          Agent reference:{' '}
+          <a className="dev-link" href={SDK_MD} target="_blank" rel="noreferrer">
+            sdk.md
+          </a>
         </p>
       </section>
 
@@ -101,14 +106,18 @@ export function DevPage() {
           Deploy from your own site or script — same on-chain contracts as hood.markets.
         </p>
         <div className="dev-links-row">
-          <a className="dev-pill" href={SDK_NPM} target="_blank" rel="noreferrer">
-            hoodmarkets-sdk
-          </a>
           <a className="dev-pill" href={SDK_REPO} target="_blank" rel="noreferrer">
-            GitHub
+            hoodmarkets-sdk (GitHub)
+          </a>
+          <a className="dev-pill" href={SDK_MD} target="_blank" rel="noreferrer">
+            sdk.md
           </a>
         </div>
-        <pre className="dev-code">{`npm install hoodmarkets-sdk viem
+        <p className="dev-foot">
+          Copy <a className="dev-link" href={SDK_MD} target="_blank" rel="noreferrer">sdk.md</a> for your agent — contract
+          addresses, SDK install, and integration paths in one file.
+        </p>
+        <pre className="dev-code">{`npm install github:anondevv69/hoodmarkets-sdk viem
 
 import { HoodMarkets, robinhood, ROBINHOOD_RPC_DEFAULT } from 'hoodmarkets-sdk';
 import { createPublicClient, createWalletClient, http } from 'viem';
@@ -127,7 +136,10 @@ const result = await hm.deployToken({
   feeRecipient: account.address,
 });`}</pre>
         <p className="dev-foot">
-          CLI: <code className="dev-inline">npx hoodmarkets-sdk deploy --name "My Token" --symbol "MTK" --image "ipfs://…"</code>
+          CLI (from repo):{' '}
+          <code className="dev-inline">npx hoodmarkets-sdk deploy --name "My Token" --symbol "MTK" --image "ipfs://…"</code>
+          {' · '}
+          npm package coming soon — install from GitHub for now.
         </p>
       </section>
 
