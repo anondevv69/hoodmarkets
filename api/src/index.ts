@@ -12,17 +12,19 @@ import { XWebhookHandler } from './platforms/x-webhook.js';
 import { setPlatformListenSnapshot } from './lib/platformListenSnapshot.js';
 import { postStartupListenReport } from './lib/discordDebug.js';
 import { initDedupDb, closeDedupDb, cleanupOldRecords } from './lib/deployDedup.js';
-import {
-  initDeploymentCatalogDb,
+import { initDeploymentCatalogDb,
   closeDeploymentCatalogDb,
   runCatalogPurgesIfNeeded,
 } from './lib/deploymentCatalog.js';
+import { initHoodSocialDb, closeHoodSocialDb } from './lib/hoodSocialDb.js';
 import { registerWebDeployRoutes } from './routes/deployWeb.js';
 import { registerResolveSourceRoutes } from './routes/resolveSource.js';
 import { registerDeploymentCatalogRoutes } from './routes/deploymentCatalog.js';
 import { registerTokenSwapRoutes } from './routes/tokenSwap.js';
 import { registerMyDeploymentsRoutes } from './routes/myDeployments.js';
 import { registerDeployerProfileRoutes } from './routes/deployerProfile.js';
+import { registerUserProfileRoutes } from './routes/userProfile.js';
+import { registerTokenSpaceRoutes } from './routes/tokenSpaces.js';
 import { registerMyDeploymentsClaimRoutes } from './routes/myDeploymentsClaim.js';
 import { registerMyDeploymentsCollectPoolRoutes } from './routes/myDeploymentsCollectPool.js';
 import { registerDeploymentFeeActionRoutes } from './routes/deploymentFeeActions.js';
@@ -42,6 +44,7 @@ async function main() {
     // Initialize deploy dedup database + deployment catalog (same `.data` dir — use a volume in prod)
     initDedupDb();
     initDeploymentCatalogDb();
+    initHoodSocialDb();
     setTimeout(() => {
       void runCatalogPurgesIfNeeded(config.chainRpcUrl).catch((e: unknown) =>
         logger.warn('Catalog purge failed:', e instanceof Error ? e.message : e),
@@ -208,6 +211,8 @@ async function main() {
     registerTokenSwapRoutes(app);
     registerMyDeploymentsRoutes(app);
     registerDeployerProfileRoutes(app);
+    registerUserProfileRoutes(app);
+    registerTokenSpaceRoutes(app);
     registerMyDeploymentsClaimRoutes(app);
     registerMyDeploymentsCollectPoolRoutes(app);
     registerAgentCaptchaRoutes(app);
@@ -332,6 +337,7 @@ process.on('SIGTERM', () => {
   logger.info('SIGTERM: shutting down gracefully');
   closeDedupDb();
   closeDeploymentCatalogDb();
+  closeHoodSocialDb();
   process.exit(0);
 });
 
@@ -339,5 +345,6 @@ process.on('SIGINT', () => {
   logger.info('SIGINT: shutting down gracefully');
   closeDedupDb();
   closeDeploymentCatalogDb();
+  closeHoodSocialDb();
   process.exit(0);
 });

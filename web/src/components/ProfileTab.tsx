@@ -8,9 +8,11 @@ import {
   type DexTokenMetrics,
 } from '../lib/dexscreenerVolume';
 import { openDeployerProfile } from '../lib/deployerProfileRoute';
+import { navigateToAppTab } from '../lib/tokenRoute';
 import { hasTwitterLinked, twitterUsernameFromPrivyUser } from '../lib/privyLinkedAccounts';
 import { xProfileUrl } from '../lib/requesterXDisplay';
 import { TokenCard } from './TokenCard';
+import { ProfileBankrLink } from './ProfileBankrLink';
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
@@ -22,13 +24,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
 }
 
 function goLaunch() {
-  const url = new URL(window.location.href);
-  url.searchParams.delete('token');
-  url.searchParams.delete('profile');
-  url.searchParams.delete('user');
-  url.searchParams.set('tab', 'launch');
-  window.history.pushState({}, '', url);
-  window.dispatchEvent(new PopStateEvent('popstate'));
+  navigateToAppTab('launch');
 }
 
 export function ProfileTab() {
@@ -37,6 +33,9 @@ export function ProfileTab() {
   const [tokens, setTokens] = useState<Deployment[]>([]);
   const [totalLaunchCount, setTotalLaunchCount] = useState(0);
   const [xLaunchCount, setXLaunchCount] = useState(0);
+  const [bankrLaunchCount, setBankrLaunchCount] = useState(0);
+  const [bankrLinked, setBankrLinked] = useState(false);
+  const [bankrWallet, setBankrWallet] = useState<string | null>(null);
   const [walletLaunchCount, setWalletLaunchCount] = useState(0);
   const [metricsByAddress, setMetricsByAddress] = useState<
     Record<string, DexTokenMetrics | undefined>
@@ -68,6 +67,9 @@ export function ProfileTab() {
     setTokens(profile.deployments);
     setTotalLaunchCount(profile.totalLaunchCount);
     setXLaunchCount(profile.xLaunchCount);
+    setBankrLaunchCount(profile.bankrLaunchCount);
+    setBankrLinked(profile.bankrLinked);
+    setBankrWallet(profile.bankrWallet);
     setWalletLaunchCount(profile.walletLaunchCount);
     const addresses = profile.deployments.map((r) => r.tokenAddress);
     if (addresses.length > 0) {
@@ -83,6 +85,9 @@ export function ProfileTab() {
       setTokens([]);
       setTotalLaunchCount(0);
       setXLaunchCount(0);
+      setBankrLaunchCount(0);
+      setBankrLinked(false);
+      setBankrWallet(null);
       setWalletLaunchCount(0);
       return;
     }
@@ -205,6 +210,11 @@ export function ProfileTab() {
           </div>
         )}
       </div>
+
+      <ProfileBankrLink
+        profile={{ bankrLinked, bankrWallet, bankrLaunchCount }}
+        onUpdated={loadProfile}
+      />
 
       {totalLaunchCount > 0 || walletLaunchCount > 0 ? (
         <div className="profile-stats">

@@ -192,6 +192,9 @@ export interface MyDeployerProfileResponse {
   xUsername: string | null;
   xLinked: boolean;
   xLaunchCount: number;
+  bankrWallet: string | null;
+  bankrLinked: boolean;
+  bankrLaunchCount: number;
   walletLaunchCount: number;
   totalLaunchCount: number;
   publicProfileUrl: string | null;
@@ -237,6 +240,95 @@ export async function fetchMyDeployerProfile(
     headers: { Authorization: `Bearer ${token}` },
   });
   return parseJson<MyDeployerProfileResponse>(res);
+}
+
+export interface LinkBankrChallenge {
+  message: string;
+  expiresAtMs: number;
+  walletAddress: string;
+}
+
+export async function fetchLinkBankrChallenge(
+  token: string,
+  walletAddress: string,
+): Promise<LinkBankrChallenge> {
+  const res = await fetch(`${API_BASE}/api/my-profile/link-bankr/challenge`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ walletAddress }),
+  });
+  return parseJson<LinkBankrChallenge>(res);
+}
+
+export async function linkBankrWallet(
+  token: string,
+  input: { walletAddress: string; signature: string; expiresAtMs: number },
+): Promise<{ ok: boolean; bankrWallet: string }> {
+  const res = await fetch(`${API_BASE}/api/my-profile/link-bankr`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+  return parseJson(res);
+}
+
+export async function unlinkBankrWallet(token: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`${API_BASE}/api/my-profile/link-bankr`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return parseJson(res);
+}
+
+export interface TokenSpacePost {
+  id: number;
+  tokenAddress: string;
+  walletAddress: string;
+  body: string;
+  createdAt: string;
+}
+
+export async function fetchTokenSpacePosts(tokenAddress: string): Promise<TokenSpacePost[]> {
+  const res = await fetch(
+    `${API_BASE}/api/token-spaces/${encodeURIComponent(tokenAddress)}/posts`,
+  );
+  const data = await parseJson<{ posts: TokenSpacePost[] }>(res);
+  return data.posts;
+}
+
+export async function fetchTokenSpaceHolderStatus(
+  tokenAddress: string,
+  walletAddress: string,
+): Promise<{ holds: boolean; balance: string }> {
+  const params = new URLSearchParams({ wallet: walletAddress });
+  const res = await fetch(
+    `${API_BASE}/api/token-spaces/${encodeURIComponent(tokenAddress)}/holder?${params}`,
+  );
+  return parseJson(res);
+}
+
+export async function postTokenSpaceComment(
+  token: string,
+  tokenAddress: string,
+  walletAddress: string,
+  body: string,
+): Promise<TokenSpacePost> {
+  const res = await fetch(`${API_BASE}/api/token-spaces/${encodeURIComponent(tokenAddress)}/posts`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ walletAddress, body }),
+  });
+  const data = await parseJson<{ post: TokenSpacePost }>(res);
+  return data.post;
 }
 
 export async function fetchWebDeployConfig(): Promise<WebDeployConfig> {

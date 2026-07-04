@@ -12,6 +12,7 @@ import { TokenAvatar } from './TokenAvatar';
 import { TokenHeroMetrics } from './TokenHeroMetrics';
 import { TokenPageSidebar } from './TokenPageSidebar';
 import { TokenSocialLinks } from './TokenSocialLinks';
+import { TokenSpaceComments } from './TokenSpaceComments';
 
 function TokenHeaderIcon({
   onClick,
@@ -221,6 +222,8 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               forceShow
             />
           </section>
+
+          <TokenSpaceComments tokenAddress={token.tokenAddress} />
 
           <section className="tp-zone tp-trades-zone" aria-labelledby="live-trades-heading">
             <p id="live-trades-heading" className="tp-zone-label">

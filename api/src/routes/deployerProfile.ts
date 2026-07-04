@@ -4,6 +4,7 @@ import { config } from '../config.js';
 import {
   countDeploymentsAsFeeRecipient,
   countDeploymentsInitiatedByWallet,
+  countDeploymentsByAgentWallet,
   countDeploymentsByXUsername,
   listDeploymentCatalogByFeeRecipient,
   listDeploymentCatalogForUser,
@@ -11,6 +12,7 @@ import {
   listDeploymentsByXUsername,
   type DeploymentCatalogRow,
 } from '../lib/deploymentCatalog.js';
+import { getBankrWalletForPrivyUser } from '../lib/hoodSocialDb.js';
 import { fetchPrivyUserRecordById, extractTwitterUsernameFromPrivyUser } from '../lib/privy.js';
 import { verifyPrivyBearerToken } from '../lib/privyAccessToken.js';
 import { normalizeXUsername } from '../lib/requesterXUsername.js';
@@ -181,20 +183,26 @@ export function registerDeployerProfileRoutes(app: Express): void {
 
       const userRecord = await fetchPrivyUserRecordById(userId);
       const xUsername = extractTwitterUsernameFromPrivyUser(userRecord);
+      const bankrWallet = await getBankrWalletForPrivyUser(userId);
 
-      const [accountDeployments, xDeployments] = await Promise.all([
+      const [accountDeployments, xDeployments, bankrDeployments] = await Promise.all([
         listDeploymentCatalogForUser(userId, resolvedWallet, 100, 0),
         xUsername ? listDeploymentsByXUsername(xUsername, 100, 0) : Promise.resolve([]),
+        bankrWallet ? listDeploymentsInitiatedByWallet(bankrWallet, 100, 0) : Promise.resolve([]),
       ]);
 
       const launchedByAccount = accountDeployments.filter((d) => d.deployedByViewer);
-      const mergedLaunches = mergeDeploymentsByToken(launchedByAccount, xDeployments);
+      const mergedLaunches = mergeDeploymentsByToken(launchedByAccount, xDeployments, bankrDeployments);
       const xLaunchCount = xUsername ? await countDeploymentsByXUsername(xUsername) : 0;
+      const bankrLaunchCount = bankrWallet ? await countDeploymentsByAgentWallet(bankrWallet) : 0;
 
       res.json({
         xUsername,
         xLinked: !!xUsername,
         xLaunchCount,
+        bankrWallet,
+        bankrLinked: !!bankrWallet,
+        bankrLaunchCount,
         walletLaunchCount: launchedByAccount.length,
         totalLaunchCount: mergedLaunches.length,
         publicProfileUrl: xUsername ? publicProfileUrl(xUsername) : null,
