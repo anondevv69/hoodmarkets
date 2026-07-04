@@ -94,7 +94,7 @@ Simple (V3) tokens (`poolId` starts with `v3:`) → use Uniswap / DexScreener in
 
 | Launch | Contract action |
 |--------|-----------------|
-| Simple (V3) | `HoodMarketsV3.claimRewards(token)` @ `0xcFE4D69Ac8e5F79a95d99e991162902f68029f09` |
+| Simple (V3) | `HoodMarketsV3.claimRewards(token)` @ `0xbd794cd9E10728Bb1CB5056A92830C3e945cE7b4` |
 | Pro (V4) | LP locker collect → fee locker `claim(feeOwner, WETH)` |
 
 ```
@@ -125,9 +125,10 @@ Lists tokens where the wallet is fee recipient.
 
 | Contract | Address |
 |----------|---------|
-| HoodMarketsV3 factory | `0xcFE4D69Ac8e5F79a95d99e991162902f68029f09` |
-| HoodMarketsV3 vault | `0xe250a07229Bcf29a2cC02d6070beE82252F71C36` |
-| HoodMarketsV3 LP locker | `0x209eFAA86568f0Ea0E25d1F0E62f92e81c51a72a` |
+| HoodMarketsV3 factory | `0xbd794cd9E10728Bb1CB5056A92830C3e945cE7b4` |
+| HoodMarketsV3 vault | `0xf445351e478bB73d0A5812B0812c5eb9e374f00D` |
+| HoodMarketsV3 LP locker | `0x9875B9Ead485dc1C86a03625531bf677A9276089` |
+| HoodMarketsV3 fraction deployer | `0x39D0e6FB3aaC391a1CC2C3FcAd182c29FEe0c75f` |
 | Platform fee wallet (5%) | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
 | Contract owner | `0xFA45A3b8d1662E3432D1B5bE3F37e4923D1b796C` |
 
