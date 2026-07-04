@@ -12,6 +12,7 @@ import { useExploreTokens } from './hooks/useExploreTokens';
 import { useEnsureRobinhoodChain } from './hooks/useEnsureRobinhoodChain';
 import { isDevPage } from './lib/devRoute';
 import { readDeployerProfileFromUrl } from './lib/deployerProfileRoute';
+import { closeDeployerProfile } from './lib/deployerProfileRoute';
 import { closeTokenPage, openExplorePage, readTokenFromUrl } from './lib/tokenRoute';
 
 type Tab = 'tokens' | 'launch' | 'profile';
@@ -154,9 +155,13 @@ export default function App() {
           </div>
         ) : null}
 
-        {tokenAddress ? (
+        {tokenAddress || deployerProfile ? (
           <div className="page-back-row">
-            <button type="button" className="btn btn-ghost token-page-back" onClick={closeTokenPage}>
+            <button
+              type="button"
+              className="btn btn-ghost token-page-back"
+              onClick={tokenAddress ? closeTokenPage : closeDeployerProfile}
+            >
               ← Explore
             </button>
           </div>

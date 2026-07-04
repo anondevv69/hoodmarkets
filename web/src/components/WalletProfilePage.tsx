@@ -38,6 +38,7 @@ function TokenSection({
             deployment={t}
             metrics={metricsByAddress[t.tokenAddress]}
             showDeployer={false}
+            variant="profile"
           />
         ))}
       </ul>
@@ -120,10 +121,6 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
 
   return (
     <div className="deployer-profile-page lp-fade-in">
-      <button type="button" className="btn btn-ghost token-page-back" onClick={closeDeployerProfile}>
-        ← Explore
-      </button>
-
       <div className="lp-card deployer-profile-hero">
         <p className="section-label">Wallet profile</p>
         <h2 className="lp-display deployer-profile-handle mono">{shortenAddress(walletAddress)}</h2>
