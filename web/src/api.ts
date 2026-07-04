@@ -75,6 +75,8 @@ export interface Deployment {
   feeRecipientDeploymentCount?: number;
   poolId?: string;
   factoryAddress?: string;
+  /** Catalog block number — scopes fraction transfer scan. */
+  blockNumber?: string;
 }
 
 export type TokenDetail = Deployment & {

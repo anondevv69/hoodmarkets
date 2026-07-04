@@ -2561,6 +2561,119 @@ label {
   font-size: 0.9rem;
 }
 
+.tp-fraction-zone {
+  margin-top: 0;
+}
+
+.token-fraction-head {
+  margin-bottom: 0.75rem;
+}
+
+.token-fraction-sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.token-fraction-note {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.token-fraction-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+}
+
+@media (min-width: 640px) {
+  .token-fraction-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.token-fraction-stat {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.token-fraction-stat-k {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+
+.token-fraction-stat-v {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.token-fraction-wallet {
+  margin: 0 0 0.75rem;
+  font-size: 0.88rem;
+}
+
+.token-fraction-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.85rem;
+}
+
+.token-fraction-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 0.75rem;
+}
+
+.token-fraction-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.token-fraction-table th,
+.token-fraction-table td {
+  padding: 0.45rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.token-fraction-table th {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.token-fraction-holder {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+}
+
+.token-fraction-foot {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.token-fraction-foot code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+}
+
 .tp-discussion-zone {
   margin-top: 0;
 }
