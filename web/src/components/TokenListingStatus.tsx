@@ -37,20 +37,24 @@ function DexScreenerIframe({
   mode,
   title,
   className,
+  clipFooter = false,
 }: {
   tokenAddress: string;
   metrics?: DexTokenMetrics;
   mode: DexScreenerEmbedMode;
   title: string;
   className: string;
+  /** Crop DexScreener's bottom "Tracked by" bar (NOXA-style). */
+  clipFooter?: boolean;
 }) {
   return (
-    <div className={className}>
+    <div className={`${className}${clipFooter ? ' dex-screener-clip' : ''}`}>
       <iframe
         title={title}
         src={dexScreenerEmbedUrl(tokenAddress, metrics, mode)}
         allow="clipboard-write"
         loading="lazy"
+        scrolling="no"
       />
     </div>
   );
@@ -72,6 +76,7 @@ export function DexScreenerChartEmbed({
       mode="chart"
       title="DexScreener chart"
       className="dex-chart-embed dex-screener-chart-embed"
+      clipFooter
     />
   );
 }
