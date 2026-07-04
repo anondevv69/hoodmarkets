@@ -42,6 +42,10 @@ export function DevPage() {
 
   return (
     <div className="dev-page">
+      <p className="dev-lead dev-intro">
+        Reference for on-chain contracts, the TypeScript SDK, and the agent API — everything you need
+        to build on hood.markets outside the web UI.
+      </p>
       <nav className="dev-nav" aria-label="Dev sections">
         <a href="#contracts" className="dev-nav-link">
           Contracts
@@ -92,20 +96,16 @@ export function DevPage() {
       </section>
 
       <section id="sdk" className="dev-section lp-card">
-        <h2 className="dev-section-title">Contract / SDK</h2>
+        <h2 className="dev-section-title">SDK</h2>
         <p className="dev-lead">
-          Deploy from your own site or script — same on-chain contracts as hood.markets. Modeled after{' '}
-          <a className="dev-link" href="https://github.com/clanker-devco/clanker-sdk" target="_blank" rel="noreferrer">
-            clanker-sdk
-          </a>
-          .
+          Deploy from your own site or script — same on-chain contracts as hood.markets.
         </p>
         <div className="dev-links-row">
           <a className="dev-pill" href={SDK_NPM} target="_blank" rel="noreferrer">
-            npm: hoodmarkets-sdk
+            hoodmarkets-sdk
           </a>
           <a className="dev-pill" href={SDK_REPO} target="_blank" rel="noreferrer">
-            SDK (GitHub)
+            GitHub
           </a>
         </div>
         <pre className="dev-code">{`npm install hoodmarkets-sdk viem
