@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { createPublicClient, custom, erc20Abi, formatEther } from 'viem';
 import { robinhood, txUrl } from '../chain';
 import { ensureRobinhoodChainInWallet } from '../lib/ensureRobinhoodChain';
+import { formatSwapError } from '../lib/formatSwapError';
 import {
   fetchTokenSwapConfig,
   swapEthForHoodmarketsToken,
@@ -140,7 +141,7 @@ export function TokenSwap({
         );
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Swap failed');
+      setError(formatSwapError(e));
     } finally {
       setLoading(false);
       setSwapStep(null);
@@ -149,7 +150,7 @@ export function TokenSwap({
 
   if (sidebar) {
     return (
-      <div className="tp-card tp-side-card token-swap-sidebar">
+      <div className="tp-zone token-swap-sidebar">
         <div className="tp-buysell">
           <button
             type="button"

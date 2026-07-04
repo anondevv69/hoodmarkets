@@ -45,7 +45,7 @@ export function TokenPageSidebar({
     <aside className="token-page-sidebar">
       <TokenSwap tokenAddress={token.tokenAddress} symbol={sym} variant="sidebar" />
 
-      <div className="tp-card tp-side-card">
+      <div className="tp-zone tp-deploy-zone">
         <div className="tp-side-title">Deploy details</div>
 
         {launchTweetUrl ? <LaunchTweetEmbed tweetUrl={launchTweetUrl} compact /> : null}
