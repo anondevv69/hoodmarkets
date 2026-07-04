@@ -175,6 +175,14 @@ a {
   color: var(--muted);
 }
 
+.page-back-row {
+  margin-bottom: 0.75rem;
+}
+
+.page-back-row .token-page-back {
+  padding-left: 0;
+}
+
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -797,7 +805,7 @@ label {
 .tp-top-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 1rem;
 }
 

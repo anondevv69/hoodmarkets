@@ -120,9 +120,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   return (
     <div className="token-page lp-fade-in">
       <div className="tp-top-bar">
-        <button type="button" className="btn btn-ghost token-page-back" onClick={closeTokenPage}>
-          ← Explore
-        </button>
         <div className="tp-header-actions">
           <TokenHeaderAction onClick={onCopyAddress} ariaLabel="Copy token address">
             {copied ? 'Copied' : 'Copy address'}
