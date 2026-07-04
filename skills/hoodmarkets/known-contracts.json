@@ -1,12 +1,12 @@
 {
   "chainId": 4663,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "hoodmarketsV3": {
-    "hoodmarketsV3Factory": "0xbd794cd9E10728Bb1CB5056A92830C3e945cE7b4",
-    "hoodmarketsV3Vault": "0xf445351e478bB73d0A5812B0812c5eb9e374f00D",
-    "hoodmarketsV3LpLocker": "0x9875B9Ead485dc1C86a03625531bf677A9276089",
-    "hoodmarketsV3FractionDeployer": "0x39D0e6FB3aaC391a1CC2C3FcAd182c29FEe0c75f",
+    "hoodmarketsV3Factory": "0x4c18e43F8B8b63f42a944b98b8af29f576c7Ffa8",
+    "hoodmarketsV3Vault": "0x1b84cBb1837F17d6d433195b7e57E869b3522848",
+    "hoodmarketsV3LpLocker": "0x5296C54C3f5D8d0e0ced4A95BC6B85d6Db715AD5",
+    "hoodmarketsV3FractionDeployer": "0x77Aea5d5EAae608d932bfD1e99fCf83e983c3641",
     "hoodmarketsV3PlatformFeeRecipient": "0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98",
-    "hoodmarketsV3PreviousFactory": "0xcFE4D69Ac8e5F79a95d99e991162902f68029f09"
+    "hoodmarketsV3PreviousFactory": "0xbd794cd9E10728Bb1CB5056A92830C3e945cE7b4"
   }
 }
