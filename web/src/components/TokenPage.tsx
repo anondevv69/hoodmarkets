@@ -223,8 +223,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
             />
           </section>
 
-          <TokenSpaceComments tokenAddress={token.tokenAddress} />
-
           <section className="tp-zone tp-trades-zone" aria-labelledby="live-trades-heading">
             <p id="live-trades-heading" className="tp-zone-label">
               Trades
@@ -236,6 +234,8 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               variant="compact"
             />
           </section>
+
+          <TokenSpaceComments tokenAddress={token.tokenAddress} />
         </div>
 
         <TokenPageSidebar token={token} sym={sym} />
