@@ -6,6 +6,7 @@ import {HoodMarketsV3Deployer} from "./HoodMarketsV3Deployer.sol";
 import {HoodMarketsV3FractionDeployer} from "./HoodMarketsV3FractionDeployer.sol";
 
 import {IHoodMarketsV3} from "./interfaces/IHoodMarketsV3.sol";
+import {IHoodMarketsV3TokenFraction} from "./interfaces/IHoodMarketsV3TokenFraction.sol";
 import {IHoodMarketsV3Vault} from "./interfaces/IHoodMarketsV3Vault.sol";
 import {IHoodMarketsV3LpLocker} from "./interfaces/IHoodMarketsV3LpLocker.sol";
 import {
@@ -23,7 +24,7 @@ import {TickMath} from "@uniswap/v3-core/contracts/libraries/TickMath.sol";
 contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
     using TickMath for int24;
 
-    string constant version = "0.4.0";
+    string constant version = "0.5.0";
 
     IUniswapV3Factory public uniswapV3Factory;
     INonfungiblePositionManager public positionManager;
@@ -196,8 +197,22 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
             poolSupply
         );
 
+        RewardsConfig memory rewardsConfig = deploymentConfig.rewardsConfig;
+        if (fractionCollection != address(0)) {
+            (,, address token0, address token1,,,,,,,,) =
+                positionManager.positions(positionId);
+            IHoodMarketsV3TokenFraction(fractionCollection).configureFeeRewards(
+                positionId, token0, token1
+            );
+            // Route creator fees to share holders unless a custom recipient was chosen
+            // (e.g. platform-only rate limit uses the platform treasury wallet).
+            if (rewardsConfig.creatorRewardRecipient == rewardsConfig.creatorAdmin) {
+                rewardsConfig.creatorRewardRecipient = fractionCollection;
+            }
+        }
+
         // lock the lp tokens
-        _lockLPTokens(positionId, deploymentConfig.rewardsConfig);
+        _lockLPTokens(positionId, rewardsConfig);
 
         // perform initial buy if eth was sent, use the creator admin as the recipient
         uint256 amountTokensBought = msg.value > 0

@@ -390,8 +390,8 @@ export function LaunchTab() {
         </p>
         {launchedMeta.showFractionNotice ? (
           <p className="muted launch-done-sub launch-done-fraction">
-            1,000 Holder NFT shares (10% vault) were minted to your wallet at launch — sell,
-            transfer, airdrop, or redeem from the token page.
+            1,000 Holder NFT shares (10% vault) were minted to your wallet — you earn{' '}
+            <strong>1/1000 of trading fees per share</strong>. Claim fees on the token page.
           </p>
         ) : null}
         <LaunchSuccessLinks
@@ -640,13 +640,10 @@ export function LaunchTab() {
                   <p className="launch-fraction-notice-title">1,000 Holder NFTs (automatic)</p>
                   <p className="launch-fraction-notice-body muted">
                     Every launch vaults <strong>10% of supply</strong> as{' '}
-                    <strong>1,000 equal tradable shares</strong> — embedded in the contract, not
-                    optional. All 1,000 shares mint to <strong>your fee wallet</strong> when the token
-                    goes live.
-                  </p>
-                  <p className="launch-fraction-notice-body muted">
-                    After launch, you decide what to do — sell, transfer, airdrop to community or
-                    buyers, or redeem on-chain for underlying tokens.
+                    <strong>1,000 equal tradable shares</strong>. All 1,000 mint to{' '}
+                    <strong>your fee wallet</strong> at launch. Holders earn a{' '}
+                    <strong>pro-rata share of the 95% trading-fee pool</strong> — sell, transfer, or
+                    redeem the vaulted tokens anytime.
                   </p>
                 </div>
               ) : null}

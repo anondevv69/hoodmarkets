@@ -1,5 +1,7 @@
 import {
   createPublicClient,
+  createWalletClient,
+  custom,
   decodeEventLog,
   getAddress,
   http,
@@ -7,8 +9,8 @@ import {
   type Address,
   type Hex,
 } from 'viem';
-import { HOODMARKETS_V3_FACTORY } from './launchType';
 import { robinhood } from '../chain';
+import { HOODMARKETS_V3_FACTORY } from './launchType';
 
 const FRACTION_FACTORY_ABI = [
   {
@@ -51,6 +53,30 @@ const FRACTION_ABI = [
       { name: 'id', type: 'uint256' },
     ],
     outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'claimTradingFees',
+    stateMutability: 'nonpayable',
+    inputs: [],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'pendingTradingFees',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [
+      { name: 'pending0', type: 'uint256' },
+      { name: 'pending1', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'rewardToken0',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
   },
   {
     type: 'event',
@@ -239,4 +265,41 @@ export async function fetchTokenFractionInfo(
     holderCount: holders.length,
     holders,
   };
+}
+
+export async function fetchPendingFractionTradingFees(
+  collectionAddress: Address,
+  walletAddress: Address,
+): Promise<{ pending0: bigint; pending1: bigint } | null> {
+  const client = publicClient();
+  try {
+    const [pending0, pending1] = await client.readContract({
+      address: collectionAddress,
+      abi: FRACTION_ABI,
+      functionName: 'pendingTradingFees',
+      args: [walletAddress],
+    });
+    return { pending0, pending1 };
+  } catch {
+    return null;
+  }
+}
+
+export async function claimFractionTradingFees(
+  collectionAddress: Address,
+  walletAddress: Address,
+  ethereumProvider: unknown,
+): Promise<Hex> {
+  const client = createWalletClient({
+    account: walletAddress,
+    chain: robinhood,
+    transport: custom(ethereumProvider as Parameters<typeof custom>[0]),
+  });
+  return client.writeContract({
+    address: collectionAddress,
+    abi: FRACTION_ABI,
+    functionName: 'claimTradingFees',
+    args: [],
+    chain: robinhood,
+  });
 }

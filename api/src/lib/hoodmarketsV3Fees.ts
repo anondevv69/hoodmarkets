@@ -75,7 +75,7 @@ export async function claimV3RewardsForToken(
     txHash,
     basescanUrl: robinhoodTxUrl(txHash),
     message:
-      'V3 swap fees claimed from the pool. WETH goes directly to the fee recipient wallet (95% creator / 5% platform).',
+      'V3 swap fees collected from the pool into the Holder NFT contract. Share holders call claimTradingFees() on the collection for their pro-rata slice (95% creator / 5% platform).',
   };
 }
 

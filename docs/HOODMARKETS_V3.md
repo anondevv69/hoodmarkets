@@ -13,16 +13,19 @@ Forked from upstream v3.1 launchpad contracts and rebranded as **HoodMarkets** �
 
 The 5% platform wallet is set at locker deploy (`HOODMARKETS_PLATFORM_FEE_RECIPIENT`). The locker **owner** can change the default platform wallet via `updateTeamRecipient()`.
 
-## Embedded 1000-share fraction (v0.4.0+)
+## Embedded 1000-share fraction (v0.5.0+)
 
-Every token launched through **HoodMarkets V3 v0.4.0** automatically:
+Every token launched through **HoodMarkets V3 v0.5.0** automatically:
 
 | Step | On-chain behavior |
 |------|-------------------|
 | **Vault** | **10%** of the 100B supply (`FRACTION_VAULT_PERCENTAGE = 10`) |
 | **Fraction collection** | New `HoodMarketsV3TokenFraction` ERC-1155 per token (id `#0`, supply **1000**) |
 | **Initial holder** | All 1000 shares go to `creatorAdmin` — sell via transfers, redeem via `redeem(amount)` |
+| **Trading fees (95%)** | Routed to the fraction contract; holders call `claimTradingFees()` for pro-rata WETH/token |
 | **Pool** | Remaining **90%** seeds the Uniswap V3 pool |
+
+**v0.4.0 tokens** mint shares but route fees to a single wallet — upgrade requires a new factory deploy.
 
 There is **no SDK toggle** and **no optional vault config** — legacy `vaultConfig` values revert with `LegacyVaultDisabled`. Integrators call `deployToken` exactly as before; fractions are created inside the factory.
 

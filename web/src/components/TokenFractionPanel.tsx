@@ -1,10 +1,12 @@
-import { useWallets } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
-import { addressUrl, shortenAddress, tokenUrl } from '../chain';
+import { addressUrl, shortenAddress, tokenUrl, txUrl } from '../chain';
 import { openWalletProfile } from '../lib/deployerProfileRoute';
 import { formatTokenBalance } from '../lib/formatTokenBalance';
 import { isSimpleLaunchDeployment } from '../lib/launchType';
 import {
+  claimFractionTradingFees,
+  fetchPendingFractionTradingFees,
   fetchTokenFractionInfo,
   fetchWalletFractionBalance,
   type TokenFractionInfo,
@@ -30,9 +32,17 @@ export function TokenFractionPanel({
   feeRecipientAddress?: string | null;
 }) {
   const { wallets } = useWallets();
-  const walletAddress = wallets[0]?.address;
+  const { authenticated } = usePrivy();
+  const wallet = wallets[0];
+  const walletAddress = wallet?.address;
   const [info, setInfo] = useState<TokenFractionInfo | null>(null);
   const [walletShares, setWalletShares] = useState<number | null>(null);
+  const [pendingFees, setPendingFees] = useState<{ pending0: bigint; pending1: bigint } | null>(
+    null,
+  );
+  const [claimingFees, setClaimingFees] = useState(false);
+  const [claimTx, setClaimTx] = useState<string | null>(null);
+  const [claimError, setClaimError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,6 +82,7 @@ export function TokenFractionPanel({
   useEffect(() => {
     if (!info?.collectionAddress || !walletAddress) {
       setWalletShares(null);
+      setPendingFees(null);
       return;
     }
     let cancelled = false;
@@ -81,6 +92,16 @@ export function TokenFractionPanel({
       })
       .catch(() => {
         if (!cancelled) setWalletShares(null);
+      });
+    void fetchPendingFractionTradingFees(
+      info.collectionAddress,
+      walletAddress as `0x${string}`,
+    )
+      .then((row) => {
+        if (!cancelled) setPendingFees(row);
+      })
+      .catch(() => {
+        if (!cancelled) setPendingFees(null);
       });
     return () => {
       cancelled = true;
@@ -126,8 +147,8 @@ export function TokenFractionPanel({
           Holder NFTs
         </p>
         <p className="token-fraction-sub">
-          {info.totalShares.toLocaleString()} equal shares · 10% supply vaulted · minted to the fee
-          recipient at launch
+          {info.totalShares.toLocaleString()} equal shares · 10% supply vaulted ·{' '}
+          <strong>95% trading fees split pro-rata</strong> by share count
         </p>
       </div>
 
@@ -157,11 +178,70 @@ export function TokenFractionPanel({
             {isFeeRecipientWallet ? 'You received the launch shares' : 'You hold shares'}
           </p>
           <ul className="token-fraction-manage-list">
+            <li>Claim your pro-rata trading fees below (pulls from pool if needed)</li>
             <li>Sell or list on NFT marketplaces (ERC-1155 transfer)</li>
             <li>Gift or airdrop shares to any wallet</li>
             <li>Reward early buyers — send shares to their wallets after they trade</li>
             <li>Redeem on-chain via the collection contract to receive underlying tokens</li>
           </ul>
+          {authenticated && wallet && walletShares != null && walletShares > 0 ? (
+            <div className="token-fraction-claim">
+              {pendingFees && (pendingFees.pending0 > 0n || pendingFees.pending1 > 0n) ? (
+                <p className="muted token-fraction-pending">
+                  Pending fees:{' '}
+                  {pendingFees.pending0 > 0n
+                    ? `${formatTokenBalance(pendingFees.pending0, 18)} WETH`
+                    : null}
+                  {pendingFees.pending0 > 0n && pendingFees.pending1 > 0n ? ' · ' : null}
+                  {pendingFees.pending1 > 0n
+                    ? `${formatTokenBalance(pendingFees.pending1, 18)} token`
+                    : null}
+                </p>
+              ) : (
+                <p className="muted token-fraction-pending">No unclaimed fees yet for your shares.</p>
+              )}
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={claimingFees}
+                onClick={() => {
+                  void (async () => {
+                    setClaimError(null);
+                    setClaimTx(null);
+                    setClaimingFees(true);
+                    try {
+                      const provider = await wallet.getEthereumProvider();
+                      const hash = await claimFractionTradingFees(
+                        info.collectionAddress,
+                        wallet.address as `0x${string}`,
+                        provider,
+                      );
+                      setClaimTx(hash);
+                      const pending = await fetchPendingFractionTradingFees(
+                        info.collectionAddress,
+                        wallet.address as `0x${string}`,
+                      );
+                      setPendingFees(pending);
+                    } catch (e) {
+                      setClaimError(e instanceof Error ? e.message : 'Claim failed');
+                    } finally {
+                      setClaimingFees(false);
+                    }
+                  })();
+                }}
+              >
+                {claimingFees ? 'Claiming…' : 'Claim my trading fees'}
+              </button>
+              {claimTx ? (
+                <p className="mono token-fraction-claim-tx">
+                  <a href={txUrl(claimTx)} target="_blank" rel="noreferrer">
+                    {claimTx.slice(0, 10)}…
+                  </a>
+                </p>
+              ) : null}
+              {claimError ? <p className="error">{claimError}</p> : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -190,7 +270,7 @@ export function TokenFractionPanel({
           <strong>
             {walletShares.toLocaleString()} share{walletShares === 1 ? '' : 's'}
           </strong>{' '}
-          ({pctLabel((walletShares / info.totalShares) * 100)} of vault)
+          ({pctLabel((walletShares / info.totalShares) * 100)} of vault · same % of creator fees)
         </p>
       ) : null}
 
@@ -240,10 +320,9 @@ export function TokenFractionPanel({
       )}
 
       <p className="muted token-fraction-foot">
-        Shares are standard ERC-1155 tokens — transferable like NFTs. The fee recipient receives
-        all 1,000 at launch (including when someone else launches for them). Holders call{' '}
-        <code>redeem(amount)</code> on the collection contract to burn shares and receive underlying
-        tokens.
+        Shares are ERC-1155 tokens — transferable like NFTs. All 1,000 mint to the fee recipient at
+        launch. Holders call <code>claimTradingFees()</code> for their pro-rata slice of swap fees
+        (95% creator pool) and <code>redeem(amount)</code> to burn shares for vaulted tokens.
       </p>
     </section>
   );
