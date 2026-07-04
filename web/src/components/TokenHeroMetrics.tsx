@@ -32,9 +32,6 @@ export function TokenHeroMetrics({
 }) {
   const mc = metrics?.marketCapUsd ?? metrics?.fdvUsd;
   const change = metrics?.change24hPct;
-  const trades =
-    metrics?.txnsH24 ??
-    ((metrics?.buysH24 ?? 0) + (metrics?.sellsH24 ?? 0) || undefined);
 
   const showSkeleton = loading && !metrics;
   const hasAny =
@@ -43,13 +40,9 @@ export function TokenHeroMetrics({
     metrics?.liquidityUsd != null ||
     metrics?.fdvUsd != null ||
     metrics?.volumeH24Usd != null ||
-    trades != null ||
     metrics?.priceUsd != null;
 
   if (!hasAny) return null;
-
-  const tradesLabel =
-    trades != null && trades > 0 ? String(trades) : metrics ? '0' : '—';
 
   return (
     <div className="tp-zone tp-hero-zone" aria-busy={showSkeleton}>
@@ -78,7 +71,6 @@ export function TokenHeroMetrics({
           loading={showSkeleton}
           mono
         />
-        <HeroStat label="Trades" value={tradesLabel} loading={showSkeleton} />
         <HeroStat
           label="Price"
           value={formatSubscriptUsdPrice(metrics?.priceUsd)}

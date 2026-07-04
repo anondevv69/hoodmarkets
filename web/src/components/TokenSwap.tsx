@@ -130,6 +130,10 @@ export function TokenSwap({
     setAmountTokens(tokenAmountFromPercent(tokenBalance, sellPct, tokenDecimals));
   }, [tokenBalance, tokenDecimals, sellPct]);
 
+  useEffect(() => {
+    if (mode === 'sell') void refreshTokenBalance();
+  }, [mode, refreshTokenBalance]);
+
   function applySellPreset(pct: number) {
     setSellPct(pct);
     if (tokenBalance != null && tokenBalance > 0n) {
@@ -144,13 +148,21 @@ export function TokenSwap({
   const sym = symbol.replace(/^\$/, '');
   const oneClick = isSimpleLaunch ? true : Boolean(config?.swapHelper);
   const sidebar = variant === 'sidebar';
+  const balanceLabel =
+    tokenBalance != null ? formatTokenBalance(tokenBalance, tokenDecimals) : balanceLoading ? '…' : '—';
   const sellDisplayAmount =
     amountTokens.trim().endsWith('%') && tokenBalance != null && tokenBalance > 0n
       ? tokenAmountFromPercent(tokenBalance, Number(amountTokens.replace('%', '')), tokenDecimals)
       : amountTokens;
-  const displayAmount = mode === 'buy' ? amountEth : sellDisplayAmount;
-  const balanceLabel =
-    tokenBalance != null ? formatTokenBalance(tokenBalance, tokenDecimals) : balanceLoading ? '…' : '—';
+  const sellHeroAmount = amountTokens.trim()
+    ? sellDisplayAmount || '0'
+    : authenticated
+      ? balanceLoading
+        ? '…'
+        : balanceLabel
+      : '0';
+  const displayAmount = mode === 'buy' ? amountEth : sellHeroAmount;
+  const showingBalance = mode === 'sell' && !amountTokens.trim() && authenticated;
   const externalUniswapUrl =
     mode === 'buy' ? uniswapBuyUrl(tokenAddress, amountEth) : uniswapSellUrl(tokenAddress);
 
@@ -312,6 +324,7 @@ export function TokenSwap({
         <div className="tp-amount-display">
           <span className="tp-amount-num lp-mono">{displayAmount || '0'}</span>
           <span className="tp-amount-unit">{mode === 'buy' ? 'ETH' : sym}</span>
+          {showingBalance ? <span className="tp-amount-hint">Your balance</span> : null}
         </div>
 
         {mode === 'buy' ? (
@@ -329,6 +342,13 @@ export function TokenSwap({
           </div>
         ) : (
           <>
+            {authenticated ? (
+              <p className="tp-balance-line">
+                You hold <span className="lp-mono">{balanceLabel}</span> {sym}
+              </p>
+            ) : (
+              <p className="tp-balance-line muted">Connect wallet to see your balance</p>
+            )}
             <div className="tp-presets">
               {SELL_PRESETS.map((pct) => (
                 <button
@@ -341,11 +361,6 @@ export function TokenSwap({
                 </button>
               ))}
             </div>
-            {authenticated ? (
-              <p className="tp-balance-line">
-                Balance: <span className="lp-mono">{balanceLabel}</span> {sym}
-              </p>
-            ) : null}
           </>
         )}
 
