@@ -3,7 +3,9 @@ import { shortenAddress } from '../chain';
 import { isHoodmarketsPlatformFeeRecipient } from '../lib/feeRecipientDisplay';
 import { openDeployerProfile, openWalletProfile } from '../lib/deployerProfileRoute';
 import { resolveRequesterXUsername } from '../lib/requesterXDisplay';
+import { resolveTokenLaunchTweetUrl } from '../lib/launchTweet';
 import { ClaimFeesActions } from './ClaimFeesActions';
+import { LaunchRequestCard } from './LaunchRequestCard';
 import { TokenSwap } from './TokenSwap';
 
 export function TokenPageSidebar({
@@ -37,6 +39,7 @@ export function TokenPageSidebar({
         : '—';
 
   const feeRecipientDisplay = platformFees ? 'hood.markets' : shortenAddress(token.feeRecipientAddress);
+  const launchTweetUrl = resolveTokenLaunchTweetUrl(token);
 
   return (
     <aside className="token-page-sidebar">
@@ -44,6 +47,15 @@ export function TokenPageSidebar({
 
       <div className="tp-zone tp-deploy-zone">
         <div className="tp-side-title">Deploy details</div>
+
+        {launchTweetUrl ? (
+          <LaunchRequestCard
+            tweetUrl={launchTweetUrl}
+            username={requesterX}
+            tokenName={token.tokenName}
+            symbol={sym}
+          />
+        ) : null}
 
         <div className="tp-info-row">
           <span className="tp-info-k">Deployer</span>
