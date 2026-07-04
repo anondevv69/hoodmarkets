@@ -711,7 +711,7 @@ label {
 
 .token-page-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
   gap: 1.25rem;
   align-items: start;
 }
@@ -948,6 +948,7 @@ label {
 .tp-chart-card {
   padding: 0;
   overflow: hidden;
+  min-height: 420px;
 }
 
 .tp-chart-card .dex-chart-embed {
@@ -1193,10 +1194,19 @@ label {
   padding: 0;
   background: transparent;
   border: 0;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .launch-tweet-embed--compact .twitter-tweet {
   margin: 0 !important;
+  max-width: 100% !important;
+}
+
+.launch-tweet-embed--compact iframe {
+  max-width: 100% !important;
+  width: 100% !important;
 }
 
 .token-page-hero {
