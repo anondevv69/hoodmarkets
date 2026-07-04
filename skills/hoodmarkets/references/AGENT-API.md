@@ -12,8 +12,8 @@ Wallet on all agent routes: `x-wallet-address: 0x…` and/or `?wallet=0x…` and
 
 | Role | Address |
 |------|---------|
-| HoodMarketsV3 factory | `0xcFE4D69Ac8e5F79a95d99e991162902f68029f09` |
-| HoodMarketsV3 LP locker | `0x209eFAA86568f0Ea0E25d1F0E62f92e81c51a72a` |
+| HoodMarketsV3 factory | `0xbd794cd9E10728Bb1CB5056A92830C3e945cE7b4` |
+| HoodMarketsV3 LP locker | `0x9875B9Ead485dc1C86a03625531bf677A9276089` |
 | Platform 5% fees | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
 
 Full pin list: `../known-contracts.json` (repo root: `skills/hoodmarkets/known-contracts.json`).
@@ -253,7 +253,7 @@ Server broadcasts claim (gas paid by hood.markets). Requires haiku JWT.
 
 **V3 vs V4 (automatic):**
 
-- **Simple (V3)** — `poolId` prefix `v3:` or V3 factory `0xcFE4…9f09` → calls `HoodMarketsV3.claimRewards(tokenAddress)`. One step; WETH to fee wallet.
+- **Simple (V3)** — `poolId` prefix `v3:` or V3 factory `0xbd79…E7b4` → calls `HoodMarketsV3.claimRewards(tokenAddress)`. One step; WETH to fee wallet.
 - **Pro (V4)** → collects LP fees into locker, then claims WETH from fee locker.
 
 ```http

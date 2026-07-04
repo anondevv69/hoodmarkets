@@ -51,7 +51,7 @@ Or from Bankr skill catalog once published to [BankrBot/skills](https://github.c
 | Term | Meaning |
 |------|---------|
 | **Launch / deploy** | Create a new token + liquidity pool on Robinhood |
-| **Simple launch** | Uniswap V3 via `0xcFE4…9f09` factory — DexScreener-friendly; **5%** platform / **95%** creator |
+| **Simple launch** | Uniswap V3 via `0xbd79…E7b4` factory — DexScreener-friendly; **5%** platform / **95%** creator; **1000-share fraction** embedded |
 | **Pro launch** | Uniswap V4 hooks — one-click buy/sell on hood.markets |
 | **Buy / sell** | Swap ETH ↔ hood.markets token (Pro tokens via swap helper + Bankr submit) |
 | **Claim fees** | Pull WETH trading fees to creator wallet (launcher pays gas) |

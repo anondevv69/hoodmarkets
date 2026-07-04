@@ -5,9 +5,11 @@ import {Script, console} from "forge-std/Script.sol";
 import {HoodMarketsV3} from "../../src/v31/HoodMarketsV3.sol";
 import {HoodMarketsV3Vault} from "../../src/v31/HoodMarketsV3Vault.sol";
 import {HoodMarketsV3LpLocker} from "../../src/v31/HoodMarketsV3LpLocker.sol";
+import {HoodMarketsV3FractionDeployer} from "../../src/v31/HoodMarketsV3FractionDeployer.sol";
 
 /// @notice Deploy hood.markets V3 simple launcher (Uniswap V3 pools, DexScreener-friendly).
 /// Fee split embedded in HoodMarketsV3LpLocker: 5% hoodmarkets platform / up to 95% creator (+ interface).
+/// v0.4.0+: every deploy automatically vaults 10% into 1000 tradable fractional shares (ERC-1155).
 contract DeployHoodMarketsV3 is Script {
     function run() external {
         uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
@@ -32,6 +34,8 @@ contract DeployHoodMarketsV3 is Script {
         HoodMarketsV3LpLocker locker = new HoodMarketsV3LpLocker(
             owner, address(factory), positionManager, platformFeeRecipient
         );
+        HoodMarketsV3FractionDeployer fractionDeployer =
+            new HoodMarketsV3FractionDeployer(address(factory));
 
         factory.initialize(
             v3Factory,
@@ -39,7 +43,8 @@ contract DeployHoodMarketsV3 is Script {
             swapRouter,
             weth,
             address(locker),
-            address(vault)
+            address(vault),
+            address(fractionDeployer)
         );
 
         vm.stopBroadcast();
@@ -47,6 +52,7 @@ contract DeployHoodMarketsV3 is Script {
         console.log("HoodMarketsV3 factory:", address(factory));
         console.log("HoodMarketsV3Vault:", address(vault));
         console.log("HoodMarketsV3LpLocker:", address(locker));
+        console.log("HoodMarketsV3FractionDeployer:", address(fractionDeployer));
         console.log("Owner:", owner);
         console.log("Platform fee recipient (5% of swap fees):", platformFeeRecipient);
     }

@@ -1,7 +1,7 @@
 import { isV3PoolId } from './poolId';
 
 /** HoodMarkets V3 factory on Robinhood mainnet — all current simple launches. */
-export const HOODMARKETS_V3_FACTORY = '0xcFE4D69Ac8e5F79a95d99e991162902f68029f09';
+export const HOODMARKETS_V3_FACTORY = '0xbd794cd9E10728Bb1CB5056A92830C3e945cE7b4';
 
 /** Catalog row is a Simple (Uniswap V3) launch — matches API `isV3CatalogDeployment`. */
 export function isSimpleLaunchDeployment(input: {

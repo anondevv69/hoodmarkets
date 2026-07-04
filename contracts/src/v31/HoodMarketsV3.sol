@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {HoodMarketsAsciiBanner} from "../HoodMarketsAsciiBanner.sol";
 import {HoodMarketsV3Deployer} from "./HoodMarketsV3Deployer.sol";
+import {HoodMarketsV3FractionDeployer} from "./HoodMarketsV3FractionDeployer.sol";
 
 import {IHoodMarketsV3} from "./interfaces/IHoodMarketsV3.sol";
 import {IHoodMarketsV3Vault} from "./interfaces/IHoodMarketsV3Vault.sol";
@@ -22,7 +23,7 @@ import {TickMath} from "@uniswap/v3-core/contracts/libraries/TickMath.sol";
 contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
     using TickMath for int24;
 
-    string constant version = "0.3.1";
+    string constant version = "0.4.0";
 
     IUniswapV3Factory public uniswapV3Factory;
     INonfungiblePositionManager public positionManager;
@@ -36,12 +37,16 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
 
     IHoodMarketsV3LpLocker public liquidityLocker;
     IHoodMarketsV3Vault public vault;
+    HoodMarketsV3FractionDeployer public fractionDeployer;
     uint256 public constant MAX_CREATOR_REWARD = 95;
     uint256 public constant MAX_VAULT_PERCENTAGE = 30;
+    uint256 public constant FRACTION_COUNT = 1000;
+    uint8 public constant FRACTION_VAULT_PERCENTAGE = 10;
 
     bool public deprecated;
 
     mapping(address => bool) public admins;
+    mapping(address => address) public fractionCollectionForToken;
 
     mapping(address => DeploymentInfo[]) public tokensDeployedByUsers;
     mapping(address => DeploymentInfo) public deploymentInfoForToken;
@@ -58,7 +63,8 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
         address swapRouter_,
         address weth_,
         address liquidityLocker_,
-        address vault_
+        address vault_,
+        address fractionDeployer_
     ) external onlyOwner {
         // uniswap configurations
         uniswapV3Factory = IUniswapV3Factory(uniswapV3Factory_);
@@ -74,6 +80,8 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
 
         // vault configurations
         vault = IHoodMarketsV3Vault(vault_);
+
+        fractionDeployer = HoodMarketsV3FractionDeployer(fractionDeployer_);
 
         // enable deployments
         deprecated = false;
@@ -158,20 +166,24 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
         tokenAddress = HoodMarketsV3Deployer.deployToken(
             deploymentConfig.tokenConfig, deploymentConfig.rewardsConfig.creatorAdmin, TOKEN_SUPPLY
         );
-        uint256 poolSupply = TOKEN_SUPPLY;
-        uint256 vaultSupply = 0;
 
-        // attempt to vault the token if the vault config was set
         if (
             deploymentConfig.vaultConfig.vaultDuration > 0
                 || deploymentConfig.vaultConfig.vaultPercentage > 0
         ) {
-            (poolSupply, vaultSupply) = _vaultToken(
-                tokenAddress,
-                deploymentConfig.vaultConfig.vaultPercentage,
-                deploymentConfig.vaultConfig.vaultDuration,
-                deploymentConfig.rewardsConfig.creatorAdmin
+            revert LegacyVaultDisabled();
+        }
+
+        uint256 fractionVaultAmount = (TOKEN_SUPPLY * FRACTION_VAULT_PERCENTAGE) / 100;
+        uint256 poolSupply = TOKEN_SUPPLY - fractionVaultAmount;
+
+        address fractionCollection = address(0);
+        if (address(fractionDeployer) != address(0)) {
+            IERC20(tokenAddress).approve(address(fractionDeployer), fractionVaultAmount);
+            fractionCollection = fractionDeployer.deployFraction(
+                tokenAddress, deploymentConfig.rewardsConfig.creatorAdmin, fractionVaultAmount
             );
+            fractionCollectionForToken[tokenAddress] = fractionCollection;
         }
 
         // configure the pool
@@ -201,7 +213,8 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
         DeploymentInfo memory deploymentInfo = DeploymentInfo({
             token: tokenAddress,
             positionId: positionId,
-            locker: address(liquidityLocker)
+            locker: address(liquidityLocker),
+            fractionCollection: fractionCollection
         });
         deploymentInfoForToken[tokenAddress] = deploymentInfo;
         tokensDeployedByUsers[deploymentConfig.rewardsConfig.creatorAdmin].push(deploymentInfo);
@@ -218,28 +231,12 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
             startingTickIfToken0IsNewToken: deploymentConfig.poolConfig.tickIfToken0IsNewToken,
             metadata: deploymentConfig.tokenConfig.metadata,
             amountTokensBought: amountTokensBought,
-            vaultDuration: deploymentConfig.vaultConfig.vaultDuration,
-            vaultPercentage: deploymentConfig.vaultConfig.vaultPercentage,
+            vaultDuration: 0,
+            vaultPercentage: FRACTION_VAULT_PERCENTAGE,
+            fractionCollection: fractionCollection,
+            fractionVaultAmount: fractionVaultAmount,
             msgSender: msg.sender
         });
-    }
-
-    // Vault a token and allocate the vault supply to the vault allocation admin
-    function _vaultToken(
-        address token,
-        uint8 vaultPercentage,
-        uint256 vaultDuration,
-        address vaultAllocationAdmin
-    ) internal returns (uint256 poolSupply, uint256 vaultSupply) {
-        if (vaultPercentage > MAX_VAULT_PERCENTAGE || vaultPercentage == 0) {
-            revert InvalidVaultConfiguration();
-        }
-        vaultSupply = (TOKEN_SUPPLY * vaultPercentage) / 100;
-        poolSupply = TOKEN_SUPPLY - vaultSupply;
-
-        // Lock up the vault allocation for the admin
-        IERC20(token).approve(address(vault), vaultSupply);
-        vault.deposit(token, vaultSupply, block.timestamp + vaultDuration, vaultAllocationAdmin);
     }
 
     // Lock the lp tokens and add the user reward recipient to the liquidity locker

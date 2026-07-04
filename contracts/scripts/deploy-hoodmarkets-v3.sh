@@ -57,23 +57,30 @@ fi
 V3_FACTORY=$(jq -r '.transactions[] | select(.contractName=="HoodMarketsV3") | .contractAddress' "$LATEST" | head -1)
 V3_VAULT=$(jq -r '.transactions[] | select(.contractName=="HoodMarketsV3Vault") | .contractAddress' "$LATEST" | head -1)
 V3_LOCKER=$(jq -r '.transactions[] | select(.contractName=="HoodMarketsV3LpLocker") | .contractAddress' "$LATEST" | head -1)
+V3_FRACTION=$(jq -r '.transactions[] | select(.contractName=="HoodMarketsV3FractionDeployer") | .contractAddress' "$LATEST" | head -1)
 
 OUT="$ROOT/deployed-hoodmarkets-v3-mainnet.json"
 jq -n \
   --arg chainId "$CHAIN_ID" \
+  --arg version "0.4.0" \
   --arg factory "$V3_FACTORY" \
   --arg vault "$V3_VAULT" \
   --arg lpLocker "$V3_LOCKER" \
+  --arg fractionDeployer "$V3_FRACTION" \
   --arg platformFeeRecipient "$HOODMARKETS_PLATFORM_FEE_RECIPIENT" \
   --arg owner "${HOODMARKETS_OWNER:-}" \
+  --arg previousFactory "0xcFE4D69Ac8e5F79a95d99e991162902f68029f09" \
   '{
     chainId: ($chainId | tonumber),
+    version: $version,
     hoodmarketsV3: {
       factory: $factory,
       vault: $vault,
       lpLocker: $lpLocker,
+      fractionDeployer: $fractionDeployer,
       platformFeeRecipient: $platformFeeRecipient,
-      owner: (if $owner == "" then null else $owner end)
+      owner: (if $owner == "" then null else $owner end),
+      previousFactory: $previousFactory
     }
   }' > "$OUT"
 

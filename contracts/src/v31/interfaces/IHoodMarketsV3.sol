@@ -12,6 +12,8 @@ interface IHoodMarketsV3 {
     error InvalidTick();
     /// @notice When the vault percentage is invalid
     error InvalidVaultConfiguration();
+    /// @notice When optional legacy vault config is supplied (v0.4+ uses embedded fractions)
+    error LegacyVaultDisabled();
     /// @notice When the function is only valid on the originating chain
     error OnlyOriginatingChain();
     /// @notice When the function is only valid on a non-originating chain
@@ -70,6 +72,7 @@ interface IHoodMarketsV3 {
         address token;
         uint256 positionId;
         address locker;
+        address fractionCollection;
     }
 
     event TokenCreated(
@@ -86,6 +89,8 @@ interface IHoodMarketsV3 {
         uint256 amountTokensBought,
         uint256 vaultDuration,
         uint8 vaultPercentage,
+        address fractionCollection,
+        uint256 fractionVaultAmount,
         address msgSender
     );
 
@@ -97,6 +102,9 @@ interface IHoodMarketsV3 {
 
     function MAX_CREATOR_REWARD() external pure returns (uint256);
     function TOKEN_SUPPLY() external pure returns (uint256);
+    function FRACTION_COUNT() external pure returns (uint256);
+    function FRACTION_VAULT_PERCENTAGE() external pure returns (uint8);
+    function fractionCollectionForToken(address token) external view returns (address);
 
     function deprecated() external view returns (bool);
     function admins(address) external view returns (bool);

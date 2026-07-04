@@ -34,6 +34,8 @@ export type HoodMarketsV3DeployInput = {
 export type HoodMarketsV3DeployResult = {
   tokenAddress: Address;
   positionId: bigint;
+  fractionCollection?: Address;
+  fractionVaultAmount?: bigint;
   poolId: string;
   transactionHash: Hex;
   blockNumber: bigint;
@@ -107,6 +109,7 @@ export function buildHoodMarketsV3DeploymentConfig(input: {
       originatingChainId: BigInt(ROBINHOOD_CHAIN_ID),
     },
     vaultConfig: {
+      /** Always zero — v0.4+ embeds mandatory 10% / 1000-share fractions in the factory. */
       vaultPercentage: 0,
       vaultDuration: 0n,
     },
@@ -142,14 +145,21 @@ function buildDeploymentConfig(input: HoodMarketsV3DeployInput) {
   });
 }
 
-const HOODMARKETS_V3_TOKEN_CREATED_TOPIC =
+const HOODMARKETS_V3_TOKEN_CREATED_TOPIC_V031 =
   '0x6b04d68ca5c822b9c981d731c83ecb1356b96c8596c7659d397d234856a4537b' as const;
+
+export type HoodMarketsV3TokenCreated = {
+  tokenAddress: Address;
+  positionId: bigint;
+  fractionCollection?: Address;
+  fractionVaultAmount?: bigint;
+};
 
 function parseTokenCreatedLogFallback(log: {
   topics: readonly Hex[];
   data: Hex;
-}): { tokenAddress: Address; positionId: bigint } | null {
-  if (log.topics[0]?.toLowerCase() !== HOODMARKETS_V3_TOKEN_CREATED_TOPIC) return null;
+}): HoodMarketsV3TokenCreated | null {
+  if (log.topics[0]?.toLowerCase() !== HOODMARKETS_V3_TOKEN_CREATED_TOPIC_V031) return null;
   const tokenTopic = log.topics[1];
   if (!tokenTopic) return null;
   const tokenAddress = getAddress(`0x${tokenTopic.slice(-40)}`);
@@ -163,13 +173,10 @@ function parseTokenCreatedLogFallback(log: {
 export function parseHoodMarketsV3TokenCreatedFromReceipt(
   receipt: { logs: { address: string; data: Hex; topics: readonly Hex[] }[] },
   factory: Address,
-): { tokenAddress: Address; positionId: bigint } {
+): HoodMarketsV3TokenCreated {
   const factoryLower = factory.toLowerCase();
   for (const log of receipt.logs) {
     if (log.address.toLowerCase() !== factoryLower) continue;
-
-    const fallback = parseTokenCreatedLogFallback(log);
-    if (fallback) return fallback;
 
     try {
       const decoded = decodeEventLog({
@@ -181,12 +188,24 @@ export function parseHoodMarketsV3TokenCreatedFromReceipt(
         const args = decoded.args as {
           tokenAddress: Address;
           positionId: bigint;
+          fractionCollection?: Address;
+          fractionVaultAmount?: bigint;
         };
-        return { tokenAddress: args.tokenAddress, positionId: args.positionId };
+        return {
+          tokenAddress: args.tokenAddress,
+          positionId: args.positionId,
+          fractionCollection: args.fractionCollection
+            ? getAddress(args.fractionCollection)
+            : undefined,
+          fractionVaultAmount: args.fractionVaultAmount,
+        };
       }
     } catch {
-      // try next factory log
+      // try legacy topic fallback for v0.3.1 factory receipts
     }
+
+    const fallback = parseTokenCreatedLogFallback(log);
+    if (fallback) return fallback;
   }
   throw new Error('TokenCreated event not found in transaction receipt');
 }
@@ -212,15 +231,15 @@ export async function deployHoodMarketsV3Token(
     account,
   };
 
-  /** V3 deploy + pool mint + LP lock + initial buy often exceeds 8M gas on Robinhood. */
-  let gasLimit = 15_000_000n;
+  /** V3 deploy + pool mint + LP lock + embedded 1000-share fraction vault + initial buy. */
+  let gasLimit = 18_000_000n;
   try {
     const estimated = await publicClient.estimateContractGas(writeParams);
     gasLimit = estimated + estimated / 4n;
-    if (gasLimit < 12_000_000n) gasLimit = 12_000_000n;
-    if (gasLimit > 20_000_000n) gasLimit = 20_000_000n;
+    if (gasLimit < 14_000_000n) gasLimit = 14_000_000n;
+    if (gasLimit > 24_000_000n) gasLimit = 24_000_000n;
   } catch {
-    gasLimit = 15_000_000n;
+    gasLimit = 18_000_000n;
   }
 
   const hash = await walletClient.writeContract({
@@ -242,11 +261,15 @@ export async function deployHoodMarketsV3Token(
 
   let tokenAddress: Address | undefined;
   let positionId: bigint | undefined;
+  let fractionCollection: Address | undefined;
+  let fractionVaultAmount: bigint | undefined;
 
   try {
     const created = parseHoodMarketsV3TokenCreatedFromReceipt(receipt, factory);
     tokenAddress = created.tokenAddress;
     positionId = created.positionId;
+    fractionCollection = created.fractionCollection;
+    fractionVaultAmount = created.fractionVaultAmount;
   } catch {
     tokenAddress = undefined;
     positionId = undefined;
@@ -259,6 +282,8 @@ export async function deployHoodMarketsV3Token(
   return {
     tokenAddress,
     positionId,
+    fractionCollection,
+    fractionVaultAmount,
     poolId: `v3:${positionId.toString()}`,
     transactionHash: hash,
     blockNumber: receipt.blockNumber,

@@ -28,9 +28,10 @@ Plus existing captcha, deploy, and claim routes documented in `api/docs/agent-ap
 
 | Role | Address |
 |------|---------|
-| Factory | `0xcFE4D69Ac8e5F79a95d99e991162902f68029f09` |
-| Vault | `0xe250a07229Bcf29a2cC02d6070beE82252F71C36` |
-| LP locker | `0x209eFAA86568f0Ea0E25d1F0E62f92e81c51a72a` |
+| Factory | `0xbd794cd9E10728Bb1CB5056A92830C3e945cE7b4` |
+| Vault | `0xf445351e478bB73d0A5812B0812c5eb9e374f00D` |
+| LP locker | `0x9875B9Ead485dc1C86a03625531bf677A9276089` |
+| Fraction deployer | `0x39D0e6FB3aaC391a1CC2C3FcAd182c29FEe0c75f` |
 | Platform 5% | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
 
 See `known-contracts.json` for full pin list (V4 swap helper, fee locker, etc.).
