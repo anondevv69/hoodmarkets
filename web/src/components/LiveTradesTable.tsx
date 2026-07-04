@@ -9,7 +9,7 @@ import {
   formatTokenAmount,
   type RobinhoodSwap,
 } from '../lib/robinhoodTrades';
-import { DexScreenerTradesEmbed } from './TokenListingStatus';
+import { dexScreenerTokenPageUrl } from './TokenListingStatus';
 import type { DexTokenMetrics } from '../lib/dexscreenerVolume';
 
 export function LiveTradesTable({
@@ -119,13 +119,12 @@ export function LiveTradesTable({
           </table>
         </div>
       ) : !loading && !error ? (
-        <div className="live-trades-fallback">
-          <p className="muted live-trades-empty">
-            No indexed swaps for this token yet in the Robinhood feed. Showing DexScreener
-            trades below — full live indexing for all hood.markets launches is coming.
-          </p>
-          <DexScreenerTradesEmbed tokenAddress={tokenAddress} metrics={metrics} />
-        </div>
+        <p className="muted live-trades-empty">
+          No live trades indexed for this token yet.{' '}
+          <a href={dexScreenerTokenPageUrl(tokenAddress, metrics)} target="_blank" rel="noreferrer">
+            View on DexScreener ↗
+          </a>
+        </p>
       ) : null}
     </section>
   );

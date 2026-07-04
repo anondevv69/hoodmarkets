@@ -758,10 +758,6 @@ label {
   color: var(--danger);
 }
 
-.live-trades-fallback .dex-screener-trades-embed {
-  margin-top: 0.5rem;
-}
-
 .token-description {
   margin: 0;
   color: var(--text-muted);
@@ -840,6 +836,22 @@ label {
 
 .dex-screener-chart-embed {
   min-height: 420px;
+}
+
+/* Crop DexScreener embed footer ("Tracked by DEX SCREENER") — same trick as NOXA Fun chart. */
+.dex-screener-clip {
+  overflow: hidden;
+  position: relative;
+}
+
+.dex-screener-chart-embed.dex-screener-clip {
+  height: 420px;
+  min-height: 420px;
+}
+
+.dex-screener-chart-embed.dex-screener-clip iframe {
+  height: 460px;
+  margin-bottom: -40px;
 }
 
 .dex-screener-trades-embed {
