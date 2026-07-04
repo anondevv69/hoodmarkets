@@ -241,6 +241,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
             factoryAddress={token.factoryAddress}
             poolId={token.poolId}
             deployBlockNumber={token.blockNumber}
+            feeRecipientAddress={token.feeRecipientAddress}
           />
 
           <TokenSpaceComments tokenAddress={token.tokenAddress} />

@@ -180,6 +180,7 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
         address fractionCollection = address(0);
         if (address(fractionDeployer) != address(0)) {
             IERC20(tokenAddress).approve(address(fractionDeployer), fractionVaultAmount);
+            // Fee recipient wallet (creatorAdmin) receives all 1,000 shares at launch.
             fractionCollection = fractionDeployer.deployFraction(
                 tokenAddress, deploymentConfig.rewardsConfig.creatorAdmin, fractionVaultAmount
             );

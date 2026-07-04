@@ -371,6 +371,10 @@ export function LaunchTab() {
         <p className="muted launch-done-sub">
           {launchedMeta.name} is on Robinhood Chain and visible in Tokens.
         </p>
+        <p className="muted launch-done-sub launch-done-fraction">
+          1,000 Holder NFT shares (10% vault) were minted to the fee recipient wallet at launch —
+          sell, transfer, airdrop, or redeem from the token page.
+        </p>
         <LaunchSuccessLinks
           tokenAddress={result.tokenAddress}
           tokenName={launchedMeta.name}
@@ -611,6 +615,29 @@ export function LaunchTab() {
                     Launch for a friend — fees go to their wallet or linked @handle.
                   </span>
                 </label>
+              </div>
+              <div className="launch-fraction-notice" role="note">
+                <p className="launch-fraction-notice-title">1,000 Holder NFTs (automatic)</p>
+                <p className="launch-fraction-notice-body muted">
+                  Every launch vaults <strong>10% of supply</strong> as{' '}
+                  <strong>1,000 equal tradable shares</strong> — embedded in the contract, not optional.
+                  {feeTarget === 'other' ? (
+                    <>
+                      {' '}
+                      When you launch for someone else, all 1,000 shares go to{' '}
+                      <strong>their fee wallet</strong> at deploy. You won&apos;t receive them.
+                    </>
+                  ) : (
+                    <>
+                      {' '}
+                      All 1,000 shares mint to <strong>your fee wallet</strong> when the token goes live.
+                    </>
+                  )}
+                </p>
+                <p className="launch-fraction-notice-body muted">
+                  After launch, the share owner decides what to do — sell, transfer, airdrop to
+                  community or buyers, or redeem on-chain for underlying tokens.
+                </p>
               </div>
               {feeTarget === 'other' ? (
                 <label style={{ marginTop: '0.85rem' }}>
