@@ -1,6 +1,6 @@
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
-import { createPublicClient, custom, erc20Abi, formatEther, getAddress } from 'viem';
+import { createPublicClient, custom, erc20Abi, formatUnits } from 'viem';
 import { robinhood, txUrl } from '../chain';
 import { ensureRobinhoodChainInWallet } from '../lib/ensureRobinhoodChain';
 import { formatSwapError } from '../lib/formatSwapError';
@@ -11,24 +11,17 @@ import {
   swapHoodmarketsTokenForEth,
   type TokenSwapConfig,
 } from '../lib/robinhoodSwap';
+import {
+  swapEthForV3Token,
+  swapV3TokenForEth,
+  uniswapBuyUrl,
+  uniswapSellUrl,
+} from '../lib/robinhoodV3Swap';
 
 const BUY_PRESETS = ['0.001', '0.005', '0.01', '0.02'] as const;
 const SELL_PRESETS = ['25', '50', '75', '100'] as const;
 
 type SwapMode = 'buy' | 'sell';
-
-function uniswapBuyUrl(tokenAddress: string, ethAmount: string): string {
-  const addr = getAddress(tokenAddress.trim());
-  const amt = ethAmount.trim();
-  const base = `https://app.uniswap.org/swap?chain=robinhood&outputCurrency=${addr}&inputCurrency=NATIVE`;
-  if (amt && /^\d+(\.\d+)?$/.test(amt)) return `${base}&exactAmount=${amt}`;
-  return base;
-}
-
-function uniswapSellUrl(tokenAddress: string): string {
-  const addr = getAddress(tokenAddress.trim());
-  return `https://app.uniswap.org/swap?chain=robinhood&inputCurrency=${addr}&outputCurrency=NATIVE`;
-}
 
 export function TokenSwap({
   tokenAddress,
@@ -80,102 +73,52 @@ export function TokenSwap({
     };
   }, [tokenAddress, isSimpleLaunch]);
 
-  if (isSimpleLaunch) {
-    const sym = symbol.replace(/^\$/, '');
-    const sidebar = variant === 'sidebar';
-    const displayAmount = mode === 'buy' ? amountEth : amountTokens;
-    const tradeUrl = mode === 'buy' ? uniswapBuyUrl(tokenAddress, amountEth) : uniswapSellUrl(tokenAddress);
-
-    if (sidebar) {
-      return (
-        <div className="tp-zone token-swap-sidebar">
-          <div className="tp-buysell">
-            <button
-              type="button"
-              className={`tp-bs-btn${mode === 'buy' ? ' buy-active' : ''}`}
-              onClick={() => setMode('buy')}
-            >
-              Buy
-            </button>
-            <button
-              type="button"
-              className={`tp-bs-btn${mode === 'sell' ? ' sell-active' : ''}`}
-              onClick={() => setMode('sell')}
-            >
-              Sell
-            </button>
-          </div>
-
-          <div className="tp-amount-display">
-            <span className="tp-amount-num lp-mono">{displayAmount || '0'}</span>
-            <span className="tp-amount-unit">{mode === 'buy' ? 'ETH' : sym}</span>
-          </div>
-
-          {mode === 'buy' ? (
-            <div className="tp-presets">
-              {BUY_PRESETS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  className={`tp-preset${amountEth === preset ? ' active' : ''}`}
-                  onClick={() => setAmountEth(preset)}
-                >
-                  {preset} ETH
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="tp-footnote">Set your sell amount in Uniswap after opening the trade.</p>
-          )}
-
-          {mode === 'buy' ? (
-            <label className="token-swap-field token-swap-field--sidebar">
-              <span className="muted">Amount (ETH)</span>
-              <input
-                className="lp-input"
-                type="text"
-                inputMode="decimal"
-                value={amountEth}
-                onChange={(e) => setAmountEth(e.target.value)}
-                placeholder="0.005"
-              />
-            </label>
-          ) : null}
-
-          <a
-            className="tp-cta"
-            href={tradeUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {mode === 'buy' ? `Buy $${sym} on Uniswap` : `Sell $${sym} on Uniswap`}
-          </a>
-
-          <p className="tp-footnote">
-            Simple launch — trades route through Uniswap V3 on Robinhood Chain, not the hood.markets swap helper.
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="lp-card token-swap-card">
-        <p className="muted" style={{ marginBottom: '0.75rem' }}>
-          Simple launch — buy and sell on Uniswap V3 on Robinhood Chain.
-        </p>
-        <a className="btn btn-primary" href={uniswapBuyUrl(tokenAddress, amountEth)} target="_blank" rel="noreferrer">
-          Trade on Uniswap
-        </a>
-      </div>
-    );
-  }
-
-  if (!config) return null;
+  if (!isSimpleLaunch && !config) return null;
 
   const sym = symbol.replace(/^\$/, '');
-  const oneClick = Boolean(config.swapHelper);
+  const oneClick = isSimpleLaunch ? true : Boolean(config?.swapHelper);
   const sidebar = variant === 'sidebar';
   const displayAmount = mode === 'buy' ? amountEth : amountTokens;
+  const externalUniswapUrl =
+    mode === 'buy' ? uniswapBuyUrl(tokenAddress, amountEth) : uniswapSellUrl(tokenAddress);
+
+  async function resolveSellAmount(
+    provider: unknown,
+    token: `0x${string}`,
+    walletAddress: `0x${string}`,
+  ): Promise<string> {
+    if (!amountTokens.trim().endsWith('%')) return amountTokens;
+    const pct = Number(amountTokens.trim().replace('%', ''));
+    if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+      throw new Error('Enter a sell percentage between 1 and 100.');
+    }
+    const publicClient = createPublicClient({
+      chain: robinhood,
+      transport: custom(provider as Parameters<typeof custom>[0]),
+    });
+    const bal = await publicClient.readContract({
+      address: token,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [walletAddress],
+    });
+    if (bal <= 0n) throw new Error('You have no tokens to sell.');
+    const slice = (bal * BigInt(Math.round(pct * 100))) / 10000n;
+    if (slice <= 0n) throw new Error('Sell amount too small.');
+    let decimals = 18;
+    try {
+      decimals = Number(
+        await publicClient.readContract({
+          address: token,
+          abi: erc20Abi,
+          functionName: 'decimals',
+        }),
+      );
+    } catch {
+      decimals = 18;
+    }
+    return formatUnits(slice, decimals);
+  }
 
   async function onSwap() {
     setError(null);
@@ -192,28 +135,43 @@ export function TokenSwap({
       await ensureRobinhoodChainInWallet(
         provider as Parameters<typeof ensureRobinhoodChainInWallet>[0],
       );
+      const account = wallet.address as `0x${string}`;
+
+      if (isSimpleLaunch) {
+        if (mode === 'buy') {
+          const result = await swapEthForV3Token({
+            tokenAddress,
+            amountEth,
+            walletProvider: provider,
+            account,
+          });
+          setTxHash(result.swapTxHash);
+          setSuccessMsg(`You received ${result.amountOut} $${sym}.`);
+        } else {
+          const sellAmount = await resolveSellAmount(
+            provider,
+            tokenAddress as `0x${string}`,
+            account,
+          );
+          const result = await swapV3TokenForEth({
+            tokenAddress,
+            amountTokens: sellAmount,
+            walletProvider: provider,
+            account,
+          });
+          setTxHash(result.swapTxHash);
+          setSuccessMsg(`You received ${result.amountOut} ETH.`);
+        }
+        return;
+      }
+
       const swapConfig = await fetchTokenSwapConfig(tokenAddress);
       let sellAmount = amountTokens;
 
       if (mode === 'sell' && amountTokens.trim().endsWith('%')) {
-        const pct = Number(amountTokens.trim().replace('%', ''));
-        if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
-          throw new Error('Enter a sell percentage between 1 and 100.');
-        }
-        const publicClient = createPublicClient({
-          chain: robinhood,
-          transport: custom(provider as Parameters<typeof custom>[0]),
-        });
-        const bal = await publicClient.readContract({
-          address: swapConfig.tokenAddress,
-          abi: erc20Abi,
-          functionName: 'balanceOf',
-          args: [wallet.address as `0x${string}`],
-        });
-        if (bal <= 0n) throw new Error('You have no tokens to sell.');
-        const slice = (bal * BigInt(Math.round(pct * 100))) / 10000n;
-        if (slice <= 0n) throw new Error('Sell amount too small.');
-        sellAmount = formatEther(slice);
+        sellAmount = await resolveSellAmount(provider, swapConfig.tokenAddress, account);
+      } else if (mode === 'sell') {
+        sellAmount = amountTokens;
       }
 
       if (mode === 'buy') {
@@ -345,9 +303,22 @@ export function TokenSwap({
 
         {oneClick ? (
           <p className="tp-footnote">
-            {mode === 'buy'
-              ? 'One confirmation — swap helper routes through the pool.'
-              : 'Approve once if needed, then sell in one transaction.'}
+            {isSimpleLaunch
+              ? mode === 'buy'
+                ? 'Uniswap V3 swap on Robinhood Chain — confirm in your wallet.'
+                : 'Approve once if needed, then sell through Uniswap V3.'
+              : mode === 'buy'
+                ? 'One confirmation — swap helper routes through the pool.'
+                : 'Approve once if needed, then sell in one transaction.'}
+          </p>
+        ) : null}
+
+        {isSimpleLaunch ? (
+          <p className="tp-footnote">
+            Prefer the full Uniswap app?{' '}
+            <a href={externalUniswapUrl} target="_blank" rel="noreferrer">
+              Open in Uniswap
+            </a>
           </p>
         ) : null}
 
