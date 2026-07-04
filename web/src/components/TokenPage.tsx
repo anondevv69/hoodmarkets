@@ -3,6 +3,7 @@ import { fetchDeploymentByAddress, type TokenDetail } from '../api';
 import { shortenAddress, tokenUrl, txUrl } from '../chain';
 import {
   fetchTokenMetricsFromDexscreener,
+  hasDexMarketData,
   type DexTokenMetrics,
 } from '../lib/dexscreenerVolume';
 import { isHoodmarketsPlatformFeeRecipient } from '../lib/feeRecipientDisplay';
@@ -14,8 +15,12 @@ import { closeTokenPage } from '../lib/tokenRoute';
 import { openDeployerProfile, openWalletProfile } from '../lib/deployerProfileRoute';
 import { resolveRequesterXUsername } from '../lib/requesterXDisplay';
 import { ClaimFeesActions } from './ClaimFeesActions';
-import { DexMetricsStrip } from './DexMetricsStrip';
-import { DexScreenerEmbed } from './TokenListingStatus';
+import {
+  DexScreenerChartEmbed,
+  dexScreenerTokenPageUrl,
+} from './TokenListingStatus';
+import { LiveTradesTable } from './LiveTradesTable';
+import { TokenStatCards } from './TokenStatCards';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 import { TradingLinksRow } from './TradingLinksRow';
@@ -72,6 +77,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   const [token, setToken] = useState<TokenDetail | null>(null);
   const [description, setDescription] = useState<string | undefined>();
   const [metrics, setMetrics] = useState<DexTokenMetrics | undefined>();
+  const [metricsLoading, setMetricsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,6 +89,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
       setToken(null);
       setDescription(undefined);
       setMetrics(undefined);
+      setMetricsLoading(true);
       try {
         const row = await fetchDeploymentByAddress(tokenAddress);
         if (cancelled) return;
@@ -92,12 +99,16 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
         setLoading(false);
 
         void (async () => {
-          if (!catalogDesc) {
-            const onChainDesc = await fetchTokenDescriptionFromChain(tokenAddress);
-            if (!cancelled) setDescription(onChainDesc);
+          try {
+            if (!catalogDesc) {
+              const onChainDesc = await fetchTokenDescriptionFromChain(tokenAddress);
+              if (!cancelled) setDescription(onChainDesc);
+            }
+            const m = await fetchTokenMetricsFromDexscreener([row.tokenAddress]);
+            if (!cancelled) setMetrics(m[row.tokenAddress]);
+          } finally {
+            if (!cancelled) setMetricsLoading(false);
           }
-          const m = await fetchTokenMetricsFromDexscreener([row.tokenAddress]);
-          if (!cancelled) setMetrics(m[row.tokenAddress]);
         })();
       } catch (e) {
         if (!cancelled) {
@@ -127,6 +138,8 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
 
   const sym = token.tokenSymbol.replace(/^\$/, '');
   const links = buildTradingLinks(token.tokenAddress, metrics);
+  const dexPageUrl = dexScreenerTokenPageUrl(token.tokenAddress, metrics);
+  const showDexSections = metricsLoading || hasDexMarketData(metrics);
   const feeLabel = token.feeRecipientLabel?.trim();
   const platformFees = isHoodmarketsPlatformFeeRecipient(feeLabel);
   const showV4PoolId = token.poolId && !isV3PoolId(token.poolId);
@@ -167,8 +180,13 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
             <h2 className="lp-display token-page-name">
               {token.tokenName}{' '}
               <span className="muted">${sym}</span>
+              <span className="token-launch-badge">Uniswap pool</span>
             </h2>
-            <DexMetricsStrip metrics={metrics} />
+            <TokenStatCards
+              tokenAddress={token.tokenAddress}
+              metrics={metrics}
+              loading={metricsLoading}
+            />
             <TradingLinksRow links={links} />
             <TokenSocialLinks websiteUrl={token.tokenWebsiteUrl} xUrl={token.tokenXUrl} />
             {descriptionUser ? (
@@ -181,7 +199,37 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
         </div>
       </div>
 
-      <DexScreenerEmbed tokenAddress={token.tokenAddress} metrics={metrics} />
+      {showDexSections ? (
+        <>
+          <section className="token-dex-section lp-card" aria-labelledby="token-chart-heading">
+            <div className="token-dex-section-head">
+              <div>
+                <h3 id="token-chart-heading" className="section-label">
+                  Chart
+                </h3>
+                <p className="muted token-dex-section-sub">Price · volume · live candles</p>
+              </div>
+              <a
+                className="btn btn-ghost btn-sm"
+                href={dexPageUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open DexScreener ↗
+              </a>
+            </div>
+            <DexScreenerChartEmbed tokenAddress={token.tokenAddress} metrics={metrics} />
+          </section>
+
+          <div className="token-dex-section lp-card">
+            <LiveTradesTable
+              tokenAddress={token.tokenAddress}
+              tokenSymbol={sym}
+              metrics={metrics}
+            />
+          </div>
+        </>
+      ) : null}
 
       {launchTweetUrl ? <LaunchTweetEmbed tweetUrl={launchTweetUrl} /> : null}
 
