@@ -824,6 +824,22 @@ label {
   gap: 1rem;
 }
 
+.tp-token-title-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.tp-token-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tp-token-title-row .tp-token-name {
+  min-width: 0;
+}
+
 .tp-token-id {
   display: flex;
   gap: 0.875rem;
@@ -900,8 +916,26 @@ label {
 
 .tp-header-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.35rem;
   flex-shrink: 0;
+}
+
+.tp-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.tp-btn-icon:hover {
+  color: var(--text);
+  border-color: #333338;
 }
 
 .tp-btn-ghost {
@@ -1497,6 +1531,16 @@ label {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.tp-amount-hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .tp-presets {

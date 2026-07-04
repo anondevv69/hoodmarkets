@@ -12,21 +12,61 @@ import { TokenAvatar } from './TokenAvatar';
 import { TokenHeroMetrics } from './TokenHeroMetrics';
 import { TokenPageSidebar } from './TokenPageSidebar';
 import { TokenSocialLinks } from './TokenSocialLinks';
-import { TokenTimeframeStrip } from './TokenTimeframeStrip';
 
-function TokenHeaderAction({
-  children,
+function TokenHeaderIcon({
   onClick,
   ariaLabel,
+  children,
 }: {
-  children: ReactNode;
   onClick: () => void;
   ariaLabel: string;
+  children: ReactNode;
 }) {
   return (
-    <button type="button" className="tp-btn-ghost" onClick={onClick} aria-label={ariaLabel}>
+    <button type="button" className="tp-btn-icon" onClick={onClick} aria-label={ariaLabel}>
       {children}
     </button>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M8.5 10.5 15 7l-6.5-3.5v3M15 7v10M7 14.5v2.5a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-2"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M5 12.5 9.5 17 19 7"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -119,25 +159,27 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
 
   return (
     <div className="token-page lp-fade-in">
-      <div className="tp-top-bar">
-        <div className="tp-header-actions">
-          <TokenHeaderAction onClick={onCopyAddress} ariaLabel="Copy token address">
-            {copied ? 'Copied' : 'Copy address'}
-          </TokenHeaderAction>
-          <TokenHeaderAction onClick={onShare} ariaLabel="Share token page">
-            Share
-          </TokenHeaderAction>
-        </div>
-      </div>
-
       <header className="tp-header">
         <div className="tp-token-id">
           <TokenAvatar symbol={sym} imageUrl={token.tokenImageUrl} size={48} priority />
-          <div>
-            <h1 className="tp-token-name">
-              {token.tokenName}{' '}
-              <span className="tp-token-sym">${sym}</span>
-            </h1>
+          <div className="tp-token-title-block">
+            <div className="tp-token-title-row">
+              <h1 className="tp-token-name">
+                {token.tokenName}{' '}
+                <span className="tp-token-sym">${sym}</span>
+              </h1>
+              <div className="tp-header-actions">
+                <TokenHeaderIcon
+                  onClick={onCopyAddress}
+                  ariaLabel={copied ? 'Address copied' : 'Copy token address'}
+                >
+                  {copied ? <CheckIcon /> : <CopyIcon />}
+                </TokenHeaderIcon>
+                <TokenHeaderIcon onClick={onShare} ariaLabel="Share token page">
+                  <ShareIcon />
+                </TokenHeaderIcon>
+              </div>
+            </div>
             <div className="tp-token-meta">
               <a
                 className="tp-meta-addr lp-mono"
@@ -178,7 +220,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               metrics={metrics}
               forceShow
             />
-            <TokenTimeframeStrip metrics={metrics} loading={metricsLoading} />
           </section>
 
           <section className="tp-zone tp-trades-zone" aria-labelledby="live-trades-heading">
