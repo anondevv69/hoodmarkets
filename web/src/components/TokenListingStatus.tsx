@@ -32,10 +32,9 @@ export function dexScreenerEmbedUrl(
   url.searchParams.set('embed', '1');
   url.searchParams.set('theme', 'dark');
   url.searchParams.set('info', '0');
-  const indexed = hasDexMarketData(metrics);
-  if (mode === 'chart' && indexed) {
+  if (mode === 'chart') {
     url.searchParams.set('trades', '0');
-  } else if (mode === 'trades' && indexed) {
+  } else if (mode === 'trades') {
     url.searchParams.set('chart', '0');
   }
   return url.toString();
@@ -88,15 +87,13 @@ export function DexScreenerChartEmbed({
 }) {
   if (!forceShow && !hasDexMarketData(metrics)) return null;
 
-  const indexed = hasDexMarketData(metrics);
-
   return (
     <DexScreenerIframe
       tokenAddress={tokenAddress}
       metrics={metrics}
       mode="chart"
       title="DexScreener chart"
-      className={`dex-chart-embed dex-screener-chart-embed${indexed ? '' : ' dex-screener-chart-embed--full'}`}
+      className="dex-chart-embed dex-screener-chart-embed"
       clipFooter
     />
   );
@@ -121,6 +118,7 @@ export function DexScreenerTradesEmbed({
       mode="trades"
       title="DexScreener recent trades"
       className="dex-chart-embed dex-screener-trades-embed"
+      clipFooter
     />
   );
 }
