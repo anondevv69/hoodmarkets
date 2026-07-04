@@ -1,12 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { fetchDeploymentByAddress, type TokenDetail } from '../api';
 import { shortenAddress, tokenUrl } from '../chain';
-import {
-  fetchTokenMetricsFromDexscreener,
-  hasDexMarketData,
-  type DexTokenMetrics,
-} from '../lib/dexscreenerVolume';
-import { formatDeployChannel } from '../lib/deploySourceDisplay';
+import { fetchTokenMetricsFromDexscreener, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import { fetchTokenDescriptionFromChain } from '../lib/tokenOnChainMetadata';
 import { closeTokenPage } from '../lib/tokenRoute';
 import { buildTradingLinks } from '../lib/tradingLinks';
@@ -18,7 +13,6 @@ import { LiveTradesTable } from './LiveTradesTable';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenHeroMetrics } from './TokenHeroMetrics';
 import { TokenPageSidebar } from './TokenPageSidebar';
-import { TokenRiskProfile } from './TokenRiskProfile';
 import { TokenSocialLinks } from './TokenSocialLinks';
 import { TradingLinksRow } from './TradingLinksRow';
 
@@ -104,7 +98,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
 
   const sym = token.tokenSymbol.replace(/^\$/, '');
   const links = buildTradingLinks(token.tokenAddress, metrics);
-  const showDexSections = metricsLoading || hasDexMarketData(metrics);
   const launchTweetUrl = resolveTokenLaunchTweetUrl(token);
   const age = formatTickerAge(token.createdAt);
   const { userText: descriptionUser, deployNotes: descriptionDeployNote } =
@@ -143,8 +136,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               <span className="tp-token-sym">${sym}</span>
             </h1>
             <div className="tp-token-meta">
-              <span>Robinhood Chain</span>
-              <span className="tp-meta-dot">·</span>
               <a
                 className="tp-meta-addr lp-mono"
                 href={tokenUrl(token.tokenAddress)}
@@ -188,24 +179,23 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
       <div className="token-page-grid">
         <div className="token-page-main">
           <TokenHeroMetrics metrics={metrics} loading={metricsLoading} />
-          <TokenRiskProfile metrics={metrics} />
 
-          {showDexSections ? (
-            <>
-              <div className="tp-card tp-chart-card">
-                <DexScreenerChartEmbed tokenAddress={token.tokenAddress} metrics={metrics} />
-              </div>
+          <div className="tp-card tp-chart-card">
+            <DexScreenerChartEmbed
+              tokenAddress={token.tokenAddress}
+              metrics={metrics}
+              forceShow
+            />
+          </div>
 
-              <div className="tp-card tp-table-card">
-                <LiveTradesTable
-                  tokenAddress={token.tokenAddress}
-                  tokenSymbol={sym}
-                  metrics={metrics}
-                  variant="compact"
-                />
-              </div>
-            </>
-          ) : null}
+          <div className="tp-card tp-table-card">
+            <LiveTradesTable
+              tokenAddress={token.tokenAddress}
+              tokenSymbol={sym}
+              metrics={metrics}
+              variant="compact"
+            />
+          </div>
         </div>
 
         <TokenPageSidebar token={token} launchTweetUrl={launchTweetUrl ?? null} sym={sym} />
