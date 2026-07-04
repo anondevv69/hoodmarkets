@@ -158,7 +158,7 @@ export function ClaimFeesActions({
             disabled={collecting || claiming}
             onClick={() => void onClaim()}
           >
-            {claiming ? 'Claiming…' : 'Claim trading fees'}
+            {claiming ? 'Collecting…' : 'Collect trading fees'}
           </button>
         ) : (
           <>
@@ -213,17 +213,11 @@ export function ClaimFeesActions({
           </>
         ) : isV3 ? (
           <>
-            This is a Simple (V3) launch. Swap fees accrue in the Uniswap V3 pool and
-            are sent directly to the{' '}
-            <button
-              type="button"
-              className="btn-link"
-              onClick={() => openWalletProfile(feeRecipientAddress)}
-            >
-              fee recipient
-            </button>{' '}
-            ({shortenAddress(feeRecipientAddress)}) when claimed. hood.markets broadcasts the
-            on-chain transaction and pays gas — anyone can trigger it.
+            Simple (V3) launch: swap fees accrue in the Uniswap V3 pool. Anyone can trigger{' '}
+            <strong>Collect trading fees</strong> below — that pulls the 95% creator slice into the
+            Holder NFT contract. Each share holder then claims their pro-rata amount via{' '}
+            <strong>Claim my trading fees</strong> on the Holder NFTs panel (hood.markets pays gas
+            for the collect step only).
           </>
         ) : publicCollect ? (
           <>
@@ -250,7 +244,10 @@ export function ClaimFeesActions({
       ) : feeStatus ? (
         <p className="claim-fees-status">
           {isV3 ? (
-            <span className="muted">V3 fees are claimed in one step from the pool contract.</span>
+            <span className="muted">
+              V3: collect pulls fees into the Holder NFT contract; share holders claim their slice
+              separately.
+            </span>
           ) : hasPending ? (
             <span className="lp-display">{pending} WETH in fee locker</span>
           ) : (
@@ -273,7 +270,7 @@ export function ClaimFeesActions({
             disabled={collecting || claiming}
             onClick={() => void onClaim()}
           >
-            {claiming ? 'Claiming…' : 'Claim trading fees'}
+            {claiming ? 'Collecting…' : 'Collect trading fees'}
           </button>
         ) : (
           <>
