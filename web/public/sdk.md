@@ -83,8 +83,8 @@ console.log(result.uniswapSwapUrl);
 ### CLI
 
 ```bash
-npx hoodmarkets-sdk deploy --name "My Token" --symbol "MTK" --image "ipfs://…"
-npx hoodmarkets-sdk claim --token 0x…
+npx github:anondevv69/hoodmarkets-sdk deploy --name "My Token" --symbol "MTK" --image "ipfs://…"
+npx github:anondevv69/hoodmarkets-sdk claim --token 0x…
 ```
 
 Full docs: [github.com/anondevv69/hoodmarkets-sdk](https://github.com/anondevv69/hoodmarkets-sdk)

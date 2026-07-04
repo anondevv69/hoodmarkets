@@ -136,10 +136,8 @@ const result = await hm.deployToken({
   feeRecipient: account.address,
 });`}</pre>
         <p className="dev-foot">
-          CLI (from repo):{' '}
-          <code className="dev-inline">npx hoodmarkets-sdk deploy --name "My Token" --symbol "MTK" --image "ipfs://…"</code>
-          {' · '}
-          npm package coming soon — install from GitHub for now.
+          CLI (from GitHub):{' '}
+          <code className="dev-inline">npx github:anondevv69/hoodmarkets-sdk deploy --name "My Token" --symbol "MTK" --image "ipfs://…"</code>
         </p>
       </section>
 
