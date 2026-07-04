@@ -52,7 +52,7 @@ export function TokenHeroMetrics({
     trades != null && trades > 0 ? String(trades) : metrics ? '0' : '—';
 
   return (
-    <div className="tp-card tp-hero-card" aria-busy={showSkeleton}>
+    <div className="tp-zone tp-hero-zone" aria-busy={showSkeleton}>
       <div className="tp-hero-label">Market cap</div>
       <div className="tp-hero-value">
         <span className={showSkeleton ? 'tp-hero-value-skeleton' : undefined}>

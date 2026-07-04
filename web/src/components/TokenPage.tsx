@@ -4,7 +4,6 @@ import { shortenAddress, tokenUrl } from '../chain';
 import { fetchTokenMetricsFromDexscreener, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import { fetchTokenDescriptionFromChain } from '../lib/tokenOnChainMetadata';
 import { closeTokenPage } from '../lib/tokenRoute';
-import { buildTradingLinks } from '../lib/tradingLinks';
 import { resolveTokenLaunchTweetUrl } from '../lib/launchTweet';
 import { splitTokenDescriptionForDisplay } from '../lib/tokenDescriptionDisplay';
 import { formatTickerAge } from '../lib/exploreTokens';
@@ -14,7 +13,7 @@ import { TokenAvatar } from './TokenAvatar';
 import { TokenHeroMetrics } from './TokenHeroMetrics';
 import { TokenPageSidebar } from './TokenPageSidebar';
 import { TokenSocialLinks } from './TokenSocialLinks';
-import { TradingLinksRow } from './TradingLinksRow';
+import { TokenTimeframeStrip } from './TokenTimeframeStrip';
 
 function TokenHeaderAction({
   children,
@@ -97,7 +96,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   }
 
   const sym = token.tokenSymbol.replace(/^\$/, '');
-  const links = buildTradingLinks(token.tokenAddress, metrics);
   const launchTweetUrl = resolveTokenLaunchTweetUrl(token);
   const age = formatTickerAge(token.createdAt);
   const { userText: descriptionUser, deployNotes: descriptionDeployNote } =
@@ -123,13 +121,23 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
 
   return (
     <div className="token-page lp-fade-in">
-      <button type="button" className="btn btn-ghost token-page-back" onClick={closeTokenPage}>
-        ← Explore
-      </button>
+      <div className="tp-top-bar">
+        <button type="button" className="btn btn-ghost token-page-back" onClick={closeTokenPage}>
+          ← Explore
+        </button>
+        <div className="tp-header-actions">
+          <TokenHeaderAction onClick={onCopyAddress} ariaLabel="Copy token address">
+            {copied ? 'Copied' : 'Copy address'}
+          </TokenHeaderAction>
+          <TokenHeaderAction onClick={onShare} ariaLabel="Share token page">
+            Share
+          </TokenHeaderAction>
+        </div>
+      </div>
 
       <header className="tp-header">
         <div className="tp-token-id">
-          <TokenAvatar symbol={sym} imageUrl={token.tokenImageUrl} size={44} priority />
+          <TokenAvatar symbol={sym} imageUrl={token.tokenImageUrl} size={48} priority />
           <div>
             <h1 className="tp-token-name">
               {token.tokenName}{' '}
@@ -152,50 +160,40 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
             </div>
           </div>
         </div>
-        <div className="tp-header-actions">
-          <TokenHeaderAction onClick={onCopyAddress} ariaLabel="Copy token address">
-            {copied ? 'Copied' : 'Copy address'}
-          </TokenHeaderAction>
-          <TokenHeaderAction onClick={onShare} ariaLabel="Share token page">
-            Share
-          </TokenHeaderAction>
-        </div>
       </header>
 
-      {(descriptionUser || descriptionDeployNote) && (
+      {(descriptionUser || descriptionDeployNote || token.tokenWebsiteUrl || token.tokenXUrl) && (
         <div className="tp-description-block">
           {descriptionUser ? <p className="token-description">{descriptionUser}</p> : null}
           {descriptionDeployNote ? (
             <p className="token-description token-page-deploy-note">{descriptionDeployNote}</p>
           ) : null}
+          <TokenSocialLinks websiteUrl={token.tokenWebsiteUrl} xUrl={token.tokenXUrl} />
         </div>
       )}
 
-      <div className="tp-links-row">
-        <TradingLinksRow links={links} />
-        <TokenSocialLinks websiteUrl={token.tokenWebsiteUrl} xUrl={token.tokenXUrl} />
-      </div>
+      <TokenHeroMetrics metrics={metrics} loading={metricsLoading} />
 
       <div className="token-page-grid">
         <div className="token-page-main">
-          <TokenHeroMetrics metrics={metrics} loading={metricsLoading} />
-
-          <div className="tp-card tp-chart-card">
+          <section className="tp-zone tp-chart-zone">
+            <p className="tp-zone-label">Chart</p>
             <DexScreenerChartEmbed
               tokenAddress={token.tokenAddress}
               metrics={metrics}
               forceShow
             />
-          </div>
+            <TokenTimeframeStrip metrics={metrics} loading={metricsLoading} />
+          </section>
 
-          <div className="tp-card tp-table-card">
+          <section className="tp-zone tp-trades-zone">
             <LiveTradesTable
               tokenAddress={token.tokenAddress}
               tokenSymbol={sym}
               metrics={metrics}
               variant="compact"
             />
-          </div>
+          </section>
         </div>
 
         <TokenPageSidebar token={token} launchTweetUrl={launchTweetUrl ?? null} sym={sym} />
