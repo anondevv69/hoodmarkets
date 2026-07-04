@@ -9,23 +9,23 @@ import {
   formatTokenAmount,
   type RobinhoodSwap,
 } from '../lib/robinhoodTrades';
-import { dexScreenerTokenPageUrl } from './TokenListingStatus';
+import { DexScreenerTradesEmbed } from './TokenListingStatus';
 import type { DexTokenMetrics } from '../lib/dexscreenerVolume';
 
 export function LiveTradesTable({
   tokenAddress,
   tokenSymbol,
   metrics,
+  variant = 'default',
 }: {
   tokenAddress: string;
   tokenSymbol: string;
   metrics?: DexTokenMetrics;
+  variant?: 'default' | 'compact';
 }) {
   const [swaps, setSwaps] = useState<RobinhoodSwap[]>([]);
   const [ethUsd, setEthUsd] = useState<number | undefined>();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [hideSmall, setHideSmall] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -35,9 +35,8 @@ export function LiveTradesTable({
       ]);
       setSwaps(filterSwapsForToken(latest, tokenAddress));
       setEthUsd(ethPrice);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load trades');
+    } catch {
+      setSwaps([]);
     } finally {
       setLoading(false);
     }
@@ -50,81 +49,125 @@ export function LiveTradesTable({
   }, [refresh]);
 
   const sym = tokenSymbol.replace(/^\$/, '');
+  const [hideSmall, setHideSmall] = useState(false);
   const rows = swaps.filter((s) => {
     if (!hideSmall || ethUsd == null) return true;
     const usd = s.ethAmount * ethUsd;
     return usd >= 1;
   });
+  const compact = variant === 'compact';
+  const showNativeTable = !loading && rows.length > 0;
 
   return (
-    <section className="live-trades" aria-labelledby="live-trades-heading">
-      <div className="token-dex-section-head">
-        <div>
-          <h3 id="live-trades-heading" className="section-label">
-            Live Trades
-          </h3>
-          <p className="muted token-dex-section-sub">Recent buys and sells on Robinhood</p>
+    <section
+      className={`live-trades${compact ? ' live-trades--compact' : ''}`}
+      aria-labelledby="live-trades-heading"
+    >
+      {compact ? (
+        <div className="tp-table-tabs" role="tablist" aria-label="Token activity">
+          <span id="live-trades-heading" className="tp-ttab active" role="tab" aria-selected="true">
+            Trades
+          </span>
         </div>
-        <label className="live-trades-filter">
-          <input
-            type="checkbox"
-            checked={hideSmall}
-            onChange={(e) => setHideSmall(e.target.checked)}
-          />
-          Hide &lt;$1
-        </label>
-      </div>
-
-      {loading ? <p className="muted live-trades-status">Loading trades…</p> : null}
-      {error ? <p className="muted live-trades-status">{error}</p> : null}
-
-      {!loading && rows.length > 0 ? (
-        <div className="live-trades-scroll">
-          <table className="live-trades-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Account</th>
-                <th>Type</th>
-                <th>USD</th>
-                <th>ETH</th>
-                <th>{sym}</th>
-                <th>TX</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((s) => {
-                const usd = ethUsd != null ? s.ethAmount * ethUsd : undefined;
-                const isBuy = s.side === 'BUY';
-                return (
-                  <tr key={s.id} className={isBuy ? 'live-trades-buy' : 'live-trades-sell'}>
-                    <td>{formatRelativeTime(s.timestamp)}</td>
-                    <td className="lp-mono">{shortenAddress(s.sender)}</td>
-                    <td>{isBuy ? 'Buy' : 'Sell'}</td>
-                    <td className="lp-mono">{formatUsdVol(usd)}</td>
-                    <td className="lp-mono">{s.ethAmount.toFixed(4)}</td>
-                    <td className="lp-mono">
-                      {isBuy ? '+' : '-'}
-                      {formatTokenAmount(s.tokenAmount)}
-                    </td>
-                    <td>
-                      <a href={txUrl(s.txHash)} target="_blank" rel="noreferrer">
-                        ↗
-                      </a>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      ) : (
+        <div className="token-dex-section-head">
+          <div>
+            <h3 id="live-trades-heading" className="section-label">
+              Live Trades
+            </h3>
+            <p className="muted token-dex-section-sub">Recent buys and sells on Robinhood</p>
+          </div>
+          {showNativeTable ? (
+            <label className="live-trades-filter">
+              <input
+                type="checkbox"
+                checked={hideSmall}
+                onChange={(e) => setHideSmall(e.target.checked)}
+              />
+              Hide &lt;$1
+            </label>
+          ) : null}
         </div>
-      ) : !loading && !error ? (
-        <p className="muted live-trades-empty">
-          No live trades indexed for this token yet.{' '}
-          <a href={dexScreenerTokenPageUrl(tokenAddress, metrics)} target="_blank" rel="noreferrer">
-            View on DexScreener ↗
-          </a>
-        </p>
+      )}
+
+      {loading ? (
+        <p className="muted live-trades-status">Loading trades…</p>
+      ) : null}
+
+      {showNativeTable ? (
+        <>
+          {compact ? (
+            <label className="live-trades-filter live-trades-filter--compact">
+              <input
+                type="checkbox"
+                checked={hideSmall}
+                onChange={(e) => setHideSmall(e.target.checked)}
+              />
+              Hide &lt;$1
+            </label>
+          ) : null}
+          <div className="live-trades-scroll">
+            <table className={`live-trades-table${compact ? ' live-trades-table--compact' : ''}`}>
+              <thead>
+                <tr>
+                  {!compact ? <th>Date</th> : null}
+                  <th>Account</th>
+                  <th>Type</th>
+                  <th className={compact ? 'num' : undefined}>USD</th>
+                  <th className={compact ? 'num' : undefined}>{compact ? 'WETH' : 'ETH'}</th>
+                  <th className={compact ? 'num' : undefined}>{sym}</th>
+                  {!compact ? <th>TX</th> : null}
+                  {compact ? <th className="num">Time</th> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((s) => {
+                  const usd = ethUsd != null ? s.ethAmount * ethUsd : undefined;
+                  const isBuy = s.side === 'BUY';
+                  return (
+                    <tr key={s.id} className={isBuy ? 'live-trades-buy' : 'live-trades-sell'}>
+                      {!compact ? <td>{formatRelativeTime(s.timestamp)}</td> : null}
+                      <td className={`lp-mono${compact ? ' addr-cell' : ''}`}>
+                        {shortenAddress(s.sender)}
+                      </td>
+                      <td>
+                        {compact ? (
+                          <span className={`tp-pill ${isBuy ? 'buy' : 'sell'}`}>
+                            {isBuy ? 'Buy' : 'Sell'}
+                          </span>
+                        ) : isBuy ? (
+                          'Buy'
+                        ) : (
+                          'Sell'
+                        )}
+                      </td>
+                      <td className={`lp-mono${compact ? ' num' : ''}`}>{formatUsdVol(usd)}</td>
+                      <td className={`lp-mono${compact ? ' num' : ''}`}>
+                        {s.ethAmount.toFixed(compact ? 7 : 4)}
+                      </td>
+                      <td className={`lp-mono${compact ? ' num' : ''}`}>
+                        {isBuy ? '+' : '-'}
+                        {formatTokenAmount(s.tokenAmount)}
+                      </td>
+                      {!compact ? (
+                        <td>
+                          <a href={txUrl(s.txHash)} target="_blank" rel="noreferrer">
+                            ↗
+                          </a>
+                        </td>
+                      ) : null}
+                      {compact ? (
+                        <td className="num time-cell">{formatRelativeTime(s.timestamp)}</td>
+                      ) : null}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : !loading ? (
+        <DexScreenerTradesEmbed tokenAddress={tokenAddress} metrics={metrics} forceShow />
       ) : null}
     </section>
   );

@@ -15,7 +15,13 @@ function loadTwitterWidgets(): void {
   document.body.appendChild(script);
 }
 
-export function LaunchTweetEmbed({ tweetUrl }: { tweetUrl: string }) {
+export function LaunchTweetEmbed({
+  tweetUrl,
+  compact = false,
+}: {
+  tweetUrl: string;
+  compact?: boolean;
+}) {
   const ref = useRef<HTMLQuoteElement>(null);
 
   useEffect(() => {
@@ -23,8 +29,8 @@ export function LaunchTweetEmbed({ tweetUrl }: { tweetUrl: string }) {
   }, [tweetUrl]);
 
   return (
-    <div className="launch-tweet-embed">
-      <p className="section-label">Launch request</p>
+    <div className={`launch-tweet-embed${compact ? ' launch-tweet-embed--compact' : ''}`}>
+      {!compact ? <p className="section-label">Launch request</p> : null}
       <blockquote ref={ref} className="twitter-tweet" data-dnt="true" data-theme="dark">
         <a href={tweetUrl} target="_blank" rel="noreferrer">
           View launch request on X

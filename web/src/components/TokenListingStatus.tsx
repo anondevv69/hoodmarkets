@@ -84,11 +84,14 @@ export function DexScreenerChartEmbed({
 export function DexScreenerTradesEmbed({
   tokenAddress,
   metrics,
+  forceShow = false,
 }: {
   tokenAddress: string;
   metrics?: DexTokenMetrics;
+  /** Render embed even before DexScreener metrics are indexed (fallback URL). */
+  forceShow?: boolean;
 }) {
-  if (!hasDexMarketData(metrics)) return null;
+  if (!forceShow && !hasDexMarketData(metrics)) return null;
 
   return (
     <DexScreenerIframe
