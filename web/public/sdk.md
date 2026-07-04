@@ -12,8 +12,6 @@ hood.markets is open infrastructure: deploy tokens from any frontend, agent, or 
 | **SDK (GitHub)** | [github.com/anondevv69/hoodmarkets-sdk](https://github.com/anondevv69/hoodmarkets-sdk) |
 | **Contracts / monorepo** | [github.com/anondevv69/hoodmarkets](https://github.com/anondevv69/hoodmarkets) |
 
-Modeled after [clanker-sdk](https://github.com/clanker-devco/clanker-sdk).
-
 ---
 
 ## Launch model
