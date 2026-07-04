@@ -21,11 +21,13 @@ export function TokenFractionPanel({
   factoryAddress,
   poolId,
   deployBlockNumber,
+  feeRecipientAddress,
 }: {
   tokenAddress: string;
   factoryAddress?: string | null;
   poolId?: string | null;
   deployBlockNumber?: string | null;
+  feeRecipientAddress?: string | null;
 }) {
   const { wallets } = useWallets();
   const walletAddress = wallets[0]?.address;
@@ -109,6 +111,13 @@ export function TokenFractionPanel({
   if (!info) return null;
 
   const shareTokenHuman = formatTokenBalance(info.tokensPerShare, 18);
+  const feeRecipientLower = feeRecipientAddress?.trim().toLowerCase();
+  const walletLower = walletAddress?.toLowerCase();
+  const isFeeRecipientWallet =
+    !!feeRecipientLower && !!walletLower && feeRecipientLower === walletLower;
+  const feeRecipientHolder = feeRecipientLower
+    ? info.holders.find((h) => h.address.toLowerCase() === feeRecipientLower)
+    : undefined;
 
   return (
     <section className="tp-zone tp-fraction-zone" aria-labelledby="fraction-heading">
@@ -117,9 +126,44 @@ export function TokenFractionPanel({
           Holder NFTs
         </p>
         <p className="token-fraction-sub">
-          {info.totalShares.toLocaleString()} equal shares · 10% supply vaulted · redeemable on-chain
+          {info.totalShares.toLocaleString()} equal shares · 10% supply vaulted · minted to the fee
+          recipient at launch
         </p>
       </div>
+
+      {feeRecipientAddress ? (
+        <p className="token-fraction-recipient muted">
+          Launch recipient:{' '}
+          <button
+            type="button"
+            className="token-fraction-holder lp-mono"
+            onClick={() => openWalletProfile(feeRecipientAddress)}
+          >
+            {shortenAddress(feeRecipientAddress)}
+          </button>
+          {feeRecipientHolder ? (
+            <>
+              {' '}
+              · holds {feeRecipientHolder.shares.toLocaleString()} share
+              {feeRecipientHolder.shares === 1 ? '' : 's'}
+            </>
+          ) : null}
+        </p>
+      ) : null}
+
+      {(isFeeRecipientWallet || (walletShares != null && walletShares > 0)) ? (
+        <div className="token-fraction-manage">
+          <p className="token-fraction-manage-title">
+            {isFeeRecipientWallet ? 'You received the launch shares' : 'You hold shares'}
+          </p>
+          <ul className="token-fraction-manage-list">
+            <li>Sell or list on NFT marketplaces (ERC-1155 transfer)</li>
+            <li>Gift or airdrop shares to any wallet</li>
+            <li>Reward early buyers — send shares to their wallets after they trade</li>
+            <li>Redeem on-chain via the collection contract to receive underlying tokens</li>
+          </ul>
+        </div>
+      ) : null}
 
       <div className="token-fraction-stats">
         <div className="token-fraction-stat">
@@ -196,8 +240,10 @@ export function TokenFractionPanel({
       )}
 
       <p className="muted token-fraction-foot">
-        ERC-1155 shares are tradable like NFTs. Holders call <code>redeem(amount)</code> on the
-        collection contract to burn shares and receive underlying tokens.
+        Shares are standard ERC-1155 tokens — transferable like NFTs. The fee recipient receives
+        all 1,000 at launch (including when someone else launches for them). Holders call{' '}
+        <code>redeem(amount)</code> on the collection contract to burn shares and receive underlying
+        tokens.
       </p>
     </section>
   );

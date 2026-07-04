@@ -2674,6 +2674,63 @@ label {
   font-size: 0.85em;
 }
 
+.launch-fraction-notice {
+  margin-top: 0.85rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: rgba(0, 230, 118, 0.04);
+}
+
+.launch-fraction-notice-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.launch-fraction-notice-body {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.launch-fraction-notice-body:last-child {
+  margin-bottom: 0;
+}
+
+.launch-done-fraction {
+  margin-top: 0.35rem;
+  font-size: 0.88rem;
+  max-width: 36rem;
+}
+
+.token-fraction-recipient {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+}
+
+.token-fraction-manage {
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.token-fraction-manage-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.token-fraction-manage-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .tp-discussion-zone {
   margin-top: 0;
 }

@@ -93,6 +93,7 @@ export function buildHoodMarketsV3DeploymentConfig(input: {
 }): HoodMarketsV3DeploymentConfig {
   const salt = keccak256(toHex(randomBytes(32)));
   const tokenAdmin = getAddress(input.tokenAdmin);
+  /** Swap-fee recipient; also receives all 1,000 fraction shares at launch (via creatorAdmin). */
   const creatorRewardRecipient =
     input.feesToPlatformOnly && input.platformFeeRecipient
       ? getAddress(input.platformFeeRecipient)
