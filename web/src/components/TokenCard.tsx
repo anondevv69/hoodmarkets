@@ -15,13 +15,21 @@ interface TokenCardProps {
   deployment: Deployment;
   metrics?: DexTokenMetrics;
   showDeployer?: boolean;
+  /** Profile pages: no trade links or claim actions — open the token page instead. */
+  variant?: 'default' | 'profile';
 }
 
-export function TokenCard({ deployment: d, metrics, showDeployer = true }: TokenCardProps) {
+export function TokenCard({
+  deployment: d,
+  metrics,
+  showDeployer = true,
+  variant = 'default',
+}: TokenCardProps) {
   const sym = d.tokenSymbol.replace(/^\$/, '');
+  const profile = variant === 'profile';
 
   return (
-    <li className="token-card">
+    <li className={`token-card${profile ? ' token-card--profile' : ''}`}>
       <div className="token-card-header">
         <div className="token-card-title-row">
           <TokenAvatar symbol={sym} imageUrl={d.tokenImageUrl} size={40} />
@@ -34,27 +42,47 @@ export function TokenCard({ deployment: d, metrics, showDeployer = true }: Token
         <DexMetricsStrip metrics={metrics} />
       </div>
 
-      <p className="token-contract">
-        <span className="label">Contract</span>
-        <br />
-        <a href={tokenUrl(d.tokenAddress)} target="_blank" rel="noreferrer" className="mono">
-          {d.tokenAddress}
-        </a>
-      </p>
+      {!profile ? (
+        <p className="token-contract">
+          <span className="label">Contract</span>
+          <br />
+          <a href={tokenUrl(d.tokenAddress)} target="_blank" rel="noreferrer" className="mono">
+            {d.tokenAddress}
+          </a>
+        </p>
+      ) : null}
 
       <p className="token-meta">
         {formatLaunchTimeEastern(d.createdAt)}
-        {showDeployer && d.deployerLabel ? ` · ${d.deployerLabel}` : ''}
+        {profile ? (
+          <>
+            {' · '}
+            <a href={tokenUrl(d.tokenAddress)} target="_blank" rel="noreferrer" className="mono">
+              {shortenAddress(d.tokenAddress)}
+            </a>
+          </>
+        ) : null}
+        {!profile && showDeployer && d.deployerLabel ? ` · ${d.deployerLabel}` : ''}
       </p>
 
       <TokenSocialLinks websiteUrl={d.tokenWebsiteUrl} xUrl={d.tokenXUrl} />
 
-      <div className="trade-section">
-        <p className="label">Trade</p>
-        <TradingLinksRowForToken tokenAddress={d.tokenAddress} />
-      </div>
+      {profile ? (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm token-card-view-link"
+          onClick={() => openTokenPage(d.tokenAddress)}
+        >
+          View token →
+        </button>
+      ) : (
+        <div className="trade-section">
+          <p className="label">Trade</p>
+          <TradingLinksRowForToken tokenAddress={d.tokenAddress} />
+        </div>
+      )}
 
-      {!showDeployer && d.feeRecipientAddress ? (
+      {!profile && !showDeployer && d.feeRecipientAddress ? (
         <ClaimFeesActions
           tokenAddress={d.tokenAddress}
           feeRecipientAddress={d.feeRecipientAddress}

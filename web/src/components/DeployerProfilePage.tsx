@@ -81,10 +81,6 @@ export function DeployerProfilePage({ username }: { username: string }) {
 
   return (
     <div className="deployer-profile-page lp-fade-in">
-      <button type="button" className="btn btn-ghost token-page-back" onClick={closeDeployerProfile}>
-        ← Explore
-      </button>
-
       <div className="lp-card deployer-profile-hero">
         <p className="section-label">Deployer profile</p>
         <h2 className="lp-display deployer-profile-handle">
@@ -113,6 +109,7 @@ export function DeployerProfilePage({ username }: { username: string }) {
               deployment={t}
               metrics={metricsByAddress[t.tokenAddress]}
               showDeployer={false}
+              variant="profile"
             />
           ))}
         </ul>
