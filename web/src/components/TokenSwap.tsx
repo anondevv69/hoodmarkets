@@ -377,24 +377,18 @@ export function TokenSwap({
                 : `Sell $${sym}`}
         </button>
 
-        {oneClick ? (
-          <p className="tp-footnote">
-            {isSimpleLaunch
-              ? mode === 'buy'
-                ? 'Uniswap V3 swap on Robinhood Chain — confirm in your wallet.'
-                : 'Approve once if needed, then sell through Uniswap V3.'
-              : mode === 'buy'
-                ? 'One confirmation — swap helper routes through the pool.'
-                : 'Approve once if needed, then sell in one transaction.'}
-          </p>
-        ) : null}
-
         {isSimpleLaunch ? (
           <p className="tp-footnote">
-            Prefer the full Uniswap app?{' '}
+            hood.markets uses Uniswap for swaps. Prefer the Uniswap app?{' '}
             <a href={externalUniswapUrl} target="_blank" rel="noreferrer">
-              Open in Uniswap
+              Open Uniswap
             </a>
+          </p>
+        ) : oneClick ? (
+          <p className="tp-footnote">
+            {mode === 'buy'
+              ? 'One confirmation — swap helper routes through the pool.'
+              : 'Approve once if needed, then sell in one transaction.'}
           </p>
         ) : null}
 
