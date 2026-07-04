@@ -1,4 +1,5 @@
-const GITHUB_REPO = 'https://github.com/anondevv69/hoodmarkets';
+const SDK_REPO = 'https://github.com/anondevv69/hoodmarkets-sdk';
+const MONOREPO = 'https://github.com/anondevv69/hoodmarkets';
 
 export function SiteFooter() {
   return (
@@ -8,7 +9,10 @@ export function SiteFooter() {
         <a className="site-footer-tab" href="/sdk.md" target="_blank" rel="noreferrer">
           Contract / SDK
         </a>
-        <a className="site-footer-tab" href={GITHUB_REPO} target="_blank" rel="noreferrer">
+        <a className="site-footer-tab" href={SDK_REPO} target="_blank" rel="noreferrer">
+          SDK (GitHub)
+        </a>
+        <a className="site-footer-tab" href={MONOREPO} target="_blank" rel="noreferrer">
           GitHub
         </a>
       </nav>

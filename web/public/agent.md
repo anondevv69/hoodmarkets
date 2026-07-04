@@ -6,7 +6,7 @@ Any agent with an EVM wallet can deploy tokens on Robinhood Chain through the ho
 
 ## Contracts (Robinhood mainnet)
 
-**Simple launch (V3)** — default `launchMode: "simple"`:
+**Uniswap V3 launches** — default `launchMode: "simple"`:
 
 | Contract | Address |
 |----------|---------|
@@ -16,7 +16,7 @@ Any agent with an EVM wallet can deploy tokens on Robinhood Chain through the ho
 | Platform fee wallet (5%) | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
 | Contract owner | `0xFA45A3b8d1662E3432D1B5bE3F37e4923D1b796C` |
 
-Fee split on simple launches: **95%** to agent/creator fee wallet · **5%** to platform (on-chain in locker).
+Fee split: **95%** to agent/creator fee wallet · **5%** to platform (on-chain in locker).
 
 WETH: `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` · Explorer: [robinhoodchain.blockscout.com](https://robinhoodchain.blockscout.com)
 
@@ -29,10 +29,8 @@ WETH: `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` · Explorer: [robinhoodchain.
 | GET | `/health` | API + chainId 4663 |
 | GET | `/api/agent/briefing?wallet=0x…` | Tokens where wallet is fee recipient |
 | GET | `/api/agent/preflight-deploy?wallet=…&name=…&symbol=…&launchMode=simple` | Check blockers before captcha |
-| GET | `/api/agent/token-info?token=0x…` or `?symbol=TICKER` | Simple vs Pro routing |
+| GET | `/api/agent/token-info?token=0x…` or `?symbol=TICKER` | Token metadata + Uniswap trade link |
 | POST | `/api/agent/prepare-deploy` | Full deploy checklist + preflight |
-| POST | `/api/agent/prepare-buy` | Pro tokens only → Bankr submit |
-| POST | `/api/agent/prepare-sell` | Pro tokens only → Bankr submit |
 | GET | `/api/agent-captcha/challenge` | Haiku challenge |
 | POST | `/api/agent-captcha/verify` | Returns JWT (8h) |
 | POST | `/api/deploy` | Deploy token (header `X-Agent-Captcha-JWT`) |
@@ -96,8 +94,8 @@ Content-Type: application/json
 }
 ```
 
-- `launchMode`: `"simple"` (Uniswap V3, DexScreener) — **default** · `"pro"` (V4 hooks)
-- Simple: **5%** platform / **95%** fee wallet — set in `HoodMarketsV3LpLocker`
+- `launchMode`: `"simple"` — Uniswap V3 on Robinhood Chain (default)
+- **5%** platform / **95%** fee wallet — set in `HoodMarketsV3LpLocker`
 - Deploy is **gasless for the user** — hood.markets launcher wallet pays gas + launch seed
 
 Or full checklist:
@@ -111,26 +109,19 @@ POST https://api.hood.markets/api/agent/prepare-deploy
 
 ## Step 2b — Buy / sell
 
-```
-POST https://api.hood.markets/api/agent/prepare-buy
-{ "wallet": "0x…", "tokenAddress": "0x…", "amountEth": "0.01" }
+All hood.markets tokens trade on **Uniswap V3**. Use the `uniswapSwapUrl` from token-info — do **not** use a hood.markets swap helper.
 
-POST https://api.hood.markets/api/agent/prepare-sell
-{ "wallet": "0x…", "tokenAddress": "0x…", "amount": "1000000" }
+```
+GET https://api.hood.markets/api/agent/token-info?token=0x…
 ```
 
-**Simple (V3)** tokens (`launchType: simple`, `poolId` prefix `v3:`) → use `uniswapSwapUrl` from token-info; do **not** use prepare-buy/sell.
-
-**Pro (V4)** → prepare-buy/sell → validate txs → `POST https://api.bankr.bot/wallet/submit` with `chainId: 4663`.
+Open the returned Uniswap link for buys and sells.
 
 ---
 
 ## Step 2c — Claim fees (launcher pays gas)
 
-Same endpoint for **Simple (V3)** and **Pro (V4)** — API picks the contract:
-
-- **V3** (`poolId` `v3:…`): `HoodMarketsV3.claimRewards(token)` → WETH to fee wallet
-- **V4**: collect pool fees → claim from fee locker
+V3 fee recipients claim WETH via `HoodMarketsV3.claimRewards(token)` (API submits the tx):
 
 ```
 POST https://api.hood.markets/api/agent/claim
@@ -150,7 +141,7 @@ JWT wallet must be the **fee recipient**. Response includes `feeModel` / `launch
 GET https://api.hood.markets/api/agent/briefing?wallet=0x…
 ```
 
-Lists tokens where the wallet is fee recipient (`launchType`, DexScreener / hood.markets links).
+Lists tokens where the wallet is fee recipient (DexScreener / hood.markets links).
 
 ---
 
