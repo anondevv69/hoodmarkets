@@ -60,7 +60,12 @@ export function LaunchTab() {
   const [liveTickerReserved, setLiveTickerReserved] = useState<string | null>(null);
   const [checkingCooldown, setCheckingCooldown] = useState(false);
   const [result, setResult] = useState<DeployResult | null>(null);
-  const [launchedMeta, setLaunchedMeta] = useState<{ name: string; symbol: string } | null>(null);
+  const [launchedMeta, setLaunchedMeta] = useState<{
+    name: string;
+    symbol: string;
+    /** False when launch was for another fee recipient — hide NFT copy from deployer. */
+    showFractionNotice: boolean;
+  } | null>(null);
   const [walletCompleteTxHash, setWalletCompleteTxHash] = useState<string | null>(null);
   const [hasPendingFinalize, setHasPendingFinalize] = useState(() => !!loadPendingWalletDeploy());
 
@@ -286,7 +291,11 @@ export function LaunchTab() {
             }
           : undefined,
       );
-      setLaunchedMeta({ name: name.trim(), symbol: symbol.trim().toUpperCase() });
+      setLaunchedMeta({
+        name: name.trim(),
+        symbol: symbol.trim().toUpperCase(),
+        showFractionNotice: feeTarget === 'self',
+      });
       setResult(out);
       setName('');
       setSymbol('');
@@ -337,8 +346,16 @@ export function LaunchTab() {
       setResult(out);
       setLaunchedMeta(
         pending
-          ? { name: pending.payload.name, symbol: pending.payload.symbol }
-          : { name: name.trim(), symbol: symbol.trim().toUpperCase() },
+          ? {
+              name: pending.payload.name,
+              symbol: pending.payload.symbol,
+              showFractionNotice: pending.payload.feeTarget !== 'other',
+            }
+          : {
+              name: name.trim(),
+              symbol: symbol.trim().toUpperCase(),
+              showFractionNotice: feeTarget === 'self',
+            },
       );
       openTokenPage(out.tokenAddress);
     } catch (err) {
@@ -371,10 +388,12 @@ export function LaunchTab() {
         <p className="muted launch-done-sub">
           {launchedMeta.name} is on Robinhood Chain and visible in Tokens.
         </p>
-        <p className="muted launch-done-sub launch-done-fraction">
-          1,000 Holder NFT shares (10% vault) were minted to the fee recipient wallet at launch —
-          sell, transfer, airdrop, or redeem from the token page.
-        </p>
+        {launchedMeta.showFractionNotice ? (
+          <p className="muted launch-done-sub launch-done-fraction">
+            1,000 Holder NFT shares (10% vault) were minted to your wallet at launch — sell,
+            transfer, airdrop, or redeem from the token page.
+          </p>
+        ) : null}
         <LaunchSuccessLinks
           tokenAddress={result.tokenAddress}
           tokenName={launchedMeta.name}
@@ -616,29 +635,21 @@ export function LaunchTab() {
                   </span>
                 </label>
               </div>
-              <div className="launch-fraction-notice" role="note">
-                <p className="launch-fraction-notice-title">1,000 Holder NFTs (automatic)</p>
-                <p className="launch-fraction-notice-body muted">
-                  Every launch vaults <strong>10% of supply</strong> as{' '}
-                  <strong>1,000 equal tradable shares</strong> — embedded in the contract, not optional.
-                  {feeTarget === 'other' ? (
-                    <>
-                      {' '}
-                      When you launch for someone else, all 1,000 shares go to{' '}
-                      <strong>their fee wallet</strong> at deploy. You won&apos;t receive them.
-                    </>
-                  ) : (
-                    <>
-                      {' '}
-                      All 1,000 shares mint to <strong>your fee wallet</strong> when the token goes live.
-                    </>
-                  )}
-                </p>
-                <p className="launch-fraction-notice-body muted">
-                  After launch, the share owner decides what to do — sell, transfer, airdrop to
-                  community or buyers, or redeem on-chain for underlying tokens.
-                </p>
-              </div>
+              {feeTarget === 'self' ? (
+                <div className="launch-fraction-notice" role="note">
+                  <p className="launch-fraction-notice-title">1,000 Holder NFTs (automatic)</p>
+                  <p className="launch-fraction-notice-body muted">
+                    Every launch vaults <strong>10% of supply</strong> as{' '}
+                    <strong>1,000 equal tradable shares</strong> — embedded in the contract, not
+                    optional. All 1,000 shares mint to <strong>your fee wallet</strong> when the token
+                    goes live.
+                  </p>
+                  <p className="launch-fraction-notice-body muted">
+                    After launch, you decide what to do — sell, transfer, airdrop to community or
+                    buyers, or redeem on-chain for underlying tokens.
+                  </p>
+                </div>
+              ) : null}
               {feeTarget === 'other' ? (
                 <label style={{ marginTop: '0.85rem' }}>
                   Fee recipient
