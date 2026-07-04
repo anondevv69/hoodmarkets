@@ -4,11 +4,9 @@ import { shortenAddress, tokenUrl } from '../chain';
 import { fetchTokenMetricsFromDexscreener, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import { fetchTokenDescriptionFromChain } from '../lib/tokenOnChainMetadata';
 import { closeTokenPage } from '../lib/tokenRoute';
-import { resolveTokenLaunchTweetUrl } from '../lib/launchTweet';
-import { splitTokenDescriptionForDisplay } from '../lib/tokenDescriptionDisplay';
 import { formatTickerAge } from '../lib/exploreTokens';
+import { splitTokenDescriptionForDisplay } from '../lib/tokenDescriptionDisplay';
 import { DexScreenerChartEmbed } from './TokenListingStatus';
-import { LaunchTweetEmbed } from './LaunchTweetEmbed';
 import { LiveTradesTable } from './LiveTradesTable';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenHeroMetrics } from './TokenHeroMetrics';
@@ -97,7 +95,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   }
 
   const sym = token.tokenSymbol.replace(/^\$/, '');
-  const launchTweetUrl = resolveTokenLaunchTweetUrl(token);
   const age = formatTickerAge(token.createdAt);
   const { userText: descriptionUser, deployNotes: descriptionDeployNote } =
     splitTokenDescriptionForDisplay(description);
@@ -174,12 +171,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
       )}
 
       <TokenHeroMetrics metrics={metrics} loading={metricsLoading} />
-
-      {launchTweetUrl ? (
-        <section className="tp-zone tp-tweet-strip">
-          <LaunchTweetEmbed tweetUrl={launchTweetUrl} horizontal />
-        </section>
-      ) : null}
 
       <div className="token-page-grid">
         <div className="token-page-main">

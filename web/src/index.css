@@ -794,6 +794,74 @@ label {
   padding: 1rem 1.25rem 1.1rem;
 }
 
+.tp-launch-request {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: inherit;
+  text-decoration: none;
+  line-height: 1.35;
+  min-height: 0;
+}
+
+.tp-launch-request:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.tp-launch-request-x {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tp-launch-request-copy {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.78rem;
+}
+
+.tp-launch-request-copy strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tp-launch-request-sub {
+  color: var(--muted);
+}
+
+.tp-launch-request-link {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .launch-tweet-embed--horizontal {
   width: 100%;
   padding: 0;
