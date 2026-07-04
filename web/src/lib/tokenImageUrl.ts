@@ -3,9 +3,10 @@ const IPFS_PROTO = /^ipfs:\/\/([^/?#]+)/i;
 const LIGHTHOUSE_VIEW_FILE = /\/viewFile\/([^/?#]+)/i;
 const RAW_CID = /^(bafkrei[a-z0-9]{52,}|Qm[1-9A-HJ-NP-Za-km-z]{44,})$/i;
 
-/** Dedicated Lighthouse gateway first — uploads land here; public ipfs.io is slow/cold. */
+/** Pinata / dedicated gateway first — uploads land here; public ipfs.io is slow/cold. */
 const GATEWAY_FALLBACKS = [
   (import.meta.env.VITE_IPFS_GATEWAY_URL as string | undefined)?.trim().replace(/\/$/, ''),
+  'https://gateway.pinata.cloud/ipfs',
   'https://alternative-sparrow-qk8yx.lighthouseweb3.xyz/ipfs',
   'https://dweb.link/ipfs',
   'https://ipfs.io/ipfs',

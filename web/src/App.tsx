@@ -3,6 +3,7 @@ import { LaunchTab } from './components/LaunchTab';
 import { ProfileTab } from './components/ProfileTab';
 import { DeployerProfilePage } from './components/DeployerProfilePage';
 import { WalletProfilePage } from './components/WalletProfilePage';
+import { SiteFooter } from './components/SiteFooter';
 import { TokenPage } from './components/TokenPage';
 import { TickerTape } from './components/TickerTape';
 import { TokensTab } from './components/TokensTab';
@@ -167,12 +168,7 @@ export default function App() {
           )}
         </div>
 
-        <p className="footer-note">
-          hood.markets · Robinhood Chain ·{' '}
-          <a href="/agent.md" target="_blank" rel="noreferrer">
-            agent.md
-          </a>
-        </p>
+        <SiteFooter />
       </main>
     </div>
   );

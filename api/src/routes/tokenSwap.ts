@@ -65,6 +65,18 @@ export function registerTokenSwapRoutes(app: Express): void {
       return;
     }
 
+    const isV3 = !!deployment.poolId && deployment.poolId.toLowerCase().startsWith('v3:');
+    if (isV3) {
+      res.json({
+        launchType: 'simple',
+        chainId: 4663,
+        tokenAddress,
+        poolId: deployment.poolId,
+        uniswapSwapUrl: `https://app.uniswap.org/swap?chain=robinhood&outputCurrency=${tokenAddress}`,
+      });
+      return;
+    }
+
     const { weth, universalRouter, hookStatic, swapHelper } = swapAddresses();
     const permit2 = (process.env.PERMIT2?.trim() ||
       '0x000000000022D473030F116dDEE9F6B43aC78BA3') as `0x${string}`;
@@ -78,6 +90,7 @@ export function registerTokenSwapRoutes(app: Express): void {
     const sellZeroForOne = !zeroForOne;
 
     res.json({
+      launchType: 'pro',
       chainId: 4663,
       tokenAddress,
       poolId: deployment.poolId,

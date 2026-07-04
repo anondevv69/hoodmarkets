@@ -39,11 +39,21 @@ export function TokenPageSidebar({
         : '—';
 
   const feeRecipientDisplay = platformFees ? 'hood.markets' : shortenAddress(token.feeRecipientAddress);
+  const feeRecipientCount =
+    typeof token.feeRecipientDeploymentCount === 'number'
+      ? String(token.feeRecipientDeploymentCount)
+      : '—';
   const launchTweetUrl = resolveTokenLaunchTweetUrl(token);
 
   return (
     <aside className="token-page-sidebar">
-      <TokenSwap tokenAddress={token.tokenAddress} symbol={sym} variant="sidebar" />
+      <TokenSwap
+        tokenAddress={token.tokenAddress}
+        symbol={sym}
+        poolId={token.poolId}
+        factoryAddress={token.factoryAddress}
+        variant="sidebar"
+      />
 
       <div className="tp-zone tp-deploy-zone">
         <div className="tp-side-title">Deploy details</div>
@@ -99,6 +109,17 @@ export function TokenPageSidebar({
             </button>
           )}
         </div>
+
+        {!platformFees ? (
+          <div className="tp-info-row">
+            <span className="tp-info-k">Recipient for</span>
+            <span className="tp-info-v">
+              {feeRecipientCount === '—'
+                ? feeRecipientCount
+                : `${feeRecipientCount} token${feeRecipientCount === '1' ? '' : 's'}`}
+            </span>
+          </div>
+        ) : null}
 
         <ClaimFeesActions
           tokenAddress={token.tokenAddress}

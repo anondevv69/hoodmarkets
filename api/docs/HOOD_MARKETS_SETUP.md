@@ -86,7 +86,7 @@ HOODMARKETS_DEPLOY_CONTEXT_PLATFORM=hoodmarkets
 
 **Do not set** `NEYNAR_*`, `DISCORD_*`, `TELEGRAM_*` for web-only mode.
 
-Optional: `LIGHTHOUSE_API_KEY` (logo uploads), `PLATFORM_FEE_RECIPIENT`, `PLATFORM_FEE_BPS`.
+Optional: `PINATA_JWT` + `PINATA_GATEWAY_URL` (logo uploads via [Pinata](https://docs.pinata.cloud/files/uploading-files)), `LIGHTHOUSE_API_KEY` (fallback), `PLATFORM_FEE_RECIPIENT`, `PLATFORM_FEE_BPS`.
 
 ---
 

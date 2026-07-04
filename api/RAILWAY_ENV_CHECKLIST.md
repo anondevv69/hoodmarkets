@@ -78,7 +78,9 @@ Expected header: `access-control-allow-origin: https://hood.markets`
 
 ## Optional variables
 
-- `LIGHTHOUSE_API_KEY` — IPFS logo uploads from Launch tab
+- `PINATA_JWT` — IPFS logo uploads from Launch tab ([Pinata docs](https://docs.pinata.cloud/files/uploading-files))
+- `PINATA_GATEWAY_URL` — optional dedicated gateway for image URLs
+- `LIGHTHOUSE_API_KEY` — fallback IPFS uploads if Pinata is not set
 - `PLATFORM_FEE_RECIPIENT` / `PLATFORM_FEE_BPS` — platform LP fee share
 - `ZEROX_API_KEY` — in-app swaps (if supported on 4663)
 - `DEPLOY_BOND_ETH` — dev buy ETH (default ~0.0001)

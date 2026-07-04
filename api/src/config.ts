@@ -463,8 +463,20 @@ export const config = {
   },
 
   /**
-   * Lighthouse (IPFS) for token images — used when `LIGHTHOUSE_API_KEY` is set.
-   * See https://docs.lighthouse.storage/quick-start — gateway may require a dedicated URL from your dashboard.
+   * Pinata (IPFS) for token images — preferred when `PINATA_JWT` is set.
+   * See https://docs.pinata.cloud/files/uploading-files
+   */
+  pinata: {
+    jwt: (process.env.PINATA_JWT || '').trim(),
+    /** HTTPS gateway for returned image URLs (no trailing slash). Use your dedicated gateway from Pinata dashboard when available. */
+    gatewayBase: (
+      process.env.PINATA_GATEWAY_URL?.trim() || 'https://gateway.pinata.cloud/ipfs'
+    ).replace(/\/$/, ''),
+  },
+
+  /**
+   * Lighthouse (IPFS) for token images — fallback when Pinata is not configured.
+   * See https://docs.lighthouse.storage/quick-start
    */
   lighthouse: {
     apiKey: (process.env.LIGHTHOUSE_API_KEY || '').trim(),
