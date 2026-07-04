@@ -19,10 +19,12 @@ export function TokenSwap({
   tokenAddress,
   symbol,
   suggestedBuyEth,
+  variant = 'card',
 }: {
   tokenAddress: string;
   symbol: string;
   suggestedBuyEth?: string;
+  variant?: 'card' | 'sidebar';
 }) {
   const { authenticated, login } = usePrivy();
   const { wallets } = useWallets();
@@ -60,6 +62,8 @@ export function TokenSwap({
 
   const sym = symbol.replace(/^\$/, '');
   const oneClick = Boolean(config.swapHelper);
+  const sidebar = variant === 'sidebar';
+  const displayAmount = mode === 'buy' ? amountEth : amountTokens;
 
   async function onSwap() {
     setError(null);
@@ -141,6 +145,111 @@ export function TokenSwap({
       setLoading(false);
       setSwapStep(null);
     }
+  }
+
+  if (sidebar) {
+    return (
+      <div className="tp-card tp-side-card token-swap-sidebar">
+        <div className="tp-buysell">
+          <button
+            type="button"
+            className={`tp-bs-btn${mode === 'buy' ? ' buy-active' : ''}`}
+            onClick={() => setMode('buy')}
+          >
+            Buy
+          </button>
+          <button
+            type="button"
+            className={`tp-bs-btn${mode === 'sell' ? ' sell-active' : ''}`}
+            onClick={() => setMode('sell')}
+          >
+            Sell
+          </button>
+        </div>
+
+        <div className="tp-amount-display">
+          <span className="tp-amount-num lp-mono">{displayAmount || '0'}</span>
+          <span className="tp-amount-unit">{mode === 'buy' ? 'ETH' : sym}</span>
+        </div>
+
+        {mode === 'buy' ? (
+          <div className="tp-presets">
+            {BUY_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                className={`tp-preset${amountEth === preset ? ' active' : ''}`}
+                onClick={() => setAmountEth(preset)}
+              >
+                {preset} ETH
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="tp-presets">
+            {SELL_PRESETS.map((pct) => (
+              <button
+                key={pct}
+                type="button"
+                className={`tp-preset${sellPct === Number(pct) ? ' active' : ''}`}
+                onClick={() => {
+                  setSellPct(Number(pct));
+                  setAmountTokens(`${pct}%`);
+                }}
+              >
+                {pct}%
+              </button>
+            ))}
+          </div>
+        )}
+
+        <label className="token-swap-field token-swap-field--sidebar">
+          <span className="muted">{mode === 'buy' ? 'Amount (ETH)' : `Amount (${sym})`}</span>
+          <input
+            className="lp-input"
+            type="text"
+            inputMode="decimal"
+            value={mode === 'buy' ? amountEth : amountTokens}
+            onChange={(e) => {
+              if (mode === 'buy') setAmountEth(e.target.value);
+              else {
+                setSellPct(null);
+                setAmountTokens(e.target.value);
+              }
+            }}
+            placeholder={mode === 'buy' ? '0.005' : '1000'}
+          />
+        </label>
+
+        <button type="button" className="tp-cta" disabled={loading} onClick={() => void onSwap()}>
+          {loading
+            ? (swapStep ?? 'Confirm in wallet…')
+            : !authenticated
+              ? 'Connect wallet to trade'
+              : mode === 'buy'
+                ? `Buy $${sym}`
+                : `Sell $${sym}`}
+        </button>
+
+        {oneClick ? (
+          <p className="tp-footnote">
+            {mode === 'buy'
+              ? 'One confirmation — swap helper routes through the pool.'
+              : 'Approve once if needed, then sell in one transaction.'}
+          </p>
+        ) : null}
+
+        {error ? <p className="error token-swap-sidebar-error">{error}</p> : null}
+        {successMsg ? <p className="token-swap-success">{successMsg}</p> : null}
+        {txHash ? (
+          <p className="muted token-swap-sidebar-tx">
+            <a href={txUrl(txHash)} target="_blank" rel="noreferrer">
+              View transaction
+            </a>
+          </p>
+        ) : null}
+      </div>
+    );
   }
 
   return (

@@ -21,6 +21,7 @@ export function ClaimFeesActions({
   factoryAddress,
   /** When true (token page), anyone can trigger collect/claim — funds always go to fee recipient. */
   publicCollect = false,
+  variant = 'card',
 }: {
   tokenAddress: string;
   feeRecipientAddress: string;
@@ -28,6 +29,7 @@ export function ClaimFeesActions({
   poolId?: string | null;
   factoryAddress?: string | null;
   publicCollect?: boolean;
+  variant?: 'card' | 'sidebar';
 }) {
   const { authenticated, getAccessToken } = usePrivy();
   const { wallets } = useWallets();
@@ -130,6 +132,74 @@ export function ClaimFeesActions({
 
   const pending = feeStatus?.pendingWethHuman;
   const hasPending = !isV3 && pending && Number.parseFloat(pending) > 0;
+  const lastClaimLabel = feeStatus?.feeClaimedAt
+    ? new Date(feeStatus.feeClaimedAt).toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : statusLoading
+      ? '…'
+      : 'Never';
+
+  if (variant === 'sidebar') {
+    return (
+      <>
+        <div className="tp-info-row">
+          <span className="tp-info-k">Last fee claim</span>
+          <span className="tp-info-v">{lastClaimLabel}</span>
+        </div>
+
+        {isV3 ? (
+          <button
+            type="button"
+            className="tp-claim-btn"
+            disabled={collecting || claiming}
+            onClick={() => void onClaim()}
+          >
+            {claiming ? 'Claiming…' : 'Claim trading fees'}
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="tp-claim-btn tp-claim-btn--secondary"
+              disabled={collecting || claiming}
+              onClick={() => void onCollect()}
+            >
+              {collecting ? 'Collecting…' : 'Collect pool fees'}
+            </button>
+            <button
+              type="button"
+              className="tp-claim-btn"
+              disabled={collecting || claiming}
+              onClick={() => void onClaim()}
+              style={{ marginTop: '0.5rem' }}
+            >
+              {claiming ? 'Claiming…' : 'Claim to fee recipient'}
+            </button>
+          </>
+        )}
+
+        <p className="tp-footnote">
+          {platformFees
+            ? 'Anyone can trigger this claim. Fees go to the hood.markets treasury — the caller only pays gas.'
+            : 'Anyone can trigger this claim. WETH is sent to the fee recipient — hood.markets pays gas.'}
+        </p>
+
+        {message ? <p className="muted claim-fees-message">{message}</p> : null}
+        {txHash ? (
+          <p className="mono claim-fees-tx">
+            <a href={txUrl(txHash)} target="_blank" rel="noreferrer">
+              {txHash.slice(0, 10)}…
+            </a>
+          </p>
+        ) : null}
+        {error ? <p className="error claim-fees-error">{error}</p> : null}
+      </>
+    );
+  }
 
   return (
     <div className="lp-card claim-fees-card">
