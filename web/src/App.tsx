@@ -11,9 +11,8 @@ import { TokensTab } from './components/TokensTab';
 import { useExploreTokens } from './hooks/useExploreTokens';
 import { useEnsureRobinhoodChain } from './hooks/useEnsureRobinhoodChain';
 import { isDevPage } from './lib/devRoute';
-import { readDeployerProfileFromUrl } from './lib/deployerProfileRoute';
-import { closeDeployerProfile } from './lib/deployerProfileRoute';
-import { closeTokenPage, openExplorePage, readTokenFromUrl } from './lib/tokenRoute';
+import { closeDeployerProfile, readDeployerProfileFromUrl } from './lib/deployerProfileRoute';
+import { closeTokenPage, navigateToAppTab, openExplorePage, readTokenFromUrl } from './lib/tokenRoute';
 
 type Tab = 'tokens' | 'launch' | 'profile';
 
@@ -89,55 +88,22 @@ export default function App() {
           <nav className="site-nav" aria-label="Main">
             <button
               type="button"
-              className={`nav-tab ${tab === 'tokens' && !tokenAddress ? 'active' : ''}`}
-              onClick={() => {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('token');
-                url.searchParams.delete('profile');
-                url.searchParams.delete('user');
-                url.searchParams.delete('address');
-                url.searchParams.set('tab', 'tokens');
-                window.history.pushState({}, '', url);
-                setTokenAddress(null);
-                setDeployerProfile(null);
-                setTab('tokens');
-              }}
+              className={`nav-tab ${tab === 'tokens' && !tokenAddress && !devPage ? 'active' : ''}`}
+              onClick={() => navigateToAppTab('tokens')}
             >
               Explore
             </button>
             <button
               type="button"
-              className={`nav-tab ${tab === 'launch' && !tokenAddress ? 'active' : ''}`}
-              onClick={() => {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('token');
-                url.searchParams.delete('profile');
-                url.searchParams.delete('user');
-                url.searchParams.delete('address');
-                url.searchParams.set('tab', 'launch');
-                window.history.pushState({}, '', url);
-                setTokenAddress(null);
-                setDeployerProfile(null);
-                setTab('launch');
-              }}
+              className={`nav-tab ${tab === 'launch' && !tokenAddress && !devPage ? 'active' : ''}`}
+              onClick={() => navigateToAppTab('launch')}
             >
               Launch
             </button>
             <button
               type="button"
-              className={`nav-tab ${tab === 'profile' && !tokenAddress ? 'active' : ''}`}
-              onClick={() => {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('token');
-                url.searchParams.delete('profile');
-                url.searchParams.delete('user');
-                url.searchParams.delete('address');
-                url.searchParams.set('tab', 'profile');
-                window.history.pushState({}, '', url);
-                setTokenAddress(null);
-                setDeployerProfile(null);
-                setTab('profile');
-              }}
+              className={`nav-tab ${tab === 'profile' && !tokenAddress && !devPage ? 'active' : ''}`}
+              onClick={() => navigateToAppTab('profile')}
             >
               Profile
             </button>

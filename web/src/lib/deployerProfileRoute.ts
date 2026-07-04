@@ -46,11 +46,11 @@ export function openWalletProfile(walletAddress: string): void {
 }
 
 export function closeDeployerProfile(): void {
-  const url = new URL(window.location.href);
+  const url = new URL(window.location.origin + '/');
   url.searchParams.delete('profile');
   url.searchParams.delete('user');
   url.searchParams.delete('address');
   if (!url.searchParams.get('tab')) url.searchParams.set('tab', 'tokens');
-  window.history.pushState({}, '', url);
+  window.history.pushState({}, '', `${url.pathname}${url.search}`);
   window.dispatchEvent(new PopStateEvent('popstate'));
 }

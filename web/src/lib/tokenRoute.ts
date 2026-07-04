@@ -1,3 +1,18 @@
+export type AppTab = 'tokens' | 'launch' | 'profile';
+
+/** Leave token/profile/dev routes and open a main app tab on `/`. */
+export function navigateToAppTab(tab: AppTab): void {
+  const url = new URL(window.location.origin + '/');
+  url.searchParams.set('tab', tab);
+  url.searchParams.delete('token');
+  url.searchParams.delete('buy');
+  url.searchParams.delete('profile');
+  url.searchParams.delete('user');
+  url.searchParams.delete('address');
+  window.history.pushState({}, '', `${url.pathname}${url.search}`);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
 export function readTokenFromUrl(): string | null {
   const raw = new URLSearchParams(window.location.search).get('token')?.trim();
   if (!raw || !/^0x[a-fA-F0-9]{40}$/.test(raw)) return null;
@@ -23,22 +38,14 @@ export function openTokenPage(tokenAddress: string, opts?: { buyEth?: string }):
 }
 
 export function openExplorePage(): void {
-  const url = new URL(window.location.href);
-  url.searchParams.delete('token');
-  url.searchParams.delete('buy');
-  url.searchParams.delete('profile');
-  url.searchParams.delete('user');
-  url.searchParams.delete('address');
-  url.searchParams.set('tab', 'tokens');
-  window.history.pushState({}, '', url);
-  window.dispatchEvent(new PopStateEvent('popstate'));
+  navigateToAppTab('tokens');
 }
 
 export function closeTokenPage(): void {
-  const url = new URL(window.location.href);
+  const url = new URL(window.location.origin + '/');
   url.searchParams.delete('token');
   url.searchParams.delete('buy');
   if (!url.searchParams.get('tab')) url.searchParams.set('tab', 'tokens');
-  window.history.pushState({}, '', url);
+  window.history.pushState({}, '', `${url.pathname}${url.search}`);
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
