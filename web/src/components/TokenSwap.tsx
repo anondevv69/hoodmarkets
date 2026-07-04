@@ -1,9 +1,10 @@
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
-import { createPublicClient, custom, erc20Abi, formatEther } from 'viem';
+import { createPublicClient, custom, erc20Abi, formatEther, getAddress } from 'viem';
 import { robinhood, txUrl } from '../chain';
 import { ensureRobinhoodChainInWallet } from '../lib/ensureRobinhoodChain';
 import { formatSwapError } from '../lib/formatSwapError';
+import { isSimpleLaunchDeployment } from '../lib/launchType';
 import {
   fetchTokenSwapConfig,
   swapEthForHoodmarketsToken,
@@ -16,15 +17,32 @@ const SELL_PRESETS = ['25', '50', '75', '100'] as const;
 
 type SwapMode = 'buy' | 'sell';
 
+function uniswapBuyUrl(tokenAddress: string, ethAmount: string): string {
+  const addr = getAddress(tokenAddress.trim());
+  const amt = ethAmount.trim();
+  const base = `https://app.uniswap.org/swap?chain=robinhood&outputCurrency=${addr}&inputCurrency=NATIVE`;
+  if (amt && /^\d+(\.\d+)?$/.test(amt)) return `${base}&exactAmount=${amt}`;
+  return base;
+}
+
+function uniswapSellUrl(tokenAddress: string): string {
+  const addr = getAddress(tokenAddress.trim());
+  return `https://app.uniswap.org/swap?chain=robinhood&inputCurrency=${addr}&outputCurrency=NATIVE`;
+}
+
 export function TokenSwap({
   tokenAddress,
   symbol,
   suggestedBuyEth,
+  poolId,
+  factoryAddress,
   variant = 'card',
 }: {
   tokenAddress: string;
   symbol: string;
   suggestedBuyEth?: string;
+  poolId?: string | null;
+  factoryAddress?: string | null;
   variant?: 'card' | 'sidebar';
 }) {
   const { authenticated, login } = usePrivy();
@@ -45,7 +63,10 @@ export function TokenSwap({
     if (suggestedBuyEth?.trim()) setAmountEth(suggestedBuyEth.trim());
   }, [suggestedBuyEth]);
 
+  const isSimpleLaunch = isSimpleLaunchDeployment({ poolId, factoryAddress });
+
   useEffect(() => {
+    if (isSimpleLaunch) return;
     let cancelled = false;
     void fetchTokenSwapConfig(tokenAddress)
       .then((c) => {
@@ -57,7 +78,97 @@ export function TokenSwap({
     return () => {
       cancelled = true;
     };
-  }, [tokenAddress]);
+  }, [tokenAddress, isSimpleLaunch]);
+
+  if (isSimpleLaunch) {
+    const sym = symbol.replace(/^\$/, '');
+    const sidebar = variant === 'sidebar';
+    const displayAmount = mode === 'buy' ? amountEth : amountTokens;
+    const tradeUrl = mode === 'buy' ? uniswapBuyUrl(tokenAddress, amountEth) : uniswapSellUrl(tokenAddress);
+
+    if (sidebar) {
+      return (
+        <div className="tp-zone token-swap-sidebar">
+          <div className="tp-buysell">
+            <button
+              type="button"
+              className={`tp-bs-btn${mode === 'buy' ? ' buy-active' : ''}`}
+              onClick={() => setMode('buy')}
+            >
+              Buy
+            </button>
+            <button
+              type="button"
+              className={`tp-bs-btn${mode === 'sell' ? ' sell-active' : ''}`}
+              onClick={() => setMode('sell')}
+            >
+              Sell
+            </button>
+          </div>
+
+          <div className="tp-amount-display">
+            <span className="tp-amount-num lp-mono">{displayAmount || '0'}</span>
+            <span className="tp-amount-unit">{mode === 'buy' ? 'ETH' : sym}</span>
+          </div>
+
+          {mode === 'buy' ? (
+            <div className="tp-presets">
+              {BUY_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  className={`tp-preset${amountEth === preset ? ' active' : ''}`}
+                  onClick={() => setAmountEth(preset)}
+                >
+                  {preset} ETH
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="tp-footnote">Set your sell amount in Uniswap after opening the trade.</p>
+          )}
+
+          {mode === 'buy' ? (
+            <label className="token-swap-field token-swap-field--sidebar">
+              <span className="muted">Amount (ETH)</span>
+              <input
+                className="lp-input"
+                type="text"
+                inputMode="decimal"
+                value={amountEth}
+                onChange={(e) => setAmountEth(e.target.value)}
+                placeholder="0.005"
+              />
+            </label>
+          ) : null}
+
+          <a
+            className="tp-cta"
+            href={tradeUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {mode === 'buy' ? `Buy $${sym} on Uniswap` : `Sell $${sym} on Uniswap`}
+          </a>
+
+          <p className="tp-footnote">
+            Simple launch — trades route through Uniswap V3 on Robinhood Chain, not the hood.markets swap helper.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="lp-card token-swap-card">
+        <p className="muted" style={{ marginBottom: '0.75rem' }}>
+          Simple launch — buy and sell on Uniswap V3 on Robinhood Chain.
+        </p>
+        <a className="btn btn-primary" href={uniswapBuyUrl(tokenAddress, amountEth)} target="_blank" rel="noreferrer">
+          Trade on Uniswap
+        </a>
+      </div>
+    );
+  }
 
   if (!config) return null;
 

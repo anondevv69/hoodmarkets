@@ -8,6 +8,8 @@ const RAW_CID = /^(bafkrei[a-z0-9]{52,}|Qm[1-9A-HJ-NP-Za-km-z]{44,})$/i;
 const PUBLIC_IPFS_GATEWAY = 'https://ipfs.io/ipfs';
 
 function defaultGatewayBase(): string {
+  const pinata = config.pinata.gatewayBase.replace(/\/$/, '');
+  if (pinata) return pinata;
   const fromEnv = config.lighthouse.ipfsGatewayBase.replace(/\/$/, '');
   if (fromEnv && !fromEnv.includes('gateway.lighthouse.storage')) return fromEnv;
   return PUBLIC_IPFS_GATEWAY;

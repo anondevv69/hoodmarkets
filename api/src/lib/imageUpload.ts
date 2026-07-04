@@ -6,13 +6,22 @@ import lighthouse from '@lighthouse-web3/sdk';
 import sharp from 'sharp';
 import { config } from '../config.js';
 import { logger } from '../logger.js';
-import { resolveTokenImageUrl } from './tokenImageUrl.js';
+import { uploadBufferToPinata } from './pinataUpload.js';
 
 export class ImageUploadService {
   private supabase: ReturnType<typeof createClient> | null;
 
   constructor() {
-    if (config.lighthouse.apiKey) {
+    if (config.pinata.jwt) {
+      this.supabase = null;
+      logger.info('Pinata IPFS image upload enabled (PINATA_JWT set; Supabase not used for images)');
+      if (config.lighthouse.apiKey) {
+        logger.info('LIGHTHOUSE_API_KEY is set but ignored while PINATA_JWT is configured.');
+      }
+      if (config.supabase.url && config.supabase.anonKey) {
+        logger.info('Supabase env vars are present but ignored for token images while PINATA_JWT is set.');
+      }
+    } else if (config.lighthouse.apiKey) {
       this.supabase = null;
       logger.info('Lighthouse IPFS image upload enabled (LIGHTHOUSE_API_KEY set; Supabase not used for images)');
       if (config.supabase.url && config.supabase.anonKey) {
@@ -23,18 +32,19 @@ export class ImageUploadService {
     } else if (!config.supabase.url || !config.supabase.anonKey) {
       this.supabase = null;
       logger.warn(
-        'No Supabase credentials for images — set LIGHTHOUSE_API_KEY (IPFS, recommended) or SUPABASE_URL + SUPABASE_ANON_KEY.',
+        'No Supabase credentials for images — set PINATA_JWT (recommended), LIGHTHOUSE_API_KEY, or SUPABASE_URL + SUPABASE_ANON_KEY.',
       );
     } else {
       this.supabase = createClient(config.supabase.url, config.supabase.anonKey);
     }
 
-    if (!config.lighthouse.apiKey && !this.supabase) {
+    if (!config.pinata.jwt && !config.lighthouse.apiKey && !this.supabase) {
       logger.warn(
-        'No image upload backend: set LIGHTHOUSE_API_KEY and/or Supabase storage env vars (https image URLs in deploys still work).',
+        'No image upload backend: set PINATA_JWT, LIGHTHOUSE_API_KEY, and/or Supabase storage env vars (https image URLs in deploys still work).',
       );
     }
     logger.info('Image upload backends', {
+      pinata: !!config.pinata.jwt,
       lighthouse: !!config.lighthouse.apiKey,
       supabase: !!this.supabase,
     });
@@ -85,8 +95,6 @@ export class ImageUploadService {
   ): Promise<string | undefined> {
     if (!config.lighthouse.apiKey) return undefined;
 
-    // uploadBuffer stores as application/octet-stream — use a named .png file so
-    // IPFS gateways serve image/png and browsers can render inline.
     const tmpPath = join(tmpdir(), filename);
     await writeFile(tmpPath, optimizedImage);
 
@@ -124,8 +132,7 @@ export class ImageUploadService {
 
   /**
    * Upload image and return a public HTTPS URL (256×256 PNG).
-   * When `LIGHTHOUSE_API_KEY` is set, **only** Lighthouse is used (no Supabase).
-   * Otherwise Supabase Storage is used if configured.
+   * Priority: Pinata → Lighthouse → Supabase.
    */
   async uploadTokenImage(
     imageData: Buffer | string,
@@ -136,6 +143,19 @@ export class ImageUploadService {
         imageData,
         tokenName,
       );
+
+      if (config.pinata.jwt) {
+        try {
+          const uploaded = await uploadBufferToPinata(optimizedImage, filename, tokenName);
+          if (uploaded?.url) return uploaded.url;
+          logger.error('Pinata image upload returned no IPFS URL', { token: tokenName });
+          return undefined;
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          logger.error('Pinata image upload failed', { token: tokenName, error: msg });
+          return undefined;
+        }
+      }
 
       if (config.lighthouse.apiKey) {
         try {
@@ -165,7 +185,7 @@ export class ImageUploadService {
       if (error) {
         const base = `Supabase upload failed: ${error.message}`;
         const hint = /fetch failed/i.test(error.message)
-          ? ' Outbound HTTPS to Supabase failed (check network / DNS), or set LIGHTHOUSE_API_KEY for IPFS uploads.'
+          ? ' Outbound HTTPS to Supabase failed (check network / DNS), or set PINATA_JWT for IPFS uploads.'
           : '';
         throw new Error(base + hint);
       }
@@ -187,6 +207,7 @@ export class ImageUploadService {
         token: tokenName,
         error: err.message,
         ...(cause ? { cause } : {}),
+        pinataConfigured: !!config.pinata.jwt,
         lighthouseConfigured: !!config.lighthouse.apiKey,
         supabaseConfigured: !!this.supabase,
       });
@@ -194,13 +215,10 @@ export class ImageUploadService {
     }
   }
 
-  /**
-   * True if Lighthouse (preferred) or Supabase can accept uploads.
-   */
+  /** True if Pinata, Lighthouse, or Supabase can accept uploads. */
   isConfigured(): boolean {
-    return !!(config.lighthouse.apiKey || this.supabase);
+    return !!(config.pinata.jwt || config.lighthouse.apiKey || this.supabase);
   }
 }
 
-// Export singleton
 export const imageUploadService = new ImageUploadService();
