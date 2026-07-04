@@ -8,6 +8,7 @@ import { resolveTokenLaunchTweetUrl } from '../lib/launchTweet';
 import { splitTokenDescriptionForDisplay } from '../lib/tokenDescriptionDisplay';
 import { formatTickerAge } from '../lib/exploreTokens';
 import { DexScreenerChartEmbed } from './TokenListingStatus';
+import { LaunchTweetEmbed } from './LaunchTweetEmbed';
 import { LiveTradesTable } from './LiveTradesTable';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenHeroMetrics } from './TokenHeroMetrics';
@@ -174,6 +175,12 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
 
       <TokenHeroMetrics metrics={metrics} loading={metricsLoading} />
 
+      {launchTweetUrl ? (
+        <section className="tp-zone tp-tweet-strip">
+          <LaunchTweetEmbed tweetUrl={launchTweetUrl} horizontal />
+        </section>
+      ) : null}
+
       <div className="token-page-grid">
         <div className="token-page-main">
           <section className="tp-zone tp-chart-zone">
@@ -186,7 +193,10 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
             <TokenTimeframeStrip metrics={metrics} loading={metricsLoading} />
           </section>
 
-          <section className="tp-zone tp-trades-zone">
+          <section className="tp-zone tp-trades-zone" aria-labelledby="live-trades-heading">
+            <p id="live-trades-heading" className="tp-zone-label">
+              Trades
+            </p>
             <LiveTradesTable
               tokenAddress={token.tokenAddress}
               tokenSymbol={sym}
@@ -196,7 +206,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
           </section>
         </div>
 
-        <TokenPageSidebar token={token} launchTweetUrl={launchTweetUrl ?? null} sym={sym} />
+        <TokenPageSidebar token={token} sym={sym} />
       </div>
     </div>
   );

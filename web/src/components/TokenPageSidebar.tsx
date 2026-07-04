@@ -4,16 +4,13 @@ import { isHoodmarketsPlatformFeeRecipient } from '../lib/feeRecipientDisplay';
 import { openDeployerProfile, openWalletProfile } from '../lib/deployerProfileRoute';
 import { resolveRequesterXUsername } from '../lib/requesterXDisplay';
 import { ClaimFeesActions } from './ClaimFeesActions';
-import { LaunchTweetEmbed } from './LaunchTweetEmbed';
 import { TokenSwap } from './TokenSwap';
 
 export function TokenPageSidebar({
   token,
-  launchTweetUrl,
   sym,
 }: {
   token: TokenDetail;
-  launchTweetUrl: string | null;
   sym: string;
 }) {
   const feeLabel = token.feeRecipientLabel?.trim();
@@ -47,8 +44,6 @@ export function TokenPageSidebar({
 
       <div className="tp-zone tp-deploy-zone">
         <div className="tp-side-title">Deploy details</div>
-
-        {launchTweetUrl ? <LaunchTweetEmbed tweetUrl={launchTweetUrl} compact /> : null}
 
         <div className="tp-info-row">
           <span className="tp-info-k">Deployer</span>

@@ -27,9 +27,12 @@ function loadTwitterWidgets(onReady?: () => void): void {
 export function LaunchTweetEmbed({
   tweetUrl,
   compact = false,
+  horizontal = false,
 }: {
   tweetUrl: string;
   compact?: boolean;
+  /** Full-width strip — easier to read than a narrow sidebar column. */
+  horizontal?: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const quoteRef = useRef<HTMLQuoteElement>(null);
@@ -42,7 +45,7 @@ export function LaunchTweetEmbed({
     const renderTweet = () => {
       const width = Math.floor(wrap.getBoundingClientRect().width);
       if (width > 0) {
-        quote.setAttribute('data-width', String(width));
+        quote.setAttribute('data-width', String(Math.min(width, 920)));
       }
       const twttr = (window as { twttr?: TwitterWidgets }).twttr;
       twttr?.widgets?.load?.(wrap);
@@ -57,13 +60,24 @@ export function LaunchTweetEmbed({
     return () => observer.disconnect();
   }, [tweetUrl]);
 
+  const modeClass = horizontal
+    ? ' launch-tweet-embed--horizontal'
+    : compact
+      ? ' launch-tweet-embed--compact'
+      : '';
+
   return (
-    <div
-      ref={wrapRef}
-      className={`launch-tweet-embed${compact ? ' launch-tweet-embed--compact' : ''}`}
-    >
-      {!compact ? <p className="section-label">Launch request</p> : null}
-      <blockquote ref={quoteRef} className="twitter-tweet" data-dnt="true" data-theme="dark">
+    <div ref={wrapRef} className={`launch-tweet-embed${modeClass}`}>
+      {horizontal ? <p className="tp-zone-label">Launch request</p> : null}
+      {!compact && !horizontal ? <p className="section-label">Launch request</p> : null}
+      <blockquote
+        ref={quoteRef}
+        className="twitter-tweet"
+        data-dnt="true"
+        data-theme="dark"
+        data-conversation="none"
+        data-align="left"
+      >
         <a href={tweetUrl} target="_blank" rel="noreferrer">
           View launch request on X
         </a>

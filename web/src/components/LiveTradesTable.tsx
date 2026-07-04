@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { shortenAddress, tokenUrl, txUrl } from '../chain';
+import { shortenAddress, txUrl } from '../chain';
 import { formatUsdVol } from '../lib/dexscreenerVolume';
 import {
   fetchEthUsdPrice,
@@ -9,10 +9,8 @@ import {
   formatTokenAmount,
   type RobinhoodSwap,
 } from '../lib/robinhoodTrades';
-import { DexScreenerTradesEmbed, dexScreenerTokenPageUrl } from './TokenListingStatus';
+import { DexScreenerTradesEmbed } from './TokenListingStatus';
 import type { DexTokenMetrics } from '../lib/dexscreenerVolume';
-
-type ActivityTab = 'trades' | 'holders';
 
 export function LiveTradesTable({
   tokenAddress,
@@ -28,7 +26,6 @@ export function LiveTradesTable({
   const [swaps, setSwaps] = useState<RobinhoodSwap[]>([]);
   const [ethUsd, setEthUsd] = useState<number | undefined>();
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<ActivityTab>('trades');
 
   const refresh = useCallback(async () => {
     try {
@@ -59,37 +56,14 @@ export function LiveTradesTable({
     return usd >= 1;
   });
   const compact = variant === 'compact';
-  const showNativeTable = tab === 'trades' && !loading && rows.length > 0;
-  const dexPage = dexScreenerTokenPageUrl(tokenAddress, metrics);
+  const showNativeTable = !loading && rows.length > 0;
 
   return (
     <section
       className={`live-trades${compact ? ' live-trades--compact' : ''}`}
       aria-labelledby="live-trades-heading"
     >
-      {compact ? (
-        <div className="tp-table-tabs" role="tablist" aria-label="Token activity">
-          <button
-            id="live-trades-heading"
-            type="button"
-            role="tab"
-            aria-selected={tab === 'trades'}
-            className={`tp-ttab${tab === 'trades' ? ' active' : ''}`}
-            onClick={() => setTab('trades')}
-          >
-            Trades
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'holders'}
-            className={`tp-ttab${tab === 'holders' ? ' active' : ''}`}
-            onClick={() => setTab('holders')}
-          >
-            Holders
-          </button>
-        </div>
-      ) : (
+      {!compact ? (
         <div className="token-dex-section-head">
           <div>
             <h3 id="live-trades-heading" className="section-label">
@@ -108,24 +82,9 @@ export function LiveTradesTable({
             </label>
           ) : null}
         </div>
-      )}
+      ) : null}
 
-      {tab === 'holders' ? (
-        <div className="tp-holders-panel">
-          <p className="muted tp-holders-copy">
-            Top holder rankings are indexed by DexScreener once the pair is live. Check the token
-            on-chain while indexing catches up.
-          </p>
-          <div className="tp-holders-links">
-            <a href={dexPage} target="_blank" rel="noreferrer">
-              DexScreener holders
-            </a>
-            <a href={tokenUrl(tokenAddress)} target="_blank" rel="noreferrer">
-              Blockscout token
-            </a>
-          </div>
-        </div>
-      ) : loading ? (
+      {loading ? (
         <p className="muted live-trades-status">Loading trades…</p>
       ) : showNativeTable ? (
         <>

@@ -774,23 +774,46 @@ label {
   overflow: hidden;
 }
 
-.tp-chart-zone .dex-screener-chart-embed--full {
-  min-height: 420px;
-}
-
-.tp-chart-zone .dex-screener-chart-embed--full.dex-screener-clip {
-  height: 420px;
-  min-height: 420px;
-}
-
-.tp-chart-zone .dex-screener-chart-embed--full.dex-screener-clip iframe {
-  height: 520px;
-  margin-bottom: -100px;
-}
-
 .tp-trades-zone {
-  padding: 0;
+  padding: 1.25rem 1.25rem 0;
   overflow: hidden;
+}
+
+.tp-trades-zone .tp-zone-label {
+  margin-bottom: 0.65rem;
+}
+
+.tp-trades-zone .dex-screener-trades-embed {
+  margin: 0 -1.25rem;
+  width: calc(100% + 2.5rem);
+  border: 0;
+  border-radius: 0;
+}
+
+.tp-tweet-strip {
+  padding: 1rem 1.25rem 1.1rem;
+}
+
+.launch-tweet-embed--horizontal {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+}
+
+.launch-tweet-embed--horizontal .tp-zone-label {
+  margin-bottom: 0.65rem;
+}
+
+.launch-tweet-embed--horizontal .twitter-tweet {
+  margin: 0 !important;
+  max-width: 100% !important;
+}
+
+.launch-tweet-embed--horizontal iframe {
+  max-width: 100% !important;
+  width: 100% !important;
 }
 
 .tp-hero-zone {
@@ -1605,7 +1628,17 @@ label {
 }
 
 .dex-screener-trades-embed {
-  min-height: 340px;
+  min-height: 360px;
+}
+
+.dex-screener-trades-embed.dex-screener-clip {
+  height: 360px;
+  min-height: 360px;
+}
+
+.dex-screener-trades-embed.dex-screener-clip iframe {
+  height: 400px;
+  margin-bottom: -40px;
 }
 
 .dex-chart-embed iframe {
@@ -1624,7 +1657,7 @@ label {
 }
 
 .dex-screener-trades-embed iframe {
-  height: 340px;
+  height: 360px;
 }
 
 .token-dex-section {
