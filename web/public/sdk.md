@@ -6,8 +6,8 @@ hood.markets is open infrastructure: deploy tokens from any frontend, agent, or 
 
 | Resource | Link |
 |----------|------|
+| **SDK (npm)** | [npmjs.com/package/hoodmarkets-sdk](https://www.npmjs.com/package/hoodmarkets-sdk) |
 | **SDK (GitHub)** | [github.com/anondevv69/hoodmarkets-sdk](https://github.com/anondevv69/hoodmarkets-sdk) |
-| **SDK (npm)** | `hoodmarkets-sdk` — publish from the SDK repo when ready |
 | **Contracts / monorepo** | [github.com/anondevv69/hoodmarkets](https://github.com/anondevv69/hoodmarkets) |
 
 Modeled after [clanker-sdk](https://github.com/clanker-devco/clanker-sdk).
@@ -47,8 +47,6 @@ WETH: `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` · Explorer: [robinhoodchain.
 
 ```bash
 npm install hoodmarkets-sdk viem
-# or install from GitHub before npm publish:
-# npm install github:anondevv69/hoodmarkets-sdk
 ```
 
 ```ts
