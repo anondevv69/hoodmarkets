@@ -1530,6 +1530,20 @@ label {
   opacity: 0.65;
 }
 
+.token-swap-sidebar.tp-zone {
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+.tp-balance-line {
+  margin: 0 0 0.65rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.tp-balance-line .lp-mono {
+  color: var(--text);
+}
+
 .token-swap-field--sidebar {
   margin-bottom: 0.35rem;
 }

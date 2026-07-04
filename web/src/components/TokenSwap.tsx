@@ -1,9 +1,14 @@
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createPublicClient, custom, erc20Abi, formatUnits } from 'viem';
 import { robinhood, txUrl } from '../chain';
 import { ensureRobinhoodChainInWallet } from '../lib/ensureRobinhoodChain';
 import { formatSwapError } from '../lib/formatSwapError';
+import {
+  formatHumanTokenAmount,
+  formatTokenBalance,
+  tokenAmountFromPercent,
+} from '../lib/formatTokenBalance';
 import { isSimpleLaunchDeployment } from '../lib/launchType';
 import {
   fetchTokenSwapConfig,
@@ -43,8 +48,11 @@ export function TokenSwap({
   const wallet = wallets[0];
   const [mode, setMode] = useState<SwapMode>('buy');
   const [amountEth, setAmountEth] = useState(suggestedBuyEth?.trim() || '0.005');
-  const [amountTokens, setAmountTokens] = useState('1000');
+  const [amountTokens, setAmountTokens] = useState('');
   const [sellPct, setSellPct] = useState<number | null>(null);
+  const [tokenBalance, setTokenBalance] = useState<bigint | null>(null);
+  const [tokenDecimals, setTokenDecimals] = useState(18);
+  const [balanceLoading, setBalanceLoading] = useState(false);
   const [config, setConfig] = useState<TokenSwapConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [swapStep, setSwapStep] = useState<string | null>(null);
@@ -73,12 +81,76 @@ export function TokenSwap({
     };
   }, [tokenAddress, isSimpleLaunch]);
 
+  const refreshTokenBalance = useCallback(async () => {
+    if (!authenticated || !wallet?.address) {
+      setTokenBalance(null);
+      return;
+    }
+    setBalanceLoading(true);
+    try {
+      const provider = await wallet.getEthereumProvider();
+      const publicClient = createPublicClient({
+        chain: robinhood,
+        transport: custom(provider as Parameters<typeof custom>[0]),
+      });
+      const token = tokenAddress as `0x${string}`;
+      let decimals = 18;
+      try {
+        decimals = Number(
+          await publicClient.readContract({
+            address: token,
+            abi: erc20Abi,
+            functionName: 'decimals',
+          }),
+        );
+      } catch {
+        decimals = 18;
+      }
+      const bal = await publicClient.readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.address as `0x${string}`],
+      });
+      setTokenDecimals(decimals);
+      setTokenBalance(bal);
+    } catch {
+      setTokenBalance(null);
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, [authenticated, tokenAddress, wallet]);
+
+  useEffect(() => {
+    void refreshTokenBalance();
+  }, [refreshTokenBalance, txHash]);
+
+  useEffect(() => {
+    if (sellPct == null || tokenBalance == null || tokenBalance <= 0n) return;
+    setAmountTokens(tokenAmountFromPercent(tokenBalance, sellPct, tokenDecimals));
+  }, [tokenBalance, tokenDecimals, sellPct]);
+
+  function applySellPreset(pct: number) {
+    setSellPct(pct);
+    if (tokenBalance != null && tokenBalance > 0n) {
+      setAmountTokens(tokenAmountFromPercent(tokenBalance, pct, tokenDecimals));
+      return;
+    }
+    setAmountTokens(`${pct}%`);
+  }
+
   if (!isSimpleLaunch && !config) return null;
 
   const sym = symbol.replace(/^\$/, '');
   const oneClick = isSimpleLaunch ? true : Boolean(config?.swapHelper);
   const sidebar = variant === 'sidebar';
-  const displayAmount = mode === 'buy' ? amountEth : amountTokens;
+  const sellDisplayAmount =
+    amountTokens.trim().endsWith('%') && tokenBalance != null && tokenBalance > 0n
+      ? tokenAmountFromPercent(tokenBalance, Number(amountTokens.replace('%', '')), tokenDecimals)
+      : amountTokens;
+  const displayAmount = mode === 'buy' ? amountEth : sellDisplayAmount;
+  const balanceLabel =
+    tokenBalance != null ? formatTokenBalance(tokenBalance, tokenDecimals) : balanceLoading ? '…' : '—';
   const externalUniswapUrl =
     mode === 'buy' ? uniswapBuyUrl(tokenAddress, amountEth) : uniswapSellUrl(tokenAddress);
 
@@ -146,7 +218,7 @@ export function TokenSwap({
             account,
           });
           setTxHash(result.swapTxHash);
-          setSuccessMsg(`You received ${result.amountOut} $${sym}.`);
+          setSuccessMsg(`You received ${formatHumanTokenAmount(result.amountOut)} $${sym}.`);
         } else {
           const sellAmount = await resolveSellAmount(
             provider,
@@ -160,7 +232,7 @@ export function TokenSwap({
             account,
           });
           setTxHash(result.swapTxHash);
-          setSuccessMsg(`You received ${result.amountOut} ETH.`);
+          setSuccessMsg(`You received ${formatHumanTokenAmount(result.amountOut)} ETH.`);
         }
         return;
       }
@@ -186,7 +258,7 @@ export function TokenSwap({
         });
         setTxHash(result.swapTxHash);
         setSuccessMsg(
-          `You received ${result.amountOut} $${sym}.` +
+          `You received ${formatHumanTokenAmount(result.amountOut)} $${sym}.` +
             (result.stepsSkipped.length > 0
               ? ` (Skipped ${result.stepsSkipped.length} step(s) already done.)`
               : ''),
@@ -203,7 +275,7 @@ export function TokenSwap({
         });
         setTxHash(result.swapTxHash);
         setSuccessMsg(
-          `You received ${result.amountOut} ETH.` +
+          `You received ${formatHumanTokenAmount(result.amountOut)} ETH.` +
             (result.stepsSkipped.length > 0
               ? ` (Skipped ${result.stepsSkipped.length} step(s) already done.)`
               : ''),
@@ -256,21 +328,25 @@ export function TokenSwap({
             ))}
           </div>
         ) : (
-          <div className="tp-presets">
-            {SELL_PRESETS.map((pct) => (
-              <button
-                key={pct}
-                type="button"
-                className={`tp-preset${sellPct === Number(pct) ? ' active' : ''}`}
-                onClick={() => {
-                  setSellPct(Number(pct));
-                  setAmountTokens(`${pct}%`);
-                }}
-              >
-                {pct}%
-              </button>
-            ))}
-          </div>
+          <>
+            <div className="tp-presets">
+              {SELL_PRESETS.map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  className={`tp-preset${sellPct === Number(pct) ? ' active' : ''}`}
+                  onClick={() => applySellPreset(Number(pct))}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
+            {authenticated ? (
+              <p className="tp-balance-line">
+                Balance: <span className="lp-mono">{balanceLabel}</span> {sym}
+              </p>
+            ) : null}
+          </>
         )}
 
         <label className="token-swap-field token-swap-field--sidebar">
@@ -287,7 +363,7 @@ export function TokenSwap({
                 setAmountTokens(e.target.value);
               }
             }}
-            placeholder={mode === 'buy' ? '0.005' : '1000'}
+            placeholder={mode === 'buy' ? '0.005' : '0'}
           />
         </label>
 
@@ -406,15 +482,17 @@ export function TokenSwap({
                 key={pct}
                 type="button"
                 className={`btn btn-ghost btn-sm${sellPct === Number(pct) ? ' filter-chip--active' : ''}`}
-                onClick={() => {
-                  setSellPct(Number(pct));
-                  setAmountTokens(`${pct}%`);
-                }}
+                onClick={() => applySellPreset(Number(pct))}
               >
                 {pct}%
               </button>
             ))}
           </div>
+          {authenticated ? (
+            <p className="muted" style={{ marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+              Balance: {balanceLabel} {sym}
+            </p>
+          ) : null}
           <label className="token-swap-field">
             <span className="muted">Amount (${sym})</span>
             <input
@@ -426,10 +504,10 @@ export function TokenSwap({
                 setSellPct(null);
                 setAmountTokens(e.target.value);
               }}
-              placeholder="1000"
+              placeholder="0"
             />
           </label>
-          {amountTokens.endsWith('%') ? (
+          {amountTokens.trim().endsWith('%') && tokenBalance == null ? (
             <p className="muted" style={{ marginTop: '0.35rem', fontSize: '0.85rem' }}>
               Sells {amountTokens.trim()} of your wallet balance at confirm time.
             </p>
