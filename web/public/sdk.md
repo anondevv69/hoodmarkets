@@ -1,5 +1,7 @@
 # hood.markets — Contracts & SDK
 
+> **Developer hub:** [hood.markets/Dev](https://hood.markets/Dev)
+
 > Robinhood Chain (4663) · Use our **Uniswap V3** factories on **your own website** or fork the repo and run your own launchpad.
 
 hood.markets is open infrastructure: deploy tokens from any frontend, agent, or script. You do not need to use hood.markets UI — point at the same on-chain contracts (or redeploy your own stack from the repo).

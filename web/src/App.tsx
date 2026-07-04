@@ -3,12 +3,14 @@ import { LaunchTab } from './components/LaunchTab';
 import { ProfileTab } from './components/ProfileTab';
 import { DeployerProfilePage } from './components/DeployerProfilePage';
 import { WalletProfilePage } from './components/WalletProfilePage';
+import { DevPage } from './components/DevPage';
 import { SiteFooter } from './components/SiteFooter';
 import { TokenPage } from './components/TokenPage';
 import { TickerTape } from './components/TickerTape';
 import { TokensTab } from './components/TokensTab';
 import { useExploreTokens } from './hooks/useExploreTokens';
 import { useEnsureRobinhoodChain } from './hooks/useEnsureRobinhoodChain';
+import { isDevPage } from './lib/devRoute';
 import { readDeployerProfileFromUrl } from './lib/deployerProfileRoute';
 import { openExplorePage, readTokenFromUrl } from './lib/tokenRoute';
 
@@ -30,7 +32,7 @@ const TAB_COPY: Record<Tab, { title: string; sub: string }> = {
 };
 
 function readTabFromUrl(): Tab {
-  if (readTokenFromUrl() || readDeployerProfileFromUrl()) return 'tokens';
+  if (isDevPage() || readTokenFromUrl() || readDeployerProfileFromUrl()) return 'tokens';
   const t = new URLSearchParams(window.location.search).get('tab');
   if (t === 'launch' || t === 'profile' || t === 'tokens') return t;
   return 'launch';
@@ -41,19 +43,26 @@ export default function App() {
   const [tab, setTab] = useState<Tab>(readTabFromUrl);
   const [tokenAddress, setTokenAddress] = useState<string | null>(readTokenFromUrl);
   const [deployerProfile, setDeployerProfile] = useState(readDeployerProfileFromUrl);
+  const [devPage, setDevPage] = useState(isDevPage);
 
   useEffect(() => {
     const sync = () => {
       setTokenAddress(readTokenFromUrl());
       setDeployerProfile(readDeployerProfileFromUrl());
+      setDevPage(isDevPage());
       setTab(readTabFromUrl());
     };
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
   }, []);
 
-  const copy = tokenAddress || deployerProfile ? null : TAB_COPY[tab];
-  const showExploreChrome = !tokenAddress && !deployerProfile;
+  const copy =
+    devPage
+      ? { title: 'Dev', sub: 'Contracts, SDK, and agent API for building on hood.markets.' }
+      : tokenAddress || deployerProfile
+        ? null
+        : TAB_COPY[tab];
+  const showExploreChrome = !tokenAddress && !deployerProfile && !devPage;
   const {
     tokens: exploreTokens,
     catalog,
@@ -146,7 +155,9 @@ export default function App() {
         ) : null}
 
         <div className="panel">
-          {tokenAddress ? (
+          {devPage ? (
+            <DevPage />
+          ) : tokenAddress ? (
             <TokenPage tokenAddress={tokenAddress} />
           ) : deployerProfile?.platform === 'x' ? (
             <DeployerProfilePage username={deployerProfile.username} />

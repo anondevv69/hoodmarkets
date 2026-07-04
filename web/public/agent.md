@@ -1,5 +1,7 @@
 # hood.markets — Agent API
 
+> **Developer hub:** [hood.markets/Dev](https://hood.markets/Dev)
+
 > Robinhood Chain (4663) · API: `https://api.hood.markets` · Web: `https://hood.markets`
 
 Any agent with an EVM wallet can deploy tokens on Robinhood Chain through the hood.markets API. Bankr users: install the skill from [BankrBot/skills](https://github.com/BankrBot/skills) (`hoodmarkets`) or [anondevv69/hoodmarkets/skills/hoodmarkets](https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets).
