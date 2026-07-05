@@ -21,20 +21,15 @@ Every token launched through **HoodMarkets V3 v0.5.0+** automatically:
 |------|-------------------|
 | **Vault** | **10%** of the 100B supply (`FRACTION_VAULT_PERCENTAGE = 10`) |
 | **Fraction collection** | New `HoodMarketsV3TokenFraction` ERC-1155 per token (id `#0`, supply **1000**) |
-| **Initial holder** | Fee recipient receives **1000 − X** shares at launch (v0.6+) or all 1000 (v0.5) |
+| **Initial holder** | All 1,000 shares go to the fee recipient (`creatorAdmin`) at launch — send, sell, or airdrop via ERC-1155 transfer |
 | **Trading fees (95%)** | Routed to the fraction contract; holders call `claimTradingFees()` for pro-rata WETH/token |
 | **Pool** | Remaining **90%** seeds the Uniswap V3 pool |
 
-## Buyer reward pool (v0.6.0+)
+## Buyer reward pool (v0.6 contract — optional, not used in UI yet)
 
-At launch, the fee recipient sets **`buyerRewardShareCount = X`** (0–1000). **X shares** are escrowed on the fraction contract; the **first X unique pool buyers** each receive **1 share** via `factory.issueBuyerShare(token, buyer)` (called by the hood.markets deployer relay after indexing Uniswap V3 `Swap` events).
+The v0.6 factory supports escrowing X shares for automated first-buyer rewards (`buyerRewardShareCount`). **hood.markets launches with X = 0 today** — all 1,000 shares go to the fee recipient, who distributes manually (airdrop, OTC, scripts, etc.). API endpoints exist for a future automation pass; default product flow is wallet-controlled transfers.
 
-| API | Purpose |
-|-----|---------|
-| `GET /api/deployments/:token/buyer-rewards-status` | Cap, issued, remaining |
-| `POST /api/deployments/:token/process-buyer-rewards` | Scan swaps and issue shares |
-
-**v0.5.0 tokens** mint all 1000 shares to the fee recipient — no buyer pool. **v0.4.0 tokens** mint shares but route fees to a single wallet.
+**v0.5.0 tokens** and **v0.6 with X=0** behave the same for holders: fee recipient starts with all shares.
 
 There is **no SDK toggle** and **no optional vault config** — legacy `vaultConfig` values revert with `LegacyVaultDisabled`. Integrators call `deployToken` exactly as before; fractions are created inside the factory.
 
