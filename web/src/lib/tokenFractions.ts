@@ -130,6 +130,20 @@ const FRACTION_ABI = [
   },
   {
     type: 'function',
+    name: 'fundBuyerRewardPool',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'shareAmount', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'cancelBuyerRewardPool',
+    stateMutability: 'nonpayable',
+    inputs: [],
+    outputs: [],
+  },
+  {
+    type: 'function',
     name: 'buyerShareIssued',
     stateMutability: 'view',
     inputs: [{ name: '', type: 'address' }],
@@ -708,6 +722,37 @@ export async function fetchBuyerRewardPoolState(
     }),
   ]);
   return { cap: Number(cap), remaining: Number(remaining) };
+}
+
+export async function fundBuyerRewardPool(
+  collectionAddress: Address,
+  walletAddress: Address,
+  shareAmount: number,
+  ethereumProvider: unknown,
+): Promise<Hex> {
+  const client = walletClientFor(walletAddress, ethereumProvider);
+  return client.writeContract({
+    address: collectionAddress,
+    abi: FRACTION_ABI,
+    functionName: 'fundBuyerRewardPool',
+    args: [BigInt(shareAmount)],
+    chain: robinhood,
+  });
+}
+
+export async function cancelBuyerRewardPool(
+  collectionAddress: Address,
+  walletAddress: Address,
+  ethereumProvider: unknown,
+): Promise<Hex> {
+  const client = walletClientFor(walletAddress, ethereumProvider);
+  return client.writeContract({
+    address: collectionAddress,
+    abi: FRACTION_ABI,
+    functionName: 'cancelBuyerRewardPool',
+    args: [],
+    chain: robinhood,
+  });
 }
 
 export async function fetchUniquePoolBuyerCandidates(opts: {

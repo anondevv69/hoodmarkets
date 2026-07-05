@@ -1,6 +1,6 @@
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
-import { addressUrl, shortenAddress, tokenUrl } from '../chain';
+import { tokenUrl, shortenAddress } from '../chain';
 import { openWalletProfile } from '../lib/deployerProfileRoute';
 import { formatTokenBalance } from '../lib/formatTokenBalance';
 import { isSimpleLaunchDeployment } from '../lib/launchType';
@@ -171,48 +171,48 @@ export function TokenFractionPanel({
         </p>
       ) : null}
 
-      <p className="muted token-space-note token-fraction-public-note">
-        Vault shares are public on-chain. Anyone can view holders; connect a wallet that holds shares
-        to send, list for sale on-chain, exit the vault, or trigger a fee claim for all holders.
-      </p>
-
       <div className="token-fraction-layout">
-        <div className="token-fraction-stats token-fraction-stats--wide">
+        <div className="token-fraction-stats token-fraction-stats--wide token-fraction-stats--inline">
           <div className="token-fraction-stat">
             <span className="token-fraction-stat-k">Outstanding</span>
             <span className="token-fraction-stat-v">{info.outstandingShares.toLocaleString()}</span>
           </div>
+          <span className="token-fraction-stat-sep" aria-hidden>
+            ·
+          </span>
           <div className="token-fraction-stat">
             <span className="token-fraction-stat-k">Holders</span>
             <span className="token-fraction-stat-v">{info.holderCount.toLocaleString()}</span>
           </div>
+          <span className="token-fraction-stat-sep" aria-hidden>
+            ·
+          </span>
           <div className="token-fraction-stat">
             <span className="token-fraction-stat-k">Per share</span>
             <span className="token-fraction-stat-v">{shareTokenHuman}</span>
           </div>
+          <span className="token-fraction-stat-sep" aria-hidden>
+            ·
+          </span>
+          <a
+            className="token-fraction-explorer lp-mono"
+            href={tokenUrl(info.collectionAddress)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {shortenAddress(info.collectionAddress)}
+          </a>
         </div>
 
-        <div className="token-fraction-layout-meta">
-          {walletShares != null && walletShares > 0 ? (
-            <p className="token-fraction-wallet">
-              Your wallet holds{' '}
-              <strong>
-                {walletShares.toLocaleString()} share{walletShares === 1 ? '' : 's'}
-              </strong>{' '}
-              ({pctLabel((walletShares / info.totalShares) * 100)} of vault · same % of creator fees)
-            </p>
-          ) : null}
-
-          <div className="token-fraction-links">
-            <a href={tokenUrl(info.collectionAddress)} target="_blank" rel="noreferrer">
-              View collection on Blockscout
-            </a>
-            <span className="tp-meta-dot">·</span>
-            <a href={addressUrl(info.collectionAddress)} target="_blank" rel="noreferrer" className="lp-mono">
-              {shortenAddress(info.collectionAddress)}
-            </a>
-          </div>
-        </div>
+        {walletShares != null && walletShares > 0 ? (
+          <p className="token-fraction-wallet">
+            Your wallet holds{' '}
+            <strong>
+              {walletShares.toLocaleString()} share{walletShares === 1 ? '' : 's'}
+            </strong>{' '}
+            ({pctLabel((walletShares / info.totalShares) * 100)} of vault · same % of creator fees)
+          </p>
+        ) : null}
 
         {(isFeeRecipientWallet || (walletShares != null && walletShares > 0)) &&
         authenticated &&
@@ -229,6 +229,7 @@ export function TokenFractionPanel({
               walletShares={walletShares}
               deployBlockNumber={deployBlockNumber}
               shareTokenHuman={shareTokenHuman}
+              isFeeRecipient={!!isFeeRecipientWallet}
               onRefresh={() => refreshFractionState(info.collectionAddress)}
             />
           </div>

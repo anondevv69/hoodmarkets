@@ -49,6 +49,12 @@ interface IHoodMarketsV3TokenFraction {
 
     event BuyerShareIssued(address indexed buyer, uint256 sharesRemaining);
 
+    event BuyerRewardPoolFunded(
+        address indexed admin, uint256 shareAmount, uint256 sharesRemaining
+    );
+
+    event BuyerRewardPoolCancelled(address indexed admin, uint256 sharesReturned);
+
     event SharesListed(
         uint256 indexed listingId,
         address indexed seller,
@@ -123,6 +129,12 @@ interface IHoodMarketsV3TokenFraction {
 
     /// @notice Transfer one buyer-reward share from the escrow pool (factory relay or fee admin).
     function issueBuyerShare(address buyer) external;
+
+    /// @notice Escrow shares from the fee admin wallet for automatic first-buyer rewards.
+    function fundBuyerRewardPool(uint256 shareAmount) external;
+
+    /// @notice Stop buyer rewards and return unissued escrow shares to the fee admin.
+    function cancelBuyerRewardPool() external;
 
     /// @notice Next listing id (listings are `1 … nextListingId - 1`).
     function nextListingId() external view returns (uint256);

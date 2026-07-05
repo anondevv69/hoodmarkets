@@ -63,6 +63,21 @@ contract HoodMarketsV3TokenFractionTest is Test {
     uint256 internal constant VAULT_AMOUNT = 10_000_000_000_000_000_000_000_000_000;
     uint256 internal constant BUYER_REWARD_COUNT = 300;
 
+    function _deployFraction(uint256 buyerRewardCount) internal returns (HoodMarketsV3TokenFraction) {
+        token.mint(address(hoodFactory), VAULT_AMOUNT);
+        vm.startPrank(address(hoodFactory));
+        token.approve(address(fractionDeployer), VAULT_AMOUNT);
+        address fractionAddr = fractionDeployer.deployFraction(
+            address(token), creator, VAULT_AMOUNT, buyerRewardCount
+        );
+        vm.stopPrank();
+
+        HoodMarketsV3TokenFraction deployed = HoodMarketsV3TokenFraction(fractionAddr);
+        vm.prank(address(hoodFactory));
+        deployed.configureFeeRewards(1, address(weth), address(token), pool);
+        return deployed;
+    }
+
     function setUp() public {
         token = new MockLaunchToken();
         weth = new MockWeth();
@@ -71,17 +86,7 @@ contract HoodMarketsV3TokenFractionTest is Test {
         fractionDeployer = new HoodMarketsV3FractionDeployer(address(hoodFactory));
         token.transfer(address(hoodFactory), VAULT_AMOUNT);
 
-        vm.startPrank(address(hoodFactory));
-        token.approve(address(fractionDeployer), VAULT_AMOUNT);
-        address fractionAddr = fractionDeployer.deployFraction(
-            address(token), creator, VAULT_AMOUNT, BUYER_REWARD_COUNT
-        );
-        vm.stopPrank();
-
-        fraction = HoodMarketsV3TokenFraction(fractionAddr);
-
-        vm.prank(address(hoodFactory));
-        fraction.configureFeeRewards(1, address(weth), address(token), pool);
+        fraction = _deployFraction(BUYER_REWARD_COUNT);
     }
 
     function test_initialize_splitsBuyerPoolAndCreatorShares() public view {
@@ -223,6 +228,39 @@ contract HoodMarketsV3TokenFractionTest is Test {
     function test_shareSalePlatformFeeRecipient_matchesLocker() public view {
         assertEq(fraction.shareSalePlatformFeeRecipient(), platformFeeWallet);
         assertEq(fraction.SHARE_SALE_PLATFORM_FEE_BPS(), 500);
+    }
+
+    function test_fundAndCancelBuyerRewardPool() public {
+        HoodMarketsV3TokenFraction fresh = _deployFraction(0);
+
+        vm.prank(creator);
+        fresh.fundBuyerRewardPool(25);
+
+        assertEq(fresh.buyerRewardShareCap(), 25);
+        assertEq(fresh.buyerRewardSharesRemaining(), 25);
+        assertEq(fresh.balanceOf(address(fresh), 0), 25);
+        assertEq(fresh.balanceOf(creator, 0), 1000 - 25);
+
+        vm.prank(creator);
+        fresh.cancelBuyerRewardPool();
+
+        assertEq(fresh.buyerRewardSharesRemaining(), 0);
+        assertEq(fresh.buyerRewardShareCap(), 0);
+        assertEq(fresh.balanceOf(creator, 0), 1000);
+        assertEq(fresh.balanceOf(address(fresh), 0), 0);
+    }
+
+    function test_fundBuyerRewardPool_thenIssue() public {
+        HoodMarketsV3TokenFraction fresh = _deployFraction(0);
+
+        vm.prank(creator);
+        fresh.fundBuyerRewardPool(5);
+
+        vm.prank(creator);
+        fresh.issueBuyerShare(buyer2);
+
+        assertEq(fresh.balanceOf(buyer2, 0), 1);
+        assertEq(fresh.buyerRewardSharesRemaining(), 4);
     }
 
     function test_cancelListing_returnsShares() public {

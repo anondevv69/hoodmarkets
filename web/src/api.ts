@@ -366,6 +366,8 @@ export interface LaunchPayload {
   initialBuyEth?: string;
   /** `simple` = Uniswap V3 (DexScreener). `pro` = HoodMarkets V4 hooks. */
   launchMode?: 'simple' | 'pro';
+  /** Optional Holder NFT shares escrowed for automatic first-buyer rewards (0–1000). */
+  buyerRewardShareCount?: number | string;
   /** `self` = your Privy wallet (default). `other` = fees go to pasted wallet / @handle. */
   feeTarget?: 'self' | 'other';
   recipientPaste?: string;

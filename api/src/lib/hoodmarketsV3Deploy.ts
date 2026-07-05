@@ -92,12 +92,9 @@ export function clampBuyerRewardShareCount(value: unknown): number {
   return Math.floor(n);
 }
 
-/** Shares escrowed at launch for automatic first-buyer rewards (env: `HOODMARKETS_DEFAULT_BUYER_REWARD_SHARES`, default 10). */
+/** Shares escrowed at launch when caller sets `buyerRewardShareCount` (default 0). */
 export function defaultBuyerRewardShareCount(): number {
-  const raw = process.env.HOODMARKETS_DEFAULT_BUYER_REWARD_SHARES?.trim();
-  if (raw === '0') return 0;
-  const n = raw ? Number.parseInt(raw, 10) : 10;
-  return clampBuyerRewardShareCount(Number.isFinite(n) ? n : 10);
+  return 0;
 }
 
 export function buildHoodMarketsV3DeploymentConfig(input: {

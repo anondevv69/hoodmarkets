@@ -28,19 +28,30 @@ Every token launched through **HoodMarkets V3 v0.5.0+** automatically:
 | **Share marketplace** | `listShares` / `buyShares` / `cancelListing` — on-chain escrow; buyer pays listed price; **5% platform fee** + 95% to seller |
 | **Pool** | Remaining **90%** seeds the Uniswap V3 pool |
 
-## Buyer reward pool (v0.6+ — enabled by default on new launches)
+## Buyer reward pool (opt-in)
 
-The factory escrows **10 shares** at launch (`HOODMARKETS_DEFAULT_BUYER_REWARD_SHARES`, default `10`) for automated first-buyer rewards. The fee recipient receives the remaining **990** shares. The API background poller and `POST /api/deployments/:token/process-buyer-rewards` call `issueBuyerShare` — gasless for holders, no wallet popup.
+Buyer rewards are **never on by default**. The fee recipient chooses how many shares to escrow:
 
-Set `HOODMARKETS_DEFAULT_BUYER_REWARD_SHARES=0` to disable escrow on new launches (legacy wallet-send flow in the UI).
+| When | How |
+|------|-----|
+| **At launch** | Pass `buyerRewardShareCount` (1–1000) in the deploy API or launch form — that many shares mint to the contract escrow instead of the fee wallet. |
+| **After launch** | Fee recipient calls `fundBuyerRewardPool(amount)` on the fraction contract (v0.9+ bytecode) — transfers shares from wallet into escrow. |
+| **Cancel** | `cancelBuyerRewardPool()` returns all **unused** escrow shares to the fee recipient. |
 
-**Tokens launched before this default** have `buyerRewardShareCount = 0` — all 1,000 shares went to the fee recipient; rewards must be sent manually from the wallet.
+The API background poller and `POST /api/deployments/:token/process-buyer-rewards` call `issueBuyerShare` when escrow remains — gasless for holders, no wallet popup per buyer.
+
+**v0.8 tokens** can escrow at launch via `buyerRewardShareCount` but cannot fund/cancel post-launch (use v0.9+ factory for that).
 
 There is **no SDK toggle** and **no optional vault config** — legacy `vaultConfig` values revert with `LegacyVaultDisabled`. Integrators call `deployToken` exactly as before; fractions are created inside the factory.
 
 Lookup: `fractionCollectionForToken(tokenAddress)` on the factory, or `fractionCollection` in the `TokenCreated` event.
 
-**Deployed on mainnet 4663 (2026-07-05 v0.8.0).** Railway `HOODMARKETS_V3_*` env vars point at the v0.8 factory.
+**Deployed on mainnet 4663 (2026-07-05 v0.9.0).** Railway `HOODMARKETS_V3_*` env vars point at the v0.9 factory.
+
+### v0.9 buyer reward fund/cancel
+
+- **`fundBuyerRewardPool(amount)`** — fee recipient escrows shares from wallet after launch (can add more while pool is active).
+- **`cancelBuyerRewardPool()`** — returns unused escrow shares to fee recipient.
 
 ### v0.7 fraction contract
 
@@ -61,12 +72,14 @@ Lookup: `fractionCollectionForToken(tokenAddress)` on the factory, or `fractionC
 
 | Contract | Address |
 |----------|---------|
-| HoodMarketsV3 factory (v0.8.0) | `0xC2A604fF131dDE9201838007A129ea28b85d00e8` |
-| HoodMarketsV3Vault | `0x770C6762e03b7AC2c718e0128F8f16Ad296AACC7` |
-| HoodMarketsV3LpLocker | `0x34C912ba3C0dADf036b0a1f0E22aE76Cc36D900D` |
-| HoodMarketsV3FractionDeployer | `0x3a6C79aA075647eb221AFf346a0435930a7FB8CC` |
+| HoodMarketsV3 factory (v0.9.0) | `0x3a94FD3422F50ed6cC08e547c6C697E4bb3e76c8` |
+| HoodMarketsV3Vault | `0x0Fb0Dd749A1D4953B944d626972E21113b15f53a` |
+| HoodMarketsV3LpLocker | `0x1e2AE7aA7237fA400eC0aeF7e98baAcBFAAF1D68` |
+| HoodMarketsV3FractionDeployer | `0x3d2d99963827662c0629d47B56F707161bE1d83A` |
 | Platform fee recipient (5%) | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
 | Contract owner | `0xFA45A3b8d1662E3432D1B5bE3F37e4923D1b796C` |
+
+**Previous factory (v0.8.0):** `0xC2A604fF131dDE9201838007A129ea28b85d00e8`
 
 **Previous factory (v0.7.0):** `0x45A3820A9A563e78A4cF7F355F7Be10fA6B706B3`
 
@@ -102,10 +115,10 @@ forge script script/robinhood/10_DeployHoodMarketsV3.s.sol:DeployHoodMarketsV3 \
 Add to `api.hood.markets` (alongside existing V4 vars):
 
 ```env
-HOODMARKETS_V3_FACTORY=0xC2A604fF131dDE9201838007A129ea28b85d00e8
-HOODMARKETS_V3_VAULT=0x770C6762e03b7AC2c718e0128F8f16Ad296AACC7
-HOODMARKETS_V3_LP_LOCKER=0x34C912ba3C0dADf036b0a1f0E22aE76Cc36D900D
-HOODMARKETS_V3_FRACTION_DEPLOYER=0x3a6C79aA075647eb221AFf346a0435930a7FB8CC
+HOODMARKETS_V3_FACTORY=0x3a94FD3422F50ed6cC08e547c6C697E4bb3e76c8
+HOODMARKETS_V3_VAULT=0x0Fb0Dd749A1D4953B944d626972E21113b15f53a
+HOODMARKETS_V3_LP_LOCKER=0x1e2AE7aA7237fA400eC0aeF7e98baAcBFAAF1D68
+HOODMARKETS_V3_FRACTION_DEPLOYER=0x3d2d99963827662c0629d47B56F707161bE1d83A
 HOODMARKETS_V3_PLATFORM_FEE_RECIPIENT=0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98
 HOODMARKETS_DEFAULT_LAUNCH_MODE=simple
 ```
