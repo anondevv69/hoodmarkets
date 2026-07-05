@@ -37,6 +37,14 @@ When the API returns HTTP 200 and **`ok: true`**:
 
 **Your tweet reply = `replyHint` only.** Tx link optional.
 
+## On-chain routing
+
+- **V3 v0.7+:** API calls `claimTradingFees()` on the Holder NFT — **pro-rata to all share holders**
+- **V3 v0.6 legacy:** `HoodMarketsV3.claimRewards(token)` — fee wallet only
+- **Pro V4:** LP locker collect → fee locker claim
+
+Funds always go to catalog fee recipients / share holders per on-chain rules — not the caller.
+
 ## Failure
 
 HTTP 4xx or `ok: false` → use `error` field. Do not claim success.

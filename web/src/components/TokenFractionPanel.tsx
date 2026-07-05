@@ -146,8 +146,9 @@ export function TokenFractionPanel({
           Holder NFTs
         </p>
         <p className="token-fraction-sub">
-          {info.totalShares.toLocaleString()} equal shares · 10% supply vaulted ·{' '}
-          <strong>95% trading fees split pro-rata</strong> by share count
+          {info.totalShares.toLocaleString()} equal shares · 10% supply vaulted · Platform fees:{' '}
+          <strong>swap trading fees 5% / 95%</strong> to holders ·{' '}
+          <strong>share listings 5%</strong> of sale price
         </p>
       </div>
 
@@ -249,7 +250,9 @@ export function TokenFractionPanel({
           />
 
           {info.holders.length > 0 ? (
-            <div className="token-fraction-table-wrap">
+            <>
+              <p className="token-fraction-table-label muted">Holders</p>
+              <div className="token-fraction-table-wrap token-fraction-table-wrap--scroll">
               <table className="token-fraction-table">
                 <thead>
                   <tr>
@@ -278,18 +281,19 @@ export function TokenFractionPanel({
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+            </>
           ) : (
             <p className="muted token-fraction-note">No outstanding shares — full vault redeemed.</p>
           )}
         </div>
 
         <p className="muted token-fraction-foot">
-          Shares are ERC-1155 tokens — transferable like NFTs. All 1,000 mint to the fee recipient at
-          launch. Hold shares to earn trading fees pro-rata, or list shares for sale on-chain (
-          <code>listShares</code> / <code>buyShares</code> — 5% platform fee on sales and wallet sends). Burn shares to withdraw launch tokens from
-          the 10% vault (you forfeit fee rights on burned shares). Anyone can call{' '}
-          <code>claimTradingFees()</code> once to pay every holder.
+          ERC-1155 shares — transferable like NFTs (sends and airdrops: full amount, no fee). Hood.markets
+          takes a cut in <strong>two places only</strong>: swap trading fees (5% platform / 95% pro-rata to
+          holders via <code>claimTradingFees()</code>) and share marketplace sales (5% of listed price on{' '}
+          <code>buyShares</code>). Burn shares to withdraw tokens from the 10% vault (forfeit fee rights on
+          burned shares).
         </p>
 
         {!authenticated ? (

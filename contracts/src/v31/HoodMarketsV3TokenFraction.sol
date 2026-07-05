@@ -20,7 +20,9 @@ interface IHoodMarketsV3LockerRef {
 /// @dev ERC-1155 edition (id #0, supply 1000). Trading fees (95% creator slice) route here
 ///      and are distributed pro-rata to all share holders in one permissionless `claimTradingFees()`.
 ///      Shares can be listed and sold on-chain via `listShares` / `buyShares`.
-///      Wallet-to-wallet transfers skim 5% of shares to the platform fee wallet.
+///      Share marketplace sales (`buyShares`) charge 5% of sale price to the platform.
+///      No platform fee on wallet sends, airdrops, or other share moves.
+///      Swap trading fees: 5% platform / 95% to holders (LP locker — separate from share sales).
 contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, ReentrancyGuard, IHoodMarketsV3TokenFraction {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -458,31 +460,6 @@ contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, ReentrancyGuard, 
             _accrueAll();
         }
 
-        if (_transferPlatformFeeApplies(from, to, ids, values)) {
-            uint256 amount = values[0];
-            uint256 feeShares = (amount * SHARE_SALE_PLATFORM_FEE_BPS) / BPS_DENOMINATOR;
-            if (feeShares > 0) {
-                address feeRecipient = _shareSalePlatformFeeRecipient();
-                uint256 netShares = amount - feeShares;
-
-                super._update(from, feeRecipient, ids, _asSingletonArray(feeShares));
-                if (netShares > 0) {
-                    super._update(from, to, ids, _asSingletonArray(netShares));
-                }
-
-                if (_feeRewardsConfigured) {
-                    _postTransferAccounting(from);
-                    _postTransferAccounting(feeRecipient);
-                    if (netShares > 0) {
-                        _postTransferAccounting(to);
-                    }
-                }
-
-                emit ShareTransferPlatformFee(from, to, feeRecipient, feeShares, netShares);
-                return;
-            }
-        }
-
         super._update(from, to, ids, values);
 
         if (_feeRewardsConfigured && ids.length == 1 && ids[0] == FRACTION_TOKEN_ID) {
@@ -495,27 +472,6 @@ contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, ReentrancyGuard, 
         if (account == address(0)) return;
         _syncRewardDebt(account);
         _syncShareHolderRegistry(account);
-    }
-
-    function _transferPlatformFeeApplies(
-        address from,
-        address to,
-        uint256[] memory ids,
-        uint256[] memory values
-    ) internal view returns (bool) {
-        if (ids.length != 1 || ids[0] != FRACTION_TOKEN_ID || values[0] == 0) return false;
-        if (from == address(0) || to == address(0)) return false;
-        if (from == address(this) || to == address(this)) return false;
-
-        address feeRecipient = _shareSalePlatformFeeRecipient();
-        if (from == feeRecipient || to == feeRecipient) return false;
-
-        return true;
-    }
-
-    function _asSingletonArray(uint256 value) internal pure returns (uint256[] memory arr) {
-        arr = new uint256[](1);
-        arr[0] = value;
     }
 
     function _syncShareHolderRegistry(address account) internal {

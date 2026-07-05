@@ -1,95 +1,79 @@
 # hood.markets
 
-Token launchpad on **Robinhood Chain (4663)** — factory, API, and web UI.
+Token launchpad on **Robinhood Chain (4663)** — factory, API, web UI, and Bankr agent skill.
 
 - **Website:** [hood.markets](https://hood.markets)
-- **Contracts:** Uniswap v4 + `HoodMarkets` factory (Robinhood mainnet)
-- **Stack:** Privy auth, Railway API, Vercel frontend
+- **API:** [api.hood.markets](https://api.hood.markets)
+- **Dev docs:** [hood.markets/Dev](https://hood.markets/Dev) · [sdk.md](https://hood.markets/sdk.md) · [agent.md](https://hood.markets/agent.md)
+- **GitHub:** [github.com/anondevv69/hoodmarkets](https://github.com/anondevv69/hoodmarkets)
+
+## HoodMarkets V3 (simple launch, v0.11.0)
+
+Default launch mode — Uniswap V3 + embedded **1,000-share Holder NFT** vault.
+
+| Contract | Address |
+|----------|---------|
+| Factory | `0x9BDdC8ddf28f5629C989A36Eb5bb6C73cBA60Df5` |
+| Vault | `0x856c6997A86752fB3E6A494AB93107B7A371A57f` |
+| LP locker | `0x23a1c52F4E93B0283d12CC16c29Df119803E8745` |
+| Fraction deployer | `0x40A19d561b3200A2C9E1014248FcEB724c450692` |
+| Platform 5% | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
+
+JSON: [`contracts/deployed-hoodmarkets-v3-mainnet.json`](contracts/deployed-hoodmarkets-v3-mainnet.json) · Docs: [`docs/HOODMARKETS_V3.md`](docs/HOODMARKETS_V3.md)
+
+**Platform fees (only two):** swap trading fees 5%/95% to holders · share marketplace sales 5% of price.
 
 ## Repository layout
 
 | Path | Description |
 |------|-------------|
-| [`contracts/`](contracts/) | Foundry — `HoodMarkets` factory + protocol modules |
-| [`api/`](api/) | Node/Express launcher API (`WEB_ONLY_MODE`) |
+| [`contracts/`](contracts/) | Foundry — HoodMarkets V3 + V4 protocol |
+| [`api/`](api/) | Node/Express launcher API |
 | [`web/`](web/) | Vite + Privy frontend |
-| [`docs/`](docs/) | Deploy and Railway setup |
-| [`skills/hoodmarkets/`](skills/hoodmarkets/) | **Bankr agent skill** — deploy, buy, sell, claim on Robinhood |
+| [`docs/`](docs/) | Deploy, Railway, V3 reference |
+| [`skills/hoodmarkets/`](skills/hoodmarkets/) | **Bankr agent skill v16** |
 
 ## Bankr agents
-
-Install the hood.markets skill for `@bankrbot`:
 
 ```text
 install the hoodmarkets skill from https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets
 ```
 
-Agent API: `https://api.hood.markets` — see [`api/docs/agent-api.md`](api/docs/agent-api.md) and [`skills/hoodmarkets/SKILL.md`](skills/hoodmarkets/SKILL.md).
+See [`skills/hoodmarkets/SKILL.md`](skills/hoodmarkets/SKILL.md) and [`web/public/agent.md`](web/public/agent.md).
 
-To list in the official catalog, PR this folder to [BankrBot/skills](https://github.com/BankrBot/skills) (same pattern as [github-vesting](https://github.com/BankrBot/skills/tree/main/github-vesting)).
+PR to [BankrBot/skills](https://github.com/BankrBot/skills) for official catalog listing.
 
-## Robinhood mainnet (4663)
-
-Latest deployed addresses (`contracts/deployed-robinhood-mainnet.json`):
+## Pro launches (V4)
 
 | Contract | Address |
 |----------|---------|
-| HoodMarkets | `0xdeBc9bC5c3Ca697493a01e8ac503B590D209d8bD` |
-| HoodMarketsFeeLocker | `0xD588F6F8819Fc0B34fF72300Bb87b8c69C4cD454` |
-| HoodMarketsHookDynamicFeeV2 | `0x5de599D4363bb9308434351600c34C96D46868CC` |
-| HoodMarketsHookStaticFeeV2 | `0xCD9DD3fa11c53cf6aE3d4e4D3fdf7C1f790468cc` |
-| HoodMarketsLpLockerFeeConversion | `0x34861965c8eFc302E794C8593404CF17c6e65fF0` |
-| HoodMarketsUniv4EthDevBuy | `0x39ddf0339f9dccef59457a3579de1789c38d5a40` |
-| HoodMarketsSniperAuctionV2 | `0xcbbc3534a892a365c57023c34349300d360f6a1b` |
-| HoodMarketsSwapHelper | `0x6373285F77ad0a3f5a441439B3D23d16B79aA585` |
+| HoodMarkets factory | `0xdeBc9bC5c3Ca697493a01e8ac503B590D209d8bD` |
+| Swap helper | `0x6373285F77ad0a3f5a441439B3D23d16B79aA585` |
 
-Explorer: [robinhoodchain.blockscout.com](https://robinhoodchain.blockscout.com)
+Full list: [`contracts/deployed-robinhood-mainnet.json`](contracts/deployed-robinhood-mainnet.json)
 
 ## Quick start
 
-### Contracts
-
 ```bash
-cd contracts
-git submodule update --init --recursive
-cp .env.robinhood.example .env.robinhood   # set DEPLOYER_PRIVATE_KEY locally only
-forge build
-./scripts/deploy-robinhood.sh              # full stack deploy
-./scripts/verify-robinhood.sh              # Blockscout verification
-```
+# Contracts (V3 redeploy)
+cd contracts && cp .env.robinhood.example .env.robinhood
+./scripts/deploy-hoodmarkets-v3.sh
 
-### API (local)
+# API
+cd api && cp .env.hood.example .env && npm install && npm run dev:backend
 
-```bash
-cd api
-cp .env.hood.example .env
-npm install
-npm run dev:backend
-```
-
-Set `HOODMARKETS_*` contract addresses in `.env` (see `.env.hood.example`).
-
-### Web (local)
-
-```bash
-cd web
-cp .env.example .env   # VITE_PRIVY_APP_ID, VITE_API_URL
-npm install
-npm run dev
+# Web
+cd web && cp .env.example .env && npm install && npm run dev
 ```
 
 ## Production
 
-Deploy from this monorepo — no separate frontend repo.
+| Service | Host | Root |
+|---------|------|------|
+| API | Railway → `api.hood.markets` | `api/` |
+| Web | Vercel → `hood.markets` | `web/` |
 
-| Service | Host | Repo path | Root directory |
-|---------|------|-----------|----------------|
-| **API** | Railway → `api.hood.markets` | [`api/`](api/) | `api` |
-| **Web** | Vercel → `hood.markets` | [`web/`](web/) | `web` |
-
-**GitHub:** [github.com/anondevv69/hoodmarkets](https://github.com/anondevv69/hoodmarkets)
-
-See [docs/HOOD_MARKETS_SETUP.md](docs/HOOD_MARKETS_SETUP.md) for env vars, migration from `liquid-social-launcher`, and smoke tests.
+Env checklist: [`api/RAILWAY_ENV_CHECKLIST.md`](api/RAILWAY_ENV_CHECKLIST.md)
 
 ## License
 

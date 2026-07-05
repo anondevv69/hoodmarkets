@@ -115,7 +115,7 @@ export function TokenFractionListings({
       ) : listings.length === 0 ? (
         <p className="muted">No active listings yet.</p>
       ) : (
-        <div className="token-fraction-table-wrap">
+        <div className="token-fraction-table-wrap token-fraction-table-wrap--scroll">
           <table className="token-fraction-table">
             <thead>
               <tr>

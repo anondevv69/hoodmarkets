@@ -4,14 +4,14 @@ DexScreener- and Uniswap-friendly token launches on **Robinhood Chain (4663)** u
 
 Forked from upstream v3.1 launchpad contracts and rebranded as **HoodMarkets** — no Clanker labels in our `src/v31/` code.
 
-## Fee split (embedded in contract)
+## Platform fees (only two)
 
-| Recipient | Share | Configurable by creator? |
-|-----------|-------|---------------------------|
-| **hood.markets platform** | **5%** of swap fees | No — set in `HoodMarketsV3LpLocker.TEAM_REWARD` |
-| **Holder NFT share holders** | **95%** of swap fees (pro-rata by share count) | Routed to fraction contract at launch |
-| **Share sales (`buyShares`)** | **5%** of listing price to platform fee wallet · **95%** to seller | Same wallet as swap fees (`teamRecipient`) |
-| **Share transfers** | **5%** of shares skimmed to platform fee wallet · **95%** to recipient | Exempt: mint/burn, escrow, marketplace settlement, buyer rewards |
+| Fee | Split |
+|-----|--------|
+| **Uniswap swap / trading fees** | **5%** hood.markets platform · **95%** pro-rata to Holder NFT share holders (embedded in `HoodMarketsV3LpLocker` at `claimTradingFees()`) |
+| **Share marketplace sales (`buyShares`)** | **5%** of listed price to platform · **95%** to seller |
+
+No platform fee on wallet sends, airdrops, mint/burn, escrow, or buyer-reward mints.
 
 The 5% platform wallet is set at locker deploy (`HOODMARKETS_PLATFORM_FEE_RECIPIENT`). The locker **owner** can change the default platform wallet via `updateTeamRecipient()`.
 
@@ -46,7 +46,7 @@ There is **no SDK toggle** and **no optional vault config** — legacy `vaultCon
 
 Lookup: `fractionCollectionForToken(tokenAddress)` on the factory, or `fractionCollection` in the `TokenCreated` event.
 
-**Deployed on mainnet 4663 (2026-07-05 v0.10.0).** Railway `HOODMARKETS_V3_*` env vars point at the v0.10 factory.
+**Deployed on mainnet 4663 (2026-07-05 v0.11.0).** Update Railway `HOODMARKETS_V3_*` env vars to the addresses below.
 
 ### v0.9 buyer reward fund/cancel
 
@@ -55,7 +55,20 @@ Lookup: `fractionCollectionForToken(tokenAddress)` on the factory, or `fractionC
 
 ### v0.10 batch share airdrop
 
-- **`airdropShares(recipients[], amounts[])`** — send shares to many wallets in **one transaction**; same 5% platform skim per recipient as wallet transfers.
+- **`airdropShares(recipients[], amounts[])`** — many recipients in one transaction. v0.10 bytecode incorrectly skimmed 5% like wallet sends; fixed in v0.11.
+
+### v0.11 sales-only share fees (deployed 2026-07-05)
+
+- **Removed** 5% share skim on wallet sends and airdrops.
+- **Kept** 5% platform fee on **`buyShares`** marketplace sales only.
+- **`airdropShares`** delivers full amounts with no skim.
+
+| Contract | Address |
+|----------|---------|
+| Factory | `0x9BDdC8ddf28f5629C989A36Eb5bb6C73cBA60Df5` |
+| Deploy tx | `0xf291bfe09436850ea091ae8bc0f52f27edd7dd19d8d35afbde18c97c000bad8e` |
+
+Update Railway `HOODMARKETS_V3_*` to match the deployed addresses table below.
 
 ### v0.7 fraction contract
 
@@ -76,12 +89,14 @@ Lookup: `fractionCollectionForToken(tokenAddress)` on the factory, or `fractionC
 
 | Contract | Address |
 |----------|---------|
-| HoodMarketsV3 factory (v0.10.0) | `0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9` |
-| HoodMarketsV3Vault | `0xB38BC03B373e7dFD43727A5f6aF3b588b441121b` |
-| HoodMarketsV3LpLocker | `0x3e51b0D25AA990d2e6C17b29D644F8eb0Ed2913A` |
-| HoodMarketsV3FractionDeployer | `0x6542CdAaBdD69E3c830b162bB7946d24bcdA156c` |
+| HoodMarketsV3 factory (v0.11.0) | `0x9BDdC8ddf28f5629C989A36Eb5bb6C73cBA60Df5` |
+| HoodMarketsV3Vault | `0x856c6997A86752fB3E6A494AB93107B7A371A57f` |
+| HoodMarketsV3LpLocker | `0x23a1c52F4E93B0283d12CC16c29Df119803E8745` |
+| HoodMarketsV3FractionDeployer | `0x40A19d561b3200A2C9E1014248FcEB724c450692` |
 | Platform fee recipient (5%) | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
 | Contract owner | `0xFA45A3b8d1662E3432D1B5bE3F37e4923D1b796C` |
+
+**Previous factory (v0.10.0):** `0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9`
 
 **Previous factory (v0.9.0):** `0x3a94FD3422F50ed6cC08e547c6C697E4bb3e76c8`
 
@@ -121,10 +136,10 @@ forge script script/robinhood/10_DeployHoodMarketsV3.s.sol:DeployHoodMarketsV3 \
 Add to `api.hood.markets` (alongside existing V4 vars):
 
 ```env
-HOODMARKETS_V3_FACTORY=0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9
-HOODMARKETS_V3_VAULT=0xB38BC03B373e7dFD43727A5f6aF3b588b441121b
-HOODMARKETS_V3_LP_LOCKER=0x3e51b0D25AA990d2e6C17b29D644F8eb0Ed2913A
-HOODMARKETS_V3_FRACTION_DEPLOYER=0x6542CdAaBdD69E3c830b162bB7946d24bcdA156c
+HOODMARKETS_V3_FACTORY=0x9BDdC8ddf28f5629C989A36Eb5bb6C73cBA60Df5
+HOODMARKETS_V3_VAULT=0x856c6997A86752fB3E6A494AB93107B7A371A57f
+HOODMARKETS_V3_LP_LOCKER=0x23a1c52F4E93B0283d12CC16c29Df119803E8745
+HOODMARKETS_V3_FRACTION_DEPLOYER=0x40A19d561b3200A2C9E1014248FcEB724c450692
 HOODMARKETS_V3_PLATFORM_FEE_RECIPIENT=0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98
 HOODMARKETS_DEFAULT_LAUNCH_MODE=simple
 ```

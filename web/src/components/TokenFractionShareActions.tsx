@@ -195,8 +195,7 @@ export function TokenFractionShareActions({
         <p className="token-fraction-action-title">Send shares</p>
         <p className="muted token-fraction-action-hint">
           Transfer to one wallet. You hold {walletShares.toLocaleString()} share
-          {walletShares === 1 ? '' : 's'}. A 5% platform fee is skimmed from each send (recipient gets
-          95%; tiny amounts may round to zero).
+          {walletShares === 1 ? '' : 's'} — full amount, no platform fee.
         </p>
         <label className="token-fraction-field">
           Recipient wallet
@@ -246,8 +245,8 @@ export function TokenFractionShareActions({
       <div className="token-fraction-action">
         <p className="token-fraction-action-title">List shares for sale</p>
         <p className="muted token-fraction-action-hint">
-          Escrow shares in the contract at your asking price. Buyers pay the listed price in ETH; you receive
-          95% and hood.markets collects 5% to the platform fee wallet (same as swap fees).
+          Escrow shares at your asking price. On sale: you receive 95% of the listed price; hood.markets
+          collects 5% (one of two platform fees — the other is on swap trading fees).
         </p>
         <label className="token-fraction-field">
           Share count
@@ -327,8 +326,8 @@ export function TokenFractionShareActions({
         <p className="token-fraction-action-title">Airdrop to many</p>
         <p className="muted token-fraction-action-hint">
           One address per line. Optional <code>,count</code> per line — otherwise uses default count.
-          Duplicate wallets are merged. One transaction when the collection supports batch airdrop
-          (v0.10+); older tokens fall back to one tx per wallet. 5% platform skim per recipient.
+          Duplicate wallets are merged. One transaction when supported (v0.10+). Full amounts — no platform
+          fee (only swap fees and marketplace sales are taxed).
         </p>
         <label className="token-fraction-field">
           Wallets
@@ -617,8 +616,9 @@ export function TokenFractionShareActions({
       <div className="token-fraction-action">
         <p className="token-fraction-action-title">Trading fees</p>
         <p className="muted token-fraction-action-hint">
-          Anyone can claim in one transaction — pool fees are pulled and sent pro-rata to every share
-          holder.
+          Pulls Uniswap swap fees from the locked LP. Locker split: <strong>5% platform / 95% to holders</strong>{' '}
+          (pro-rata) — then one tx pays every share holder. This is one of the two platform fees; the other
+          is 5% on share marketplace sales.
         </p>
         {pendingFees && (pendingFees.pending0 > 0n || pendingFees.pending1 > 0n) ? (
           <p className="muted token-fraction-pending">

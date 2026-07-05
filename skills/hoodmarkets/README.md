@@ -1,46 +1,62 @@
-# hood.markets Bankr skill
+# hood.markets Bankr skill (v16)
 
-Bankr-compatible agent skill for launching and trading on [hood.markets](https://hood.markets) (Robinhood Chain **4663**).
+Bankr-compatible agent skill for [hood.markets](https://hood.markets) on Robinhood Chain **4663**.
 
-## Install (Bankr / Cursor)
+## Install
 
 ```text
 install the hoodmarkets skill from https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets
 ```
 
-## Publish to BankrBot/skills
+## Platform fees (only two)
 
-To list in the official Bankr catalog, open a PR to [BankrBot/skills](https://github.com/BankrBot/skills) copying this folder to `skills/hoodmarkets/` (same layout as [github-vesting](https://github.com/BankrBot/skills/tree/main/github-vesting)).
+| Fee | Split |
+|-----|--------|
+| Swap trading fees | 5% platform / 95% pro-rata to Holder NFT share holders |
+| Share marketplace (`buyShares`) | 5% of sale price / 95% to seller |
 
-## API requirements
+No fee on sends, airdrops, or escrow moves (v0.11 factory).
 
-Production agent endpoints live on **`https://api.hood.markets`**:
-
-- `GET /health`
-- `GET /api/agent/briefing`
-- `POST /api/agent/prepare-deploy`
-- `POST /api/agent/prepare-buy`
-- `POST /api/agent/prepare-sell`
-
-Plus existing captcha, deploy, and claim routes documented in `api/docs/agent-api.md`.
-
-## Contracts (V3 simple launch)
+## Contracts (V3 v0.11.0)
 
 | Role | Address |
 |------|---------|
-| Factory | `0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9` |
-| Vault | `0xB38BC03B373e7dFD43727A5f6aF3b588b441121b` |
-| LP locker | `0x3e51b0D25AA990d2e6C17b29D644F8eb0Ed2913A` |
-| Fraction deployer | `0x6542CdAaBdD69E3c830b162bB7946d24bcdA156c` |
+| Factory | `0x9BDdC8ddf28f5629C989A36Eb5bb6C73cBA60Df5` |
+| Vault | `0x856c6997A86752fB3E6A494AB93107B7A371A57f` |
+| LP locker | `0x23a1c52F4E93B0283d12CC16c29Df119803E8745` |
+| Fraction deployer | `0x40A19d561b3200A2C9E1014248FcEB724c450692` |
 | Platform 5% | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
 
-See `known-contracts.json` for full pin list (V4 swap helper, fee locker, etc.).
+`known-contracts.json` · legacy factories · V4 swap helper
 
-## User flows
+## What agents can do
 
-| Flow | Bankr submit? |
-|------|----------------|
-| Deploy token | No — server deploy after haiku JWT |
-| Buy / sell (Pro tokens) | Yes — `prepare-*` → `/wallet/submit` chain 4663 |
-| Claim fees | No — server claim after haiku JWT |
-| Simple (V3) tokens | Trade on Uniswap / DexScreener |
+| Flow | Bankr `/wallet/submit`? |
+|------|-------------------------|
+| Deploy token | No — API deploy after auth |
+| Buy/sell Simple (V3) | No — Uniswap link from token-info |
+| Buy/sell Pro (V4) | Yes — prepare-buy/sell → submit chain 4663 |
+| Claim swap fees | No — POST /api/agent/claim or claim-for-recipient |
+| Holder NFTs | On-chain on token page — send, airdrop, list, claim (see HOLDER-NFTS.md) |
+
+## Skill files
+
+| File | Purpose |
+|------|---------|
+| `SKILL.md` | Main routing + workflows |
+| `references/AGENT-API.md` | All API endpoints |
+| `references/HOLDER-NFTS.md` | Shares, fees, factory versions |
+| `references/CLAIM-BANKR.md` | Claim without Bankr submit |
+| `references/ONE-LINE-INTENTS.md` | User phrase → API mapping |
+| `known-contracts.json` | Pinned addresses |
+| `streaming-hints.json` | V3 vs Pro detection |
+
+## Publish to BankrBot/skills
+
+PR this folder to [BankrBot/skills](https://github.com/BankrBot/skills) → `skills/hoodmarkets/`
+
+## Human docs
+
+- [hood.markets/sdk.md](https://hood.markets/sdk.md) — contracts + SDK + capabilities
+- [hood.markets/agent.md](https://hood.markets/agent.md) — agent API summary
+- [docs/HOODMARKETS_V3.md](https://github.com/anondevv69/hoodmarkets/blob/main/docs/HOODMARKETS_V3.md) — full V3 reference

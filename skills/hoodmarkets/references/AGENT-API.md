@@ -8,15 +8,28 @@ Wallet on all agent routes: `x-wallet-address: 0x…` and/or `?wallet=0x…` and
 
 ---
 
-## Contracts (simple / V3 — default launch)
+## Platform fees (only two)
+
+1. **Swap trading fees** — 5% platform / 95% pro-rata to Holder NFT share holders at `claimTradingFees()`
+2. **Share marketplace** — 5% of sale price on `buyShares` / 95% to seller
+
+No platform fee on sends, airdrops, mint/burn, escrow, or buyer-reward mints (v0.11+ factory).
+
+---
+
+## Contracts (simple / V3 — default launch, v0.11.0)
 
 | Role | Address |
 |------|---------|
-| HoodMarketsV3 factory | `0x7E2905ddF3Dca96117A9e9d50F2924C1E7FE7Be1` |
-| HoodMarketsV3 LP locker | `0x48BCd46147a74A186913d41aE0e7210C03910fA5` |
+| HoodMarketsV3 factory | `0x9BDdC8ddf28f5629C989A36Eb5bb6C73cBA60Df5` |
+| HoodMarketsV3 vault | `0x856c6997A86752fB3E6A494AB93107B7A371A57f` |
+| HoodMarketsV3 LP locker | `0x23a1c52F4E93B0283d12CC16c29Df119803E8745` |
+| HoodMarketsV3 fraction deployer | `0x40A19d561b3200A2C9E1014248FcEB724c450692` |
 | Platform 5% fees | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
+| WETH | `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` |
+| Uniswap V3 SwapRouter02 | `0xCaf681a66D020601342297493863E78C959E5cb2` |
 
-Full pin list: `../known-contracts.json` (repo root: `skills/hoodmarkets/known-contracts.json`).
+Full pin list + legacy factories: `../known-contracts.json`. Holder NFT behavior: `references/HOLDER-NFTS.md`.
 
 ---
 
@@ -184,9 +197,12 @@ Content-Type: application/json
   "clientKind": "agent",
   "agentProvider": "bankr",
   "launchMode": "simple",
-  "imageUrl": "https://…"
+  "imageUrl": "https://…",
+  "buyerRewardShareCount": 0
 }
 ```
+
+Optional **`buyerRewardShareCount`** (0–1000): escrow Holder NFT shares for automatic first-buyer rewards. **Default 0** (all 1,000 shares to fee wallet). See `references/HOLDER-NFTS.md`.
 
 **Response:** `tokenAddress`, `transactionHash`, `links` (dexscreener, hood.markets, explorer).
 
@@ -253,7 +269,7 @@ Server broadcasts claim (gas paid by hood.markets). Requires haiku JWT.
 
 **V3 vs V4 (automatic):**
 
-- **Simple (V3)** — `poolId` prefix `v3:` or V3 factory `0xbd79…E7b4` → calls `HoodMarketsV3.claimRewards(tokenAddress)`. One step; WETH to fee wallet.
+- **Simple (V3)** — `poolId` prefix `v3:` or any known V3 factory → API calls **`claimTradingFees()`** on the Holder NFT (fraction) contract when present (**v0.7+** — one tx pays **all share holders** pro-rata). Legacy **v0.6** tokens fall back to `HoodMarketsV3.claimRewards(token)` on the factory (fee wallet only).
 - **Pro (V4)** → collects LP fees into locker, then claims WETH from fee locker.
 
 ```http
@@ -291,6 +307,16 @@ Public catalog.
 ```http
 GET https://api.hood.markets/api/deployments?limit=50
 GET https://api.hood.markets/api/deployments/0x…
+```
+
+---
+
+## POST /api/deployments/:token/process-buyer-rewards
+
+Trigger buyer-reward issuance for a token with escrowed shares (v0.9+ `fundBuyerRewardPool` or deploy-time `buyerRewardShareCount`). Background poller also runs this — useful for manual refresh. Gas paid by hood.markets.
+
+```http
+POST https://api.hood.markets/api/deployments/0x…/process-buyer-rewards
 ```
 
 ---

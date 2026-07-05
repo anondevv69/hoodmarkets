@@ -133,23 +133,23 @@ contract HoodMarketsV3TokenFractionTest is Test {
         vm.prank(creator);
         fraction.safeTransferFrom(creator, buyer, 0, 250, "");
 
-        assertEq(fraction.balanceOf(buyer, 0), 238);
-        assertEq(fraction.balanceOf(platformFeeWallet, 0), 12);
+        assertEq(fraction.balanceOf(buyer, 0), 250);
+        assertEq(fraction.balanceOf(platformFeeWallet, 0), 0);
 
         vm.prank(buyer);
         fraction.redeem(50);
 
-        assertEq(fraction.balanceOf(buyer, 0), 188);
+        assertEq(fraction.balanceOf(buyer, 0), 200);
         assertEq(token.balanceOf(buyer), (VAULT_AMOUNT / 1000) * 50);
     }
 
-    function test_transfer_skimsPlatformFeeShares() public {
+    function test_transfer_noPlatformFeeSkim() public {
         vm.prank(creator);
         fraction.safeTransferFrom(creator, buyer, 0, 100, "");
 
         assertEq(fraction.balanceOf(creator, 0), 700 - 100);
-        assertEq(fraction.balanceOf(buyer, 0), 95);
-        assertEq(fraction.balanceOf(platformFeeWallet, 0), 5);
+        assertEq(fraction.balanceOf(buyer, 0), 100);
+        assertEq(fraction.balanceOf(platformFeeWallet, 0), 0);
     }
 
     function test_claimTradingFees_proRataByShares() public {
@@ -170,11 +170,10 @@ contract HoodMarketsV3TokenFractionTest is Test {
         fraction.claimTradingFees();
 
         uint256 creatorExpected = uint256(1 ether) * 450 / 700;
-        uint256 buyerExpected = uint256(1 ether) * 238 / 700;
-        uint256 platformExpected = uint256(1 ether) * 12 / 700;
+        uint256 buyerExpected = uint256(1 ether) * 250 / 700;
         assertApproxEqAbs(weth.balanceOf(creator), creatorExpected, 2);
         assertApproxEqAbs(weth.balanceOf(buyer), buyerExpected, 2);
-        assertApproxEqAbs(weth.balanceOf(platformFeeWallet), platformExpected, 2);
+        assertEq(weth.balanceOf(platformFeeWallet), 0);
         assertLt(weth.balanceOf(address(fraction)), 10);
     }
 
@@ -199,8 +198,8 @@ contract HoodMarketsV3TokenFractionTest is Test {
         vm.prank(creator);
         fraction.safeTransferFrom(creator, buyer, 0, 100, "");
 
-        assertEq(fraction.balanceOf(buyer, 0), 95);
-        assertEq(fraction.balanceOf(platformFeeWallet, 0), 5);
+        assertEq(fraction.balanceOf(buyer, 0), 100);
+        assertEq(fraction.balanceOf(platformFeeWallet, 0), 0);
 
         vm.deal(buyer2, 1 ether);
         uint256 price = 0.05 ether;
@@ -208,7 +207,7 @@ contract HoodMarketsV3TokenFractionTest is Test {
         vm.prank(buyer);
         uint256 listingId = fraction.listShares(50, address(0), price);
         assertEq(listingId, 1);
-        assertEq(fraction.balanceOf(buyer, 0), 45);
+        assertEq(fraction.balanceOf(buyer, 0), 50);
         assertEq(fraction.balanceOf(address(fraction), 0), BUYER_REWARD_COUNT + 50);
 
         uint256 sellerBefore = buyer.balance;
@@ -269,9 +268,9 @@ contract HoodMarketsV3TokenFractionTest is Test {
 
         assertEq(fraction.balanceOf(creator, 0), creatorBefore - 160);
         assertEq(fraction.balanceOf(buyer, 0), 10);
-        assertEq(fraction.balanceOf(buyer2, 0), 48);
-        assertEq(fraction.balanceOf(recipients[2], 0), 95);
-        assertEq(fraction.balanceOf(platformFeeWallet, 0), platformBefore + 7);
+        assertEq(fraction.balanceOf(buyer2, 0), 50);
+        assertEq(fraction.balanceOf(recipients[2], 0), 100);
+        assertEq(fraction.balanceOf(platformFeeWallet, 0), platformBefore);
     }
 
     function test_revert_airdropShares_insufficientBalance() public {
@@ -304,11 +303,11 @@ contract HoodMarketsV3TokenFractionTest is Test {
 
         vm.prank(buyer);
         uint256 listingId = fraction.listShares(10, address(0), 1 ether);
-        assertEq(fraction.balanceOf(buyer, 0), 85);
+        assertEq(fraction.balanceOf(buyer, 0), 90);
 
         vm.prank(buyer);
         fraction.cancelListing(listingId);
-        assertEq(fraction.balanceOf(buyer, 0), 95);
+        assertEq(fraction.balanceOf(buyer, 0), 100);
     }
 
     function test_revert_buyShares_wrongPayment() public {
