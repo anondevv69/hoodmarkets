@@ -205,17 +205,18 @@ export function TokenFractionPanel({
         </p>
       ) : null}
 
-      {(isFeeRecipientWallet || (walletShares != null && walletShares > 0)) ? (
-        <div className="token-fraction-manage">
-          <p className="token-fraction-manage-title">
-            {isFeeRecipientWallet ? 'You received the launch shares' : 'You hold shares'}
-          </p>
-          {!authenticated || !wallet ? (
-            <p className="muted token-fraction-note">
-              Connect your wallet to send shares, redeem vault tokens, or claim fees.
+      <div className="token-fraction-layout">
+        {(isFeeRecipientWallet || (walletShares != null && walletShares > 0)) ? (
+          <div className="token-fraction-manage token-fraction-layout-manage">
+            <p className="token-fraction-manage-title">
+              {isFeeRecipientWallet ? 'You received the launch shares' : 'You hold shares'}
             </p>
-          ) : walletShares != null && walletShares > 0 ? (
-            <div className="token-fraction-actions">
+            {!authenticated || !wallet ? (
+              <p className="muted token-fraction-note">
+                Connect your wallet to send shares, redeem vault tokens, or claim fees.
+              </p>
+            ) : walletShares != null && walletShares > 0 ? (
+              <div className="token-fraction-actions">
               <div className="token-fraction-action">
                 <p className="token-fraction-action-title">Send shares</p>
                 <p className="muted token-fraction-action-hint">
@@ -441,89 +442,102 @@ export function TokenFractionPanel({
           ) : (
             <p className="muted token-fraction-note">Your connected wallet does not hold any shares.</p>
           )}
-        </div>
-      ) : null}
+          </div>
+        ) : (
+          <div className="token-fraction-manage token-fraction-layout-manage token-fraction-layout-manage--empty">
+            <p className="muted token-fraction-note">
+              Connect the fee recipient wallet or a share holder to send, redeem, or claim.
+            </p>
+          </div>
+        )}
 
-      <div className="token-fraction-stats">
-        <div className="token-fraction-stat">
-          <span className="token-fraction-stat-k">Outstanding</span>
-          <span className="token-fraction-stat-v">{info.outstandingShares.toLocaleString()}</span>
+        <div className="token-fraction-layout-aside">
+          <div className="token-fraction-stats">
+            <div className="token-fraction-stat">
+              <span className="token-fraction-stat-k">Outstanding</span>
+              <span className="token-fraction-stat-v">{info.outstandingShares.toLocaleString()}</span>
+            </div>
+            <div className="token-fraction-stat">
+              <span className="token-fraction-stat-k">Redeemed</span>
+              <span className="token-fraction-stat-v">{info.redeemedShares.toLocaleString()}</span>
+            </div>
+            <div className="token-fraction-stat">
+              <span className="token-fraction-stat-k">Holders</span>
+              <span className="token-fraction-stat-v">{info.holderCount.toLocaleString()}</span>
+            </div>
+            <div className="token-fraction-stat">
+              <span className="token-fraction-stat-k">Per share</span>
+              <span className="token-fraction-stat-v">{shareTokenHuman}</span>
+            </div>
+          </div>
         </div>
-        <div className="token-fraction-stat">
-          <span className="token-fraction-stat-k">Redeemed</span>
-          <span className="token-fraction-stat-v">{info.redeemedShares.toLocaleString()}</span>
-        </div>
-        <div className="token-fraction-stat">
-          <span className="token-fraction-stat-k">Holders</span>
-          <span className="token-fraction-stat-v">{info.holderCount.toLocaleString()}</span>
-        </div>
-        <div className="token-fraction-stat">
-          <span className="token-fraction-stat-k">Per share</span>
-          <span className="token-fraction-stat-v">{shareTokenHuman}</span>
-        </div>
-      </div>
 
-      {walletShares != null && walletShares > 0 ? (
-        <p className="token-fraction-wallet">
-          Your wallet holds{' '}
-          <strong>
-            {walletShares.toLocaleString()} share{walletShares === 1 ? '' : 's'}
-          </strong>{' '}
-          ({pctLabel((walletShares / info.totalShares) * 100)} of vault · same % of creator fees)
+        <div className="token-fraction-layout-meta">
+          {walletShares != null && walletShares > 0 ? (
+            <p className="token-fraction-wallet">
+              Your wallet holds{' '}
+              <strong>
+                {walletShares.toLocaleString()} share{walletShares === 1 ? '' : 's'}
+              </strong>{' '}
+              ({pctLabel((walletShares / info.totalShares) * 100)} of vault · same % of creator fees)
+            </p>
+          ) : null}
+
+          <div className="token-fraction-links">
+            <a href={tokenUrl(info.collectionAddress)} target="_blank" rel="noreferrer">
+              View collection on Blockscout
+            </a>
+            <span className="tp-meta-dot">·</span>
+            <a href={addressUrl(info.collectionAddress)} target="_blank" rel="noreferrer" className="lp-mono">
+              {shortenAddress(info.collectionAddress)}
+            </a>
+          </div>
+        </div>
+
+        <div className="token-fraction-layout-table">
+          {info.holders.length > 0 ? (
+            <div className="token-fraction-table-wrap">
+              <table className="token-fraction-table">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Holder</th>
+                    <th scope="col">Shares</th>
+                    <th scope="col">Vault %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {info.holders.map((h, i) => (
+                    <tr key={h.address}>
+                      <td>{i + 1}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="token-fraction-holder lp-mono"
+                          onClick={() => openWalletProfile(h.address)}
+                        >
+                          {shortenAddress(h.address)}
+                        </button>
+                      </td>
+                      <td>{h.shares.toLocaleString()}</td>
+                      <td>{pctLabel(h.pct)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="muted token-fraction-note">No outstanding shares — full vault redeemed.</p>
+          )}
+        </div>
+
+        <p className="muted token-fraction-foot token-fraction-layout-foot">
+          Shares are ERC-1155 tokens — transferable like NFTs. All 1,000 mint to the fee recipient at
+          launch. Send any number to other wallets; those holders can airdrop, sell, or claim fees
+          pro-rata. On-chain: <code>claimTradingFees()</code> for swap fees (95% creator pool) and{' '}
+          <code>redeem(amount)</code> to burn shares for vaulted tokens.
         </p>
-      ) : null}
-
-      <div className="token-fraction-links">
-        <a href={tokenUrl(info.collectionAddress)} target="_blank" rel="noreferrer">
-          View collection on Blockscout
-        </a>
-        <span className="tp-meta-dot">·</span>
-        <a href={addressUrl(info.collectionAddress)} target="_blank" rel="noreferrer" className="lp-mono">
-          {shortenAddress(info.collectionAddress)}
-        </a>
       </div>
-
-      {info.holders.length > 0 ? (
-        <div className="token-fraction-table-wrap">
-          <table className="token-fraction-table">
-            <thead>
-              <tr>
-                <th scope="col">#</th>
-                <th scope="col">Holder</th>
-                <th scope="col">Shares</th>
-                <th scope="col">Vault %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {info.holders.map((h, i) => (
-                <tr key={h.address}>
-                  <td>{i + 1}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="token-fraction-holder lp-mono"
-                      onClick={() => openWalletProfile(h.address)}
-                    >
-                      {shortenAddress(h.address)}
-                    </button>
-                  </td>
-                  <td>{h.shares.toLocaleString()}</td>
-                  <td>{pctLabel(h.pct)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="muted token-fraction-note">No outstanding shares — full vault redeemed.</p>
-      )}
-
-      <p className="muted token-fraction-foot">
-        Shares are ERC-1155 tokens — transferable like NFTs. All 1,000 mint to the fee recipient at
-        launch. Send any number to other wallets; those holders can airdrop, sell, or claim fees
-        pro-rata. On-chain: <code>claimTradingFees()</code> for swap fees (95% creator pool) and{' '}
-        <code>redeem(amount)</code> to burn shares for vaulted tokens.
-      </p>
     </section>
   );
 }
