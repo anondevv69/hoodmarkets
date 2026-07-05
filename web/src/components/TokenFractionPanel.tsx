@@ -9,6 +9,10 @@ import {
   fetchPendingFractionTradingFees,
   fetchTokenFractionInfo,
   fetchWalletFractionBalance,
+  parseFractionRecipient,
+  parseFractionShareAmount,
+  redeemFractionShares,
+  transferFractionShares,
   type TokenFractionInfo,
 } from '../lib/tokenFractions';
 
@@ -43,6 +47,15 @@ export function TokenFractionPanel({
   const [claimingFees, setClaimingFees] = useState(false);
   const [claimTx, setClaimTx] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [transferTo, setTransferTo] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferring, setTransferring] = useState(false);
+  const [transferTx, setTransferTx] = useState<string | null>(null);
+  const [transferError, setTransferError] = useState<string | null>(null);
+  const [redeemAmount, setRedeemAmount] = useState('');
+  const [redeeming, setRedeeming] = useState(false);
+  const [redeemTx, setRedeemTx] = useState<string | null>(null);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -107,6 +120,26 @@ export function TokenFractionPanel({
       cancelled = true;
     };
   }, [info?.collectionAddress, info?.tokenId, walletAddress]);
+
+  async function refreshFractionState(collectionAddress: `0x${string}`) {
+    const fromBlock = deployBlockNumber ? BigInt(deployBlockNumber) : undefined;
+    const [row, shares, pending] = await Promise.all([
+      fetchTokenFractionInfo(tokenAddress, { fromBlock, factoryAddress }),
+      walletAddress
+        ? fetchWalletFractionBalance(
+            collectionAddress,
+            walletAddress as `0x${string}`,
+            info?.tokenId ?? 0,
+          )
+        : Promise.resolve(null),
+      walletAddress
+        ? fetchPendingFractionTradingFees(collectionAddress, walletAddress as `0x${string}`)
+        : Promise.resolve(null),
+    ]);
+    setInfo(row);
+    if (shares != null) setWalletShares(shares);
+    if (pending) setPendingFees(pending);
+  }
 
   if (!isSimple) return null;
   if (loading) {
@@ -177,71 +210,237 @@ export function TokenFractionPanel({
           <p className="token-fraction-manage-title">
             {isFeeRecipientWallet ? 'You received the launch shares' : 'You hold shares'}
           </p>
-          <ul className="token-fraction-manage-list">
-            <li>Claim your pro-rata trading fees below (pulls from pool if needed)</li>
-            <li>Sell or list on NFT marketplaces (ERC-1155 transfer)</li>
-            <li>Gift or airdrop shares to any wallet (e.g. reward early buyers manually)</li>
-            <li>Split holdings across wallets — each holder decides their own airdrops</li>
-            <li>Redeem on-chain via the collection contract to receive underlying tokens</li>
-          </ul>
-          {authenticated && wallet && walletShares != null && walletShares > 0 ? (
-            <div className="token-fraction-claim">
-              {pendingFees && (pendingFees.pending0 > 0n || pendingFees.pending1 > 0n) ? (
-                <p className="muted token-fraction-pending">
-                  Pending fees:{' '}
-                  {pendingFees.pending0 > 0n
-                    ? `${formatTokenBalance(pendingFees.pending0, 18)} WETH`
-                    : null}
-                  {pendingFees.pending0 > 0n && pendingFees.pending1 > 0n ? ' · ' : null}
-                  {pendingFees.pending1 > 0n
-                    ? `${formatTokenBalance(pendingFees.pending1, 18)} token`
-                    : null}
+          {!authenticated || !wallet ? (
+            <p className="muted token-fraction-note">
+              Connect your wallet to send shares, redeem vault tokens, or claim fees.
+            </p>
+          ) : walletShares != null && walletShares > 0 ? (
+            <div className="token-fraction-actions">
+              <div className="token-fraction-action">
+                <p className="token-fraction-action-title">Send shares</p>
+                <p className="muted token-fraction-action-hint">
+                  Airdrop or transfer to any wallet (ERC-1155). You have{' '}
+                  {walletShares.toLocaleString()} share{walletShares === 1 ? '' : 's'}.
                 </p>
-              ) : (
-                <p className="muted token-fraction-pending">No unclaimed fees yet for your shares.</p>
-              )}
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                disabled={claimingFees}
-                onClick={() => {
-                  void (async () => {
-                    setClaimError(null);
-                    setClaimTx(null);
-                    setClaimingFees(true);
-                    try {
-                      const provider = await wallet.getEthereumProvider();
-                      const hash = await claimFractionTradingFees(
-                        info.collectionAddress,
-                        wallet.address as `0x${string}`,
-                        provider,
-                      );
-                      setClaimTx(hash);
-                      const pending = await fetchPendingFractionTradingFees(
-                        info.collectionAddress,
-                        wallet.address as `0x${string}`,
-                      );
-                      setPendingFees(pending);
-                    } catch (e) {
-                      setClaimError(e instanceof Error ? e.message : 'Claim failed');
-                    } finally {
-                      setClaimingFees(false);
-                    }
-                  })();
-                }}
-              >
-                {claimingFees ? 'Claiming…' : 'Claim my trading fees'}
-              </button>
-              {claimTx ? (
-                <p className="mono token-fraction-claim-tx">
-                  <a href={txUrl(claimTx)} target="_blank" rel="noreferrer">
-                    {claimTx.slice(0, 10)}…
-                  </a>
+                <label className="token-fraction-field">
+                  Recipient wallet
+                  <input
+                    className="lp-input"
+                    value={transferTo}
+                    onChange={(e) => setTransferTo(e.target.value.trim())}
+                    placeholder="0x…"
+                    spellCheck={false}
+                    autoComplete="off"
+                  />
+                </label>
+                <label className="token-fraction-field">
+                  Share count
+                  <input
+                    className="lp-input"
+                    value={transferAmount}
+                    onChange={(e) => setTransferAmount(e.target.value.replace(/[^\d]/g, ''))}
+                    placeholder="1"
+                    inputMode="numeric"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={transferring}
+                  onClick={() => {
+                    void (async () => {
+                      setTransferError(null);
+                      setTransferTx(null);
+                      const recipient = parseFractionRecipient(transferTo);
+                      if (!recipient) {
+                        setTransferError('Enter a valid 0x wallet address.');
+                        return;
+                      }
+                      const amount = parseFractionShareAmount(transferAmount, walletShares);
+                      if (amount == null) {
+                        setTransferError(`Enter 1–${walletShares.toLocaleString()} shares.`);
+                        return;
+                      }
+                      setTransferring(true);
+                      try {
+                        const provider = await wallet.getEthereumProvider();
+                        const hash = await transferFractionShares(
+                          info.collectionAddress,
+                          wallet.address as `0x${string}`,
+                          recipient,
+                          amount,
+                          info.tokenId,
+                          provider,
+                        );
+                        setTransferTx(hash);
+                        setTransferTo('');
+                        setTransferAmount('');
+                        await refreshFractionState(info.collectionAddress);
+                      } catch (e) {
+                        setTransferError(e instanceof Error ? e.message : 'Transfer failed');
+                      } finally {
+                        setTransferring(false);
+                      }
+                    })();
+                  }}
+                >
+                  {transferring ? 'Sending…' : 'Send shares'}
+                </button>
+                {transferTx ? (
+                  <p className="mono token-fraction-action-tx">
+                    Sent ·{' '}
+                    <a href={txUrl(transferTx)} target="_blank" rel="noreferrer">
+                      {transferTx.slice(0, 10)}…
+                    </a>
+                  </p>
+                ) : null}
+                {transferError ? <p className="error">{transferError}</p> : null}
+              </div>
+
+              <div className="token-fraction-action">
+                <p className="token-fraction-action-title">Redeem for tokens</p>
+                <p className="muted token-fraction-action-hint">
+                  Burn shares to receive vaulted launch tokens ({shareTokenHuman} per share).
                 </p>
-              ) : null}
-              {claimError ? <p className="error">{claimError}</p> : null}
+                <label className="token-fraction-field">
+                  Share count
+                  <input
+                    className="lp-input"
+                    value={redeemAmount}
+                    onChange={(e) => setRedeemAmount(e.target.value.replace(/[^\d]/g, ''))}
+                    placeholder="1"
+                    inputMode="numeric"
+                  />
+                </label>
+                {(() => {
+                  const parsed = parseFractionShareAmount(redeemAmount, walletShares);
+                  if (parsed == null) return null;
+                  const underlying = BigInt(parsed) * info.tokensPerShare;
+                  return (
+                    <p className="muted token-fraction-action-preview">
+                      You receive ~{formatTokenBalance(underlying, 18)} launch tokens.
+                    </p>
+                  );
+                })()}
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={redeeming}
+                  onClick={() => {
+                    void (async () => {
+                      setRedeemError(null);
+                      setRedeemTx(null);
+                      const amount = parseFractionShareAmount(redeemAmount, walletShares);
+                      if (amount == null) {
+                        setRedeemError(`Enter 1–${walletShares.toLocaleString()} shares.`);
+                        return;
+                      }
+                      setRedeeming(true);
+                      try {
+                        const provider = await wallet.getEthereumProvider();
+                        const hash = await redeemFractionShares(
+                          info.collectionAddress,
+                          wallet.address as `0x${string}`,
+                          amount,
+                          provider,
+                        );
+                        setRedeemTx(hash);
+                        setRedeemAmount('');
+                        await refreshFractionState(info.collectionAddress);
+                      } catch (e) {
+                        setRedeemError(e instanceof Error ? e.message : 'Redeem failed');
+                      } finally {
+                        setRedeeming(false);
+                      }
+                    })();
+                  }}
+                >
+                  {redeeming ? 'Redeeming…' : 'Redeem shares'}
+                </button>
+                {redeemTx ? (
+                  <p className="mono token-fraction-action-tx">
+                    Redeemed ·{' '}
+                    <a href={txUrl(redeemTx)} target="_blank" rel="noreferrer">
+                      {redeemTx.slice(0, 10)}…
+                    </a>
+                  </p>
+                ) : null}
+                {redeemError ? <p className="error">{redeemError}</p> : null}
+              </div>
+
+              <div className="token-fraction-action">
+                <p className="token-fraction-action-title">Claim trading fees</p>
+                <p className="muted token-fraction-action-hint">
+                  Pull your pro-rata slice of the 95% creator fee pool (WETH + token).
+                </p>
+                {pendingFees && (pendingFees.pending0 > 0n || pendingFees.pending1 > 0n) ? (
+                  <p className="muted token-fraction-pending">
+                    Pending:{' '}
+                    {pendingFees.pending0 > 0n
+                      ? `${formatTokenBalance(pendingFees.pending0, 18)} WETH`
+                      : null}
+                    {pendingFees.pending0 > 0n && pendingFees.pending1 > 0n ? ' · ' : null}
+                    {pendingFees.pending1 > 0n
+                      ? `${formatTokenBalance(pendingFees.pending1, 18)} token`
+                      : null}
+                  </p>
+                ) : (
+                  <p className="muted token-fraction-pending">No unclaimed fees yet for your shares.</p>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={claimingFees}
+                  onClick={() => {
+                    void (async () => {
+                      setClaimError(null);
+                      setClaimTx(null);
+                      setClaimingFees(true);
+                      try {
+                        const provider = await wallet.getEthereumProvider();
+                        const hash = await claimFractionTradingFees(
+                          info.collectionAddress,
+                          wallet.address as `0x${string}`,
+                          provider,
+                        );
+                        setClaimTx(hash);
+                        const pending = await fetchPendingFractionTradingFees(
+                          info.collectionAddress,
+                          wallet.address as `0x${string}`,
+                        );
+                        setPendingFees(pending);
+                      } catch (e) {
+                        setClaimError(e instanceof Error ? e.message : 'Claim failed');
+                      } finally {
+                        setClaimingFees(false);
+                      }
+                    })();
+                  }}
+                >
+                  {claimingFees ? 'Claiming…' : 'Claim my trading fees'}
+                </button>
+                {claimTx ? (
+                  <p className="mono token-fraction-action-tx">
+                    Claimed ·{' '}
+                    <a href={txUrl(claimTx)} target="_blank" rel="noreferrer">
+                      {claimTx.slice(0, 10)}…
+                    </a>
+                  </p>
+                ) : null}
+                {claimError ? <p className="error">{claimError}</p> : null}
+              </div>
+
+              <p className="muted token-fraction-action-foot">
+                To sell or list shares, transfer them to a marketplace wallet or use{' '}
+                <a href={tokenUrl(info.collectionAddress)} target="_blank" rel="noreferrer">
+                  Blockscout
+                </a>{' '}
+                with your wallet.
+              </p>
             </div>
-          ) : null}
+          ) : (
+            <p className="muted token-fraction-note">Your connected wallet does not hold any shares.</p>
+          )}
         </div>
       ) : null}
 

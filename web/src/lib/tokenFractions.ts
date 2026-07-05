@@ -63,6 +63,26 @@ const FRACTION_ABI = [
   },
   {
     type: 'function',
+    name: 'redeem',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'safeTransferFrom',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'from', type: 'address' },
+      { name: 'to', type: 'address' },
+      { name: 'id', type: 'uint256' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'data', type: 'bytes' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
     name: 'pendingTradingFees',
     stateMutability: 'view',
     inputs: [{ name: 'account', type: 'address' }],
@@ -293,16 +313,23 @@ export async function fetchPendingFractionTradingFees(
   }
 }
 
+function walletClientFor(
+  walletAddress: Address,
+  ethereumProvider: unknown,
+) {
+  return createWalletClient({
+    account: walletAddress,
+    chain: robinhood,
+    transport: custom(ethereumProvider as Parameters<typeof custom>[0]),
+  });
+}
+
 export async function claimFractionTradingFees(
   collectionAddress: Address,
   walletAddress: Address,
   ethereumProvider: unknown,
 ): Promise<Hex> {
-  const client = createWalletClient({
-    account: walletAddress,
-    chain: robinhood,
-    transport: custom(ethereumProvider as Parameters<typeof custom>[0]),
-  });
+  const client = walletClientFor(walletAddress, ethereumProvider);
   return client.writeContract({
     address: collectionAddress,
     abi: FRACTION_ABI,
@@ -310,4 +337,56 @@ export async function claimFractionTradingFees(
     args: [],
     chain: robinhood,
   });
+}
+
+export async function transferFractionShares(
+  collectionAddress: Address,
+  walletAddress: Address,
+  recipientAddress: Address,
+  amount: number,
+  tokenId: number,
+  ethereumProvider: unknown,
+): Promise<Hex> {
+  const client = walletClientFor(walletAddress, ethereumProvider);
+  return client.writeContract({
+    address: collectionAddress,
+    abi: FRACTION_ABI,
+    functionName: 'safeTransferFrom',
+    args: [walletAddress, recipientAddress, BigInt(tokenId), BigInt(amount), '0x'],
+    chain: robinhood,
+  });
+}
+
+export async function redeemFractionShares(
+  collectionAddress: Address,
+  walletAddress: Address,
+  amount: number,
+  ethereumProvider: unknown,
+): Promise<Hex> {
+  const client = walletClientFor(walletAddress, ethereumProvider);
+  return client.writeContract({
+    address: collectionAddress,
+    abi: FRACTION_ABI,
+    functionName: 'redeem',
+    args: [BigInt(amount)],
+    chain: robinhood,
+  });
+}
+
+export function parseFractionShareAmount(raw: string, maxShares: number): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const n = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(n) || n <= 0 || n > maxShares) return null;
+  return n;
+}
+
+export function parseFractionRecipient(raw: string): Address | null {
+  const trimmed = raw.trim();
+  if (!/^0x[a-fA-F0-9]{40}$/.test(trimmed)) return null;
+  try {
+    return getAddress(trimmed);
+  } catch {
+    return null;
+  }
 }

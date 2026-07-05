@@ -6,6 +6,7 @@ import { resolveRequesterXUsername } from '../lib/requesterXDisplay';
 import { resolveTokenLaunchTweetUrl } from '../lib/launchTweet';
 import { ClaimFeesActions } from './ClaimFeesActions';
 import { LaunchRequestCard } from './LaunchRequestCard';
+import { TokenFractionPanel } from './TokenFractionPanel';
 import { TokenSwap } from './TokenSwap';
 
 export function TokenPageSidebar({
@@ -131,6 +132,14 @@ export function TokenPageSidebar({
           variant="sidebar"
         />
       </div>
+
+      <TokenFractionPanel
+        tokenAddress={token.tokenAddress}
+        factoryAddress={token.factoryAddress}
+        poolId={token.poolId}
+        deployBlockNumber={token.blockNumber}
+        feeRecipientAddress={token.feeRecipientAddress}
+      />
     </aside>
   );
 }

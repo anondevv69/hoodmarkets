@@ -13,7 +13,6 @@ import { TokenHeroMetrics } from './TokenHeroMetrics';
 import { TokenPageSidebar } from './TokenPageSidebar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 import { TokenSpaceComments } from './TokenSpaceComments';
-import { TokenFractionPanel } from './TokenFractionPanel';
 
 function TokenHeaderIcon({
   onClick,
@@ -235,19 +234,13 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               variant="compact"
             />
           </section>
-
-          <TokenFractionPanel
-            tokenAddress={token.tokenAddress}
-            factoryAddress={token.factoryAddress}
-            poolId={token.poolId}
-            deployBlockNumber={token.blockNumber}
-            feeRecipientAddress={token.feeRecipientAddress}
-          />
-
-          <TokenSpaceComments tokenAddress={token.tokenAddress} />
         </div>
 
         <TokenPageSidebar token={token} sym={sym} />
+      </div>
+
+      <div className="token-page-discussion-full">
+        <TokenSpaceComments tokenAddress={token.tokenAddress} />
       </div>
     </div>
   );
