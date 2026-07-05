@@ -147,6 +147,7 @@ export function TokensTab({
   loadingMetrics = false,
   error,
   onEnsureMetrics,
+  onEnsureCatalogSize,
 }: {
   catalog: Deployment[];
   metricsByAddress: Record<string, DexTokenMetrics | undefined>;
@@ -154,6 +155,7 @@ export function TokensTab({
   loadingMetrics?: boolean;
   error: string | null;
   onEnsureMetrics?: (addresses: string[]) => void;
+  onEnsureCatalogSize?: (minCount: number) => void;
 }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ExploreSort>('mcap');
@@ -241,6 +243,11 @@ export function TokensTab({
     if (!onEnsureMetrics || displayTokens.length === 0) return;
     onEnsureMetrics(displayTokens.map((t) => t.address));
   }, [displayTokens, onEnsureMetrics]);
+
+  useEffect(() => {
+    if (!onEnsureCatalogSize || isTextSearch || fullAddressQuery) return;
+    void onEnsureCatalogSize(page * EXPLORE_PAGE_SIZE);
+  }, [fullAddressQuery, isTextSearch, onEnsureCatalogSize, page]);
 
   const pageList = buildPageList(page, totalPages);
   const showPagination = !isTextSearch && !fullAddressQuery && sortedTokens.length > EXPLORE_PAGE_SIZE;
@@ -359,7 +366,7 @@ export function TokensTab({
                 key={t.address}
                 token={t}
                 metrics={metricsByAddress[t.address]}
-                imagePriority={i < EXPLORE_PAGE_SIZE}
+                imagePriority={i < 6}
               />
             ))}
           </ul>

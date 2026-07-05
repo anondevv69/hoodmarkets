@@ -101,8 +101,9 @@ HOODMARKETS_DEFAULT_LAUNCH_MODE=simple
 
 ## Optional variables
 
-- `PINATA_JWT` — IPFS logo uploads from Launch tab ([Pinata docs](https://docs.pinata.cloud/files/uploading-files))
-- `PINATA_GATEWAY_URL` — optional dedicated gateway for image URLs
+- `PINATA_JWT` — IPFS logo uploads from Launch tab ([Pinata docs](https://docs.pinata.cloud/files/uploading-files)) — **Railway API only**
+- `PINATA_GATEWAY_URL` — optional dedicated gateway for image URLs stored at deploy — **Railway API**
+- **Vercel web:** `VITE_IPFS_GATEWAY_URL` — same dedicated gateway base for fast logo reads (e.g. `https://your-subdomain.mypinata.cloud/ipfs`). Do **not** put `PINATA_JWT` on Vercel.
 - `LIGHTHOUSE_API_KEY` — fallback IPFS uploads if Pinata is not set
 - `PLATFORM_FEE_RECIPIENT` / `PLATFORM_FEE_BPS` — platform LP fee share
 - `ZEROX_API_KEY` — in-app swaps (if supported on 4663)
