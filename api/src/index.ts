@@ -29,6 +29,7 @@ import { registerMyDeploymentsClaimRoutes } from './routes/myDeploymentsClaim.js
 import { registerMyDeploymentsCollectPoolRoutes } from './routes/myDeploymentsCollectPool.js';
 import { registerDeploymentFeeActionRoutes } from './routes/deploymentFeeActions.js';
 import { registerFractionBuyerRewardRoutes } from './routes/fractionBuyerRewards.js';
+import { registerFractionMetadataRoutes } from './routes/fractionMetadata.js';
 import { registerAgentClaimCalldataRoutes } from './routes/agentClaimCalldata.js';
 import { registerAgentClaimRoutes } from './routes/agentClaim.js';
 import { registerAgentClaimForRecipientRoutes } from './routes/agentClaimForRecipient.js';
@@ -210,6 +211,7 @@ async function main() {
     registerDeploymentCatalogRoutes(app);
     registerDeploymentFeeActionRoutes(app);
     registerFractionBuyerRewardRoutes(app);
+    registerFractionMetadataRoutes(app);
     registerTokenSwapRoutes(app);
     registerMyDeploymentsRoutes(app);
     registerDeployerProfileRoutes(app);

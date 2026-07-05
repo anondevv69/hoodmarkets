@@ -29,7 +29,7 @@ contract HoodMarketsV3FractionDeployer {
             hoodMarketsFactory,
             address(this),
             tokenAddress,
-            "https://hood.markets/fraction",
+            "",
             fractionVaultAmount
         );
         IERC20(tokenAddress).safeTransferFrom(msg.sender, address(fraction), fractionVaultAmount);
