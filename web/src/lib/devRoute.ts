@@ -1,10 +1,32 @@
+export type DevSection =
+  | 'overview'
+  | 'fees'
+  | 'contracts'
+  | 'sdk'
+  | 'agents'
+  | 'github'
+  | 'faq';
+
+const LEGACY_SECTION: Record<string, DevSection> = {
+  capabilities: 'overview',
+  agent: 'agents',
+};
+
 export function isDevPage(): boolean {
   const path = window.location.pathname.replace(/\/$/, '').toLowerCase();
-  return path === '/dev';
+  return path === '/dev' || path === '/docs';
 }
 
-export function openDevPage(section?: 'contracts' | 'sdk' | 'agent'): void {
-  const url = new URL(window.location.origin + '/Dev');
+export function normalizeDevSection(hash: string): DevSection | undefined {
+  const id = hash.replace(/^#/, '').toLowerCase();
+  if (!id) return undefined;
+  if (id in LEGACY_SECTION) return LEGACY_SECTION[id];
+  const sections: DevSection[] = ['overview', 'fees', 'contracts', 'sdk', 'agents', 'github', 'faq'];
+  return sections.includes(id as DevSection) ? (id as DevSection) : undefined;
+}
+
+export function openDevPage(section?: DevSection): void {
+  const url = new URL(window.location.origin + '/docs');
   url.searchParams.delete('token');
   url.searchParams.delete('buy');
   url.searchParams.delete('profile');
@@ -16,6 +38,6 @@ export function openDevPage(section?: 'contracts' | 'sdk' | 'agent'): void {
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
-export function devPageUrl(section?: 'contracts' | 'sdk' | 'agent'): string {
-  return section ? `/Dev#${section}` : '/Dev';
+export function devPageUrl(section?: DevSection): string {
+  return section ? `/docs#${section}` : '/docs';
 }

@@ -58,7 +58,7 @@ export default function App() {
 
   const copy =
     devPage
-      ? { title: 'Dev', sub: 'Contracts, SDK, and agent API for building on hood.markets.' }
+      ? null
       : tokenAddress || deployerProfile
         ? null
         : TAB_COPY[tab];

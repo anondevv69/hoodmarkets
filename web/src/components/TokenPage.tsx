@@ -5,6 +5,7 @@ import { fetchTokenMetricsFromDexscreener, type DexTokenMetrics } from '../lib/d
 import { fetchTokenDescriptionFromChain } from '../lib/tokenOnChainMetadata';
 import { closeTokenPage } from '../lib/tokenRoute';
 import { formatTickerAge } from '../lib/exploreTokens';
+import { formatUsdVol } from '../lib/dexscreenerVolume';
 import { resolveTokenImageUrl } from '../lib/tokenImageUrl';
 import { splitTokenDescriptionForDisplay } from '../lib/tokenDescriptionDisplay';
 import { DexScreenerChartEmbed } from './TokenListingStatus';
@@ -154,6 +155,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
 
   const sym = token.tokenSymbol.replace(/^\$/, '');
   const age = formatTickerAge(token.createdAt);
+  const mc = metrics?.marketCapUsd ?? metrics?.fdvUsd;
   const { userText: descriptionUser, deployNotes: descriptionDeployNote } =
     splitTokenDescriptionForDisplay(description);
 
@@ -182,32 +184,49 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
           <TokenAvatar symbol={sym} imageUrl={token.tokenImageUrl} size={48} priority />
           <div className="tp-token-title-block">
             <div className="tp-token-title-row">
-              <h1 className="tp-token-name">
-                {token.tokenName}{' '}
+              <div className="tp-token-identity">
+                <h1 className="tp-token-name">{token.tokenName}</h1>
                 <span className="tp-token-sym">${sym}</span>
-              </h1>
+                <TokenSocialLinks
+                  websiteUrl={token.tokenWebsiteUrl}
+                  xUrl={token.tokenXUrl}
+                  variant="inline"
+                />
+              </div>
               <div className="tp-header-actions">
-                <TokenHeaderIcon
-                  onClick={onCopyAddress}
-                  ariaLabel={copied ? 'Address copied' : 'Copy token address'}
-                >
-                  {copied ? <CheckIcon /> : <CopyIcon />}
-                </TokenHeaderIcon>
                 <TokenHeaderIcon onClick={onShare} ariaLabel="Share token page">
                   <ShareIcon />
                 </TokenHeaderIcon>
               </div>
             </div>
             <div className="tp-token-meta">
-              <a
-                className="tp-meta-addr lp-mono"
-                href={tokenUrl(token.tokenAddress)}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                className="tp-addr-chip"
+                onClick={onCopyAddress}
+                aria-label={copied ? 'Address copied' : 'Copy token address'}
+                title={copied ? 'Copied' : 'Copy address'}
               >
-                {shortenAddress(token.tokenAddress)}
-              </a>
-              <span className="tp-meta-dot">·</span>
+                <a
+                  className="tp-addr-chip-text lp-mono"
+                  href={tokenUrl(token.tokenAddress)}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {shortenAddress(token.tokenAddress)}
+                </a>
+                <span className="tp-addr-chip-icon" aria-hidden>
+                  {copied ? <CheckIcon /> : <CopyIcon />}
+                </span>
+              </button>
+              {mc != null && mc > 0 ? (
+                <span className="tp-meta-mc">MC {formatUsdVol(mc)}</span>
+              ) : metricsLoading ? (
+                <span className="tp-meta-mc tp-meta-skeleton" aria-hidden>
+                  MC —
+                </span>
+              ) : null}
               <span className="tp-live-pulse">
                 <span className="tp-dot-live" aria-hidden />
                 {age}
@@ -217,13 +236,12 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
         </div>
       </header>
 
-      {(descriptionUser || descriptionDeployNote || token.tokenWebsiteUrl || token.tokenXUrl) && (
+      {(descriptionUser || descriptionDeployNote) && (
         <div className="tp-description-block">
           {descriptionUser ? <p className="token-description">{descriptionUser}</p> : null}
           {descriptionDeployNote ? (
             <p className="token-description token-page-deploy-note">{descriptionDeployNote}</p>
           ) : null}
-          <TokenSocialLinks websiteUrl={token.tokenWebsiteUrl} xUrl={token.tokenXUrl} />
         </div>
       )}
 
