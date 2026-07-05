@@ -2640,7 +2640,7 @@ label {
 
   .token-fraction-actions {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 0.85rem;
   }
 
@@ -2901,6 +2901,24 @@ label {
 .token-fraction-pending {
   margin: 0 0 0.55rem;
   font-size: 0.82rem;
+}
+
+.token-fraction-textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+}
+
+.token-fraction-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.35rem;
+}
+
+.token-fraction-action-foot {
+  grid-column: 1 / -1;
 }
 
 .tp-discussion-zone {
