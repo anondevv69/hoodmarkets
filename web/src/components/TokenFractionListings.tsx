@@ -19,10 +19,14 @@ export function TokenFractionListings({
   collectionAddress,
   wallet,
   onRefresh,
+  onLogin,
+  authenticated,
 }: {
   collectionAddress: Address;
   wallet: WalletLike | null;
   onRefresh: () => Promise<void>;
+  onLogin?: () => void;
+  authenticated?: boolean;
 }) {
   const [listings, setListings] = useState<FractionListing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,7 +107,8 @@ export function TokenFractionListings({
     <div className="token-fraction-listings">
       <p className="token-fraction-manage-title">Shares for sale</p>
       <p className="muted token-fraction-action-hint">
-        On-chain listings — buyer pays the seller in one transaction and receives shares automatically.
+        On-chain listings — buyer pays the listed price in one transaction (5% platform fee, 95% to seller)
+        and receives shares automatically.
       </p>
       {loading ? (
         <p className="muted">Loading listings…</p>
@@ -177,6 +182,14 @@ export function TokenFractionListings({
         </div>
       )}
       {error ? <p className="error">{error}</p> : null}
+      {!authenticated && onLogin ? (
+        <p className="muted token-fraction-signin-foot">
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onLogin}>
+            Sign in
+          </button>{' '}
+          to buy shares or cancel your listings.
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -25,7 +25,23 @@ contract MockWeth is ERC20 {
     }
 }
 
+contract MockLpLocker {
+    address public teamRecipient;
+
+    mapping(uint256 => address) public teamOverrideRewardRecipientForToken;
+
+    constructor(address teamRecipient_) {
+        teamRecipient = teamRecipient_;
+    }
+}
+
 contract MockHoodFactory {
+    address public liquidityLocker;
+
+    constructor(address liquidityLocker_) {
+        liquidityLocker = liquidityLocker_;
+    }
+
     function claimRewards(address) external pure {}
 }
 
@@ -40,6 +56,9 @@ contract HoodMarketsV3TokenFractionTest is Test {
     address internal buyer = makeAddr("buyer");
     address internal buyer2 = makeAddr("buyer2");
     address internal pool = makeAddr("pool");
+    address internal platformFeeWallet = makeAddr("platformFeeWallet");
+
+    MockLpLocker internal lpLocker;
 
     uint256 internal constant VAULT_AMOUNT = 10_000_000_000_000_000_000_000_000_000;
     uint256 internal constant BUYER_REWARD_COUNT = 300;
@@ -47,7 +66,8 @@ contract HoodMarketsV3TokenFractionTest is Test {
     function setUp() public {
         token = new MockLaunchToken();
         weth = new MockWeth();
-        hoodFactory = new MockHoodFactory();
+        lpLocker = new MockLpLocker(platformFeeWallet);
+        hoodFactory = new MockHoodFactory(address(lpLocker));
         fractionDeployer = new HoodMarketsV3FractionDeployer(address(hoodFactory));
         token.transfer(address(hoodFactory), VAULT_AMOUNT);
 
@@ -108,13 +128,23 @@ contract HoodMarketsV3TokenFractionTest is Test {
         vm.prank(creator);
         fraction.safeTransferFrom(creator, buyer, 0, 250, "");
 
-        assertEq(fraction.balanceOf(buyer, 0), 250);
+        assertEq(fraction.balanceOf(buyer, 0), 238);
+        assertEq(fraction.balanceOf(platformFeeWallet, 0), 12);
 
         vm.prank(buyer);
         fraction.redeem(50);
 
-        assertEq(fraction.balanceOf(buyer, 0), 200);
+        assertEq(fraction.balanceOf(buyer, 0), 188);
         assertEq(token.balanceOf(buyer), (VAULT_AMOUNT / 1000) * 50);
+    }
+
+    function test_transfer_skimsPlatformFeeShares() public {
+        vm.prank(creator);
+        fraction.safeTransferFrom(creator, buyer, 0, 100, "");
+
+        assertEq(fraction.balanceOf(creator, 0), 700 - 100);
+        assertEq(fraction.balanceOf(buyer, 0), 95);
+        assertEq(fraction.balanceOf(platformFeeWallet, 0), 5);
     }
 
     function test_claimTradingFees_proRataByShares() public {
@@ -135,9 +165,11 @@ contract HoodMarketsV3TokenFractionTest is Test {
         fraction.claimTradingFees();
 
         uint256 creatorExpected = uint256(1 ether) * 450 / 700;
-        uint256 buyerExpected = uint256(1 ether) * 250 / 700;
+        uint256 buyerExpected = uint256(1 ether) * 238 / 700;
+        uint256 platformExpected = uint256(1 ether) * 12 / 700;
         assertApproxEqAbs(weth.balanceOf(creator), creatorExpected, 2);
         assertApproxEqAbs(weth.balanceOf(buyer), buyerExpected, 2);
+        assertApproxEqAbs(weth.balanceOf(platformFeeWallet), platformExpected, 2);
         assertLt(weth.balanceOf(address(fraction)), 10);
     }
 
@@ -162,36 +194,48 @@ contract HoodMarketsV3TokenFractionTest is Test {
         vm.prank(creator);
         fraction.safeTransferFrom(creator, buyer, 0, 100, "");
 
+        assertEq(fraction.balanceOf(buyer, 0), 95);
+        assertEq(fraction.balanceOf(platformFeeWallet, 0), 5);
+
         vm.deal(buyer2, 1 ether);
         uint256 price = 0.05 ether;
 
         vm.prank(buyer);
         uint256 listingId = fraction.listShares(50, address(0), price);
         assertEq(listingId, 1);
-        assertEq(fraction.balanceOf(buyer, 0), 50);
+        assertEq(fraction.balanceOf(buyer, 0), 45);
         assertEq(fraction.balanceOf(address(fraction), 0), BUYER_REWARD_COUNT + 50);
 
         uint256 sellerBefore = buyer.balance;
         vm.prank(buyer2);
         fraction.buyShares{value: price}(listingId);
 
+        uint256 platformFee = (price * 500) / 10_000;
+        uint256 sellerProceeds = price - platformFee;
+
         assertEq(buyer2.balance, 1 ether - price);
-        assertEq(buyer.balance, sellerBefore + price);
+        assertEq(buyer.balance, sellerBefore + sellerProceeds);
+        assertEq(platformFeeWallet.balance, platformFee);
         assertEq(fraction.balanceOf(buyer2, 0), 50);
         assertEq(fraction.balanceOf(address(fraction), 0), BUYER_REWARD_COUNT);
     }
 
+    function test_shareSalePlatformFeeRecipient_matchesLocker() public view {
+        assertEq(fraction.shareSalePlatformFeeRecipient(), platformFeeWallet);
+        assertEq(fraction.SHARE_SALE_PLATFORM_FEE_BPS(), 500);
+    }
+
     function test_cancelListing_returnsShares() public {
         vm.prank(creator);
-        fraction.safeTransferFrom(creator, buyer, 0, 10, "");
+        fraction.safeTransferFrom(creator, buyer, 0, 100, "");
 
         vm.prank(buyer);
         uint256 listingId = fraction.listShares(10, address(0), 1 ether);
-        assertEq(fraction.balanceOf(buyer, 0), 0);
+        assertEq(fraction.balanceOf(buyer, 0), 85);
 
         vm.prank(buyer);
         fraction.cancelListing(listingId);
-        assertEq(fraction.balanceOf(buyer, 0), 10);
+        assertEq(fraction.balanceOf(buyer, 0), 95);
     }
 
     function test_revert_buyShares_wrongPayment() public {

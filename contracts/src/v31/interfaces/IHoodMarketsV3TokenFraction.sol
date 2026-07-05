@@ -18,6 +18,7 @@ interface IHoodMarketsV3TokenFraction {
     error InvalidListAmount();
     error InvalidListPrice();
     error WrongPayment();
+    error ZeroPlatformFeeRecipient();
 
     struct ShareListing {
         address seller;
@@ -65,6 +66,22 @@ interface IHoodMarketsV3TokenFraction {
         uint256 shareAmount,
         address paymentToken,
         uint256 price
+    );
+
+    event ShareSalePlatformFee(
+        uint256 indexed listingId,
+        address indexed feeRecipient,
+        address paymentToken,
+        uint256 platformFee,
+        uint256 sellerProceeds
+    );
+
+    event ShareTransferPlatformFee(
+        address indexed from,
+        address indexed to,
+        address indexed feeRecipient,
+        uint256 feeShares,
+        uint256 netShares
     );
 
     function FRACTION_COUNT() external view returns (uint256);
@@ -120,7 +137,13 @@ interface IHoodMarketsV3TokenFraction {
         external
         returns (uint256 listingId);
 
-    /// @notice Buy a listing — payment goes to seller, shares go to buyer (one tx).
+    /// @notice Platform fee on share sales and wallet transfers (5%, matches LP locker `TEAM_REWARD`).
+    function SHARE_SALE_PLATFORM_FEE_BPS() external pure returns (uint256);
+
+    /// @notice Platform wallet for share-sale fees (locker `teamRecipient`, or per-token override).
+    function shareSalePlatformFeeRecipient() external view returns (address);
+
+    /// @notice Buy a listing — buyer pays full price; 5% to platform, remainder to seller (one tx).
     function buyShares(uint256 listingId) external payable;
 
     /// @notice Cancel a listing and return escrowed shares to the seller.

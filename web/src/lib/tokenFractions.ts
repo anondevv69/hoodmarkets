@@ -5,6 +5,7 @@ import {
   decodeEventLog,
   getAddress,
   http,
+  formatEther,
   parseEther,
   zeroAddress,
   type Address,
@@ -608,9 +609,12 @@ export function parseEthPriceWei(raw: string): bigint | null {
 
 export function formatListingPrice(paymentToken: Address, priceWei: bigint): string {
   if (paymentToken.toLowerCase() === zeroAddress) {
-    const eth = Number(priceWei) / 1e18;
-    if (eth >= 0.0001) return `${eth.toFixed(eth >= 1 ? 4 : 6)} ETH`;
-    return `${priceWei.toString()} wei`;
+    const ethStr = formatEther(priceWei);
+    const eth = Number(ethStr);
+    if (!Number.isFinite(eth) || eth === 0) return '0 ETH';
+    if (eth >= 1) return `${eth.toFixed(4).replace(/\.?0+$/, '')} ETH`;
+    if (eth >= 0.0001) return `${eth.toFixed(6).replace(/\.?0+$/, '')} ETH`;
+    return `${ethStr.replace(/\.?0+$/, '')} ETH`;
   }
   return `${priceWei.toString()} token`;
 }

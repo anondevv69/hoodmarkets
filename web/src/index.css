@@ -2614,14 +2614,23 @@ label {
 
 .token-fraction-stats--wide {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
 }
 
-@media (min-width: 640px) {
-  .token-fraction-stats--wide {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+.token-fraction-stats--wide .token-fraction-stat {
+  padding: 0.45rem 0.5rem;
+  border-radius: 8px;
+}
+
+.token-fraction-stats--wide .token-fraction-stat-k {
+  font-size: 0.62rem;
+  margin-bottom: 0.1rem;
+  letter-spacing: 0.03em;
+}
+
+.token-fraction-stats--wide .token-fraction-stat-v {
+  font-size: 0.82rem;
 }
 
 .token-fraction-layout-meta {
@@ -2803,6 +2812,11 @@ label {
 .token-fraction-foot code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.85em;
+}
+
+.token-fraction-signin-foot,
+.token-space-signin-foot {
+  margin: 0.75rem 0 0;
 }
 
 .launch-fraction-notice {
