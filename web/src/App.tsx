@@ -128,8 +128,9 @@ export default function App() {
               type="button"
               className="btn btn-ghost token-page-back"
               onClick={tokenAddress ? closeTokenPage : closeDeployerProfile}
+              aria-label="Back"
             >
-              ← Explore
+              ←
             </button>
           </div>
         ) : null}
