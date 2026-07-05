@@ -15,7 +15,7 @@ export function TokenAvatar({
   symbol: string;
   imageUrl?: string | null;
   size?: number;
-  /** Eager-load for above-the-fold hero avatars. */
+  /** Eager-load for above-the-fold avatars. */
   priority?: boolean;
 }) {
   const candidates = useMemo(() => buildTokenImageCandidates(imageUrl), [imageUrl]);
@@ -28,12 +28,14 @@ export function TokenAvatar({
   }, [imageUrl]);
 
   const src = candidates[candidateIndex];
-  const showImage = !!src && candidateIndex < candidates.length;
-  const showInitials = !showImage || !loaded;
+  const exhausted = candidates.length === 0 || candidateIndex >= candidates.length;
+  const showImage = !exhausted && !!src;
+  const showInitials = exhausted;
+  const showLoading = showImage && !loaded;
 
   return (
     <div
-      className="token-avatar-wrap"
+      className={`token-avatar-wrap${showLoading ? ' token-avatar-wrap--loading' : ''}`}
       style={{ width: size, height: size }}
       aria-label={symbol}
     >

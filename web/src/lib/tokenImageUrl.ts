@@ -3,14 +3,16 @@ const IPFS_PROTO = /^ipfs:\/\/([^/?#]+)/i;
 const LIGHTHOUSE_VIEW_FILE = /\/viewFile\/([^/?#]+)/i;
 const RAW_CID = /^(bafkrei[a-z0-9]{52,}|Qm[1-9A-HJ-NP-Za-km-z]{44,})$/i;
 
-/** Pinata / dedicated gateway first — uploads land here; public ipfs.io is slow/cold. */
+/** Public Pinata gateway first (fast CDN); dedicated subdomain + cold gateways as fallbacks. */
 const GATEWAY_FALLBACKS = [
   (import.meta.env.VITE_IPFS_GATEWAY_URL as string | undefined)?.trim().replace(/\/$/, ''),
   'https://gateway.pinata.cloud/ipfs',
-  'https://alternative-sparrow-qk8yx.lighthouseweb3.xyz/ipfs',
   'https://dweb.link/ipfs',
+  'https://alternative-sparrow-qk8yx.lighthouseweb3.xyz/ipfs',
   'https://ipfs.io/ipfs',
 ].filter((g): g is string => !!g);
+
+const DIRECT_IMAGE = /\.(png|jpe?g|gif|webp|svg)(\?|$)/i;
 
 /** Extract a CID from common IPFS / Lighthouse URL shapes. */
 export function extractIpfsCid(url: string): string | undefined {
@@ -29,7 +31,16 @@ function gatewayUrlsForCid(cid: string): string[] {
   return [...new Set(GATEWAY_FALLBACKS.map((base) => `${base}/${cid}`))];
 }
 
-/** Ordered URLs to try when rendering a token logo (catalog URL first, then gateways). */
+export function looksLikeDirectImageUrl(url: string | undefined | null): boolean {
+  const raw = url?.trim();
+  if (!raw) return false;
+  if (extractIpfsCid(raw)) return true;
+  if (DIRECT_IMAGE.test(raw)) return true;
+  if (/^https?:\/\/i\.ibb\.co(?:\.com)?\//i.test(raw)) return true;
+  return false;
+}
+
+/** Ordered URLs to try when rendering a token logo (fast gateway first for IPFS). */
 export function buildTokenImageCandidates(imageUrl: string | undefined | null): string[] {
   const raw = imageUrl?.trim();
   if (!raw) return [];
@@ -37,7 +48,9 @@ export function buildTokenImageCandidates(imageUrl: string | undefined | null): 
   if (!cid) return [raw];
   const gateways = gatewayUrlsForCid(cid);
   if (raw.startsWith('http://') || raw.startsWith('https://')) {
-    return [...new Set([raw, ...gateways])];
+    const ordered = [...gateways];
+    if (!ordered.includes(raw)) ordered.unshift(raw);
+    return [...new Set(ordered)];
   }
   return gateways;
 }

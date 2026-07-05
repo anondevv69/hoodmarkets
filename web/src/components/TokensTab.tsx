@@ -8,6 +8,7 @@ import { extractContractAddressFromSearch, looksLikeAddressSearch } from '../lib
 import { EXPLORE_PAGE_SIZE } from '../hooks/useExploreTokens';
 import { formatLaunchTimeEastern, parseCatalogCreatedAt } from '../lib/launchTime';
 import { openTokenPage } from '../lib/tokenRoute';
+import { resolveExploreTokenImageUrl } from '../lib/resolveTokenImage';
 import { CopyButton } from './CopyButton';
 import { TokenAvatar } from './TokenAvatar';
 import { TokenSocialLinks } from './TokenSocialLinks';
@@ -54,13 +55,34 @@ function buildPageList(current: number, total: number): (number | 'gap')[] {
 function ExploreRow({
   token,
   metrics,
+  imagePriority = false,
 }: {
   token: ExploreToken;
   metrics?: DexTokenMetrics;
+  imagePriority?: boolean;
 }) {
   const d = token.deployment;
   const sym = token.symbol;
   const mcap = metrics?.marketCapUsd ?? metrics?.fdvUsd ?? token.mcap;
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | undefined>(
+    d.tokenImageUrl,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const raw = d.tokenImageUrl?.trim();
+    if (!raw) {
+      setResolvedImageUrl(undefined);
+      return;
+    }
+    setResolvedImageUrl(raw);
+    void resolveExploreTokenImageUrl(raw).then((resolved) => {
+      if (!cancelled && resolved) setResolvedImageUrl(resolved);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [d.tokenImageUrl]);
 
   function openDetails() {
     openTokenPage(d.tokenAddress);
@@ -87,7 +109,7 @@ function ExploreRow({
       aria-label={`${d.tokenName} ${sym} — view token details`}
     >
       <div className="explore-token-main">
-        <TokenAvatar symbol={sym} imageUrl={d.tokenImageUrl} size={44} />
+        <TokenAvatar symbol={sym} imageUrl={resolvedImageUrl} size={44} priority={imagePriority} />
         <div className="explore-token-title">
           <div className="explore-token-link name lp-display">
             {d.tokenName} <span className="lp-mono muted">${sym}</span>
@@ -332,11 +354,12 @@ export function TokensTab({
             <span>Market cap</span>
           </div>
           <ul className="token-list">
-            {displayTokens.map((t) => (
+            {displayTokens.map((t, i) => (
               <ExploreRow
                 key={t.address}
                 token={t}
                 metrics={metricsByAddress[t.address]}
+                imagePriority={i < EXPLORE_PAGE_SIZE}
               />
             ))}
           </ul>

@@ -42,6 +42,35 @@ export function registerDeploymentCatalogRoutes(app: Express): void {
     res.status(204).end();
   });
 
+  app.options('/api/token-image', (req, res) => {
+    const h = webDeployCorsHeadersRead(req.headers.origin);
+    for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
+    res.status(204).end();
+  });
+
+  app.get('/api/token-image', async (req: Request, res: Response) => {
+    const h = webDeployCorsHeadersRead(req.headers.origin);
+    for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
+
+    const raw = typeof req.query.url === 'string' ? req.query.url.trim() : '';
+    if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+      res.status(400).json({ error: 'url must be an http(s) URL.' });
+      return;
+    }
+
+    try {
+      const { resolveDisplayImageUrl } = await import('../lib/resolveDisplayImageUrl.js');
+      const imageUrl = await resolveDisplayImageUrl(raw);
+      if (!imageUrl) {
+        res.status(404).json({ error: 'Could not resolve image URL.' });
+        return;
+      }
+      res.json({ imageUrl });
+    } catch {
+      res.status(500).json({ error: 'Failed to resolve image URL.' });
+    }
+  });
+
   app.get('/api/deployments/:tokenAddress', async (req: Request, res: Response) => {
     const h = webDeployCorsHeadersRead(req.headers.origin);
     for (const [k, v] of Object.entries(h)) res.setHeader(k, v);

@@ -7,14 +7,16 @@ import {
 import { toExploreTokens, type ExploreToken } from '../lib/exploreTokens';
 
 const POLL_MS = 30_000;
-const CATALOG_BATCH = 200;
+const CATALOG_BATCH = 100;
+const INITIAL_CATALOG = 80;
 
-export const EXPLORE_PAGE_SIZE = 50;
+export const EXPLORE_PAGE_SIZE = 20;
 
 async function loadFullCatalog(): Promise<Deployment[]> {
-  const first = await fetchDeploymentsPage(CATALOG_BATCH, 0);
+  const first = await fetchDeploymentsPage(INITIAL_CATALOG, 0);
   const rows = [...first.deployments];
-  while (rows.length < first.total) {
+  const total = first.total ?? rows.length;
+  while (rows.length < total) {
     const batch = await fetchDeploymentsPage(CATALOG_BATCH, rows.length);
     rows.push(...batch.deployments);
     if (batch.deployments.length === 0) break;
@@ -55,12 +57,25 @@ export function useExploreTokens(enabled: boolean) {
   const loadCatalog = useCallback(async () => {
     if (!enabled) return;
     try {
-      const rows = await loadFullCatalog();
-      setCatalog(rows);
+      const first = await fetchDeploymentsPage(INITIAL_CATALOG, 0);
+      setCatalog(first.deployments);
       setError(null);
+      setLoading(false);
+
+      const total = first.total ?? first.deployments.length;
+      if (first.deployments.length < total) {
+        void (async () => {
+          const rows = [...first.deployments];
+          while (rows.length < total) {
+            const batch = await fetchDeploymentsPage(CATALOG_BATCH, rows.length);
+            rows.push(...batch.deployments);
+            if (batch.deployments.length === 0) break;
+            setCatalog([...rows]);
+          }
+        })();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load tokens');
-    } finally {
       setLoading(false);
     }
   }, [enabled]);
