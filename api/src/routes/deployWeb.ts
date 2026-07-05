@@ -93,7 +93,6 @@ import {
   buildWebWalletDeployPrepareV3,
   completeWebWalletDeployV3,
 } from '../lib/webWalletDeployV3.js';
-import { clampBuyerRewardShareCount } from '../lib/hoodmarketsV3Deploy.js';
 import {
   deserializeV3DeploymentConfig,
   v3DeploymentConfigRewardRecipient,
@@ -233,23 +232,10 @@ interface DeployWebBody {
   deploymentConfig?: SerializedDeploymentConfig;
   /** `simple` = HoodMarkets V3 (DexScreener). `pro` = HoodMarkets V4 hooks. */
   launchMode?: 'simple' | 'pro';
-  /** First X unique pool buyers each receive 1 Holder NFT share (0–1000). Self-fee simple launches only. */
-  buyerRewardShareCount?: number | string;
   /** Paid X/Bankr deploy over daily free cap — from HTTP 402 `commitment`. */
   deployCommitment?: string;
   /** Robinhood ETH payment tx from agent wallet to treasury (402 flow). */
   paymentTxHash?: string;
-}
-
-function parseWebBuyerRewardShareCount(
-  body: DeployWebBody,
-  allowed: boolean,
-): number | undefined {
-  if (!allowed) return undefined;
-  if (body.buyerRewardShareCount === undefined || body.buyerRewardShareCount === null) {
-    return undefined;
-  }
-  return clampBuyerRewardShareCount(body.buyerRewardShareCount);
 }
 
 function normalizeAnonymousClientId(raw: unknown): string | null {
@@ -959,13 +945,6 @@ export function registerWebDeployRoutes(
 
       const walletDeploySigner = deployerWallet ?? resolved.walletAddress;
 
-      const buyerRewardAllowed =
-        fee.kind === 'self' &&
-        !rateLimitForcedBurn &&
-        !rateLimitForcedPlatformFee &&
-        launchMode === 'simple';
-      const buyerRewardShareCount = parseWebBuyerRewardShareCount(body, buyerRewardAllowed);
-
       if (deployerPaysPoolSeed && !useWalletDeploy) {
         res.status(400).json({
           error:
@@ -1008,7 +987,6 @@ export function registerWebDeployRoutes(
             platform: 'web',
             clientKind: webClientKind,
             feesToPlatformOnly: rateLimitForcedPlatformFee,
-            buyerRewardShareCount,
           });
           res.json(prepare);
           return;
@@ -1291,7 +1269,6 @@ export function registerWebDeployRoutes(
         feeRecipientLabel: feeRecipientLabelForCatalog,
         feeToSelf: feeToSelfEffective,
         launchMode,
-        buyerRewardShareCount,
         ...(rateLimitForcedPlatformFee ? { feesToPlatformOnly: true } : {}),
         ...(!anonymousNoDev && !agentWalletDeploy ? { privyUserId: userId } : {}),
         clientKind: webClientKind,

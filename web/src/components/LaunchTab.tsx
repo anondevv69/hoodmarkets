@@ -49,7 +49,6 @@ export function LaunchTab() {
   const [feeTarget, setFeeTarget] = useState<'self' | 'other'>('self');
   const [feeRecipient, setFeeRecipient] = useState('');
   const [initialBuyEth, setInitialBuyEth] = useState('');
-  const [buyerRewardShareCount, setBuyerRewardShareCount] = useState('0');
   const [rateLimitNotice, setRateLimitNotice] = useState<string | null>(null);
   const [config, setConfig] = useState<WebDeployConfig | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -271,12 +270,6 @@ export function LaunchTab() {
 
     setSubmitting(true);
     try {
-      const buyerRewardParsed = Number.parseInt(buyerRewardShareCount.trim() || '0', 10);
-      const buyerReward =
-        feeTarget === 'self' && Number.isFinite(buyerRewardParsed) && buyerRewardParsed > 0
-          ? Math.min(1000, buyerRewardParsed)
-          : undefined;
-
       const out = await deployToken(
         token,
         {
@@ -290,7 +283,6 @@ export function LaunchTab() {
           launchMode: 'simple',
           feeTarget,
           recipientPaste: feeTarget === 'other' ? feeRecipient.trim() : undefined,
-          buyerRewardShareCount: buyerReward,
         },
         needsWallet && wallet
           ? {
@@ -315,7 +307,6 @@ export function LaunchTab() {
       setXUrl('');
       setFeeTarget('self');
       setFeeRecipient('');
-      setBuyerRewardShareCount('0');
       setInitialBuyEth(config?.initialBuyDefaultEth ?? '0.005');
       setRateLimitNotice(null);
       setLiveTickerConflict(null);
@@ -651,30 +642,22 @@ export function LaunchTab() {
                   <p className="launch-fraction-notice-title">1,000 Holder NFTs (automatic)</p>
                   <p className="launch-fraction-notice-body muted">
                     Every launch vaults <strong>10% of supply</strong> as{' '}
-                    <strong>1,000 equal tradable shares</strong>. You receive{' '}
-                    <strong>1,000 − X</strong> shares at launch; optionally reward the first{' '}
-                    <strong>X unique buyers</strong> with 1 share each. Holders earn a{' '}
-                    <strong>pro-rata share of the 95% trading-fee pool</strong> — sell, transfer, or
-                    redeem the vaulted tokens anytime.
+                    <strong>1,000 equal tradable shares</strong>. All 1,000 mint to{' '}
+                    <strong>your fee wallet</strong> at launch — you decide whether to keep them,
+                    sell, or airdrop to buyers, collaborators, or any wallet. Holders earn a{' '}
+                    <strong>pro-rata share of the 95% trading-fee pool</strong>.
                   </p>
-                  <label style={{ marginTop: '0.75rem' }}>
-                    Reward first N buyers (0–1000)
-                    <input
-                      className="lp-input"
-                      value={buyerRewardShareCount}
-                      onChange={(e) => setBuyerRewardShareCount(e.target.value.replace(/[^\d]/g, ''))}
-                      placeholder="0"
-                      inputMode="numeric"
-                      min={0}
-                      max={1000}
-                    />
-                    <span className="muted" style={{ fontSize: '0.8rem' }}>
-                      Each of the first {buyerRewardShareCount.trim() || '0'} unique pool buyers gets
-                      1 Holder NFT share automatically after they buy. You keep the rest.
-                    </span>
-                  </label>
                 </div>
-              ) : null}
+              ) : (
+                <div className="launch-fraction-notice" role="note">
+                  <p className="launch-fraction-notice-title">1,000 Holder NFTs (automatic)</p>
+                  <p className="launch-fraction-notice-body muted">
+                    All <strong>1,000 shares</strong> mint to the <strong>fee recipient’s wallet</strong>{' '}
+                    at launch. They control distribution — airdrops, sales, rewards to early buyers,
+                    or holding for fee share. Trading fees (95%) split pro-rata by share count.
+                  </p>
+                </div>
+              )}
               {feeTarget === 'other' ? (
                 <label style={{ marginTop: '0.85rem' }}>
                   Fee recipient

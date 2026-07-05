@@ -370,8 +370,6 @@ export interface LaunchPayload {
   feeTarget?: 'self' | 'other';
   recipientPaste?: string;
   recipientAddress?: string;
-  /** First X unique buyers each get 1 Holder NFT share (0–1000). Self-fee simple launches only. */
-  buyerRewardShareCount?: number;
 }
 
 export type { WalletDeployPrepare } from './lib/walletDeploy';
