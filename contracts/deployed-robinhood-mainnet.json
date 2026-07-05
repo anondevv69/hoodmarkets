@@ -9,12 +9,13 @@
   "mevModule": "0xcbbc3534a892a365c57023c34349300d360f6a1b",
   "swapHelper": "0x6373285f77ad0a3f5a441439b3d23d16b79aa585",
   "hoodmarketsV3": {
-    "factory": "0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9",
-    "vault": "0xB38BC03B373e7dFD43727A5f6aF3b588b441121b",
-    "lpLocker": "0x3e51b0D25AA990d2e6C17b29D644F8eb0Ed2913A",
-    "fractionDeployer": "0x6542CdAaBdD69E3c830b162bB7946d24bcdA156c",
+    "version": "0.11.0",
+    "factory": "0x9BDdC8ddf28f5629C989A36Eb5bb6C73cBA60Df5",
+    "vault": "0x856c6997A86752fB3E6A494AB93107B7A371A57f",
+    "lpLocker": "0x23a1c52F4E93B0283d12CC16c29Df119803E8745",
+    "fractionDeployer": "0x40A19d561b3200A2C9E1014248FcEB724c450692",
     "platformFeeRecipient": "0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98",
     "owner": "0xFA45A3b8d1662E3432D1B5bE3F37e4923D1b796C",
-    "previousFactory": "0x3a94FD3422F50ed6cC08e547c6C697E4bb3e76c8"
+    "previousFactory": "0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9"
   }
 }

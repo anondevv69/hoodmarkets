@@ -1,21 +1,34 @@
 import { useEffect } from 'react';
 import { addressUrl } from '../chain';
 
+const MONOREPO = 'https://github.com/anondevv69/hoodmarkets';
+const V3_JSON = `${MONOREPO}/blob/main/contracts/deployed-hoodmarkets-v3-mainnet.json`;
+const V3_DOCS = `${MONOREPO}/blob/main/docs/HOODMARKETS_V3.md`;
+
+const CAPABILITIES = [
+  ['Deploy token', 'SDK, factory, or POST /api/deploy'],
+  ['Buy / sell token', 'Uniswap on Robinhood — launch LP is locked'],
+  ['Holder NFT shares', '1,000 shares per launch; send, airdrop, list, redeem'],
+  ['Claim swap fees', 'claimTradingFees() — pro-rata to all share holders'],
+  ['Share marketplace', 'listShares / buyShares — 5% platform on sale price only'],
+  ['Agent automation', 'api.hood.markets — deploy, claim, catalog'],
+] as const;
+
+const CONTRACTS = [
+  { name: 'HoodMarketsV3 factory (v0.11.0)', address: '0x9BDdC8ddf28f5629C989A36Eb5bb6C73cBA60Df5' },
+  { name: 'HoodMarketsV3 vault', address: '0x856c6997A86752fB3E6A494AB93107B7A371A57f' },
+  { name: 'HoodMarketsV3 LP locker', address: '0x23a1c52F4E93B0283d12CC16c29Df119803E8745' },
+  { name: 'HoodMarketsV3 fraction deployer', address: '0x40A19d561b3200A2C9E1014248FcEB724c450692' },
+  { name: 'Platform fee wallet (5%)', address: '0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98' },
+  { name: 'WETH', address: '0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73' },
+  { name: 'Uniswap V3 SwapRouter02', address: '0xCaf681a66D020601342297493863E78C959E5cb2' },
+] as const;
+
 const SDK_REPO = 'https://github.com/anondevv69/hoodmarkets-sdk';
 const SDK_MD = '/sdk.md';
 const CONTRACTS_REPO = 'https://github.com/anondevv69/hoodmarkets/tree/main/contracts';
 const AGENT_SKILL = 'https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets';
 const API_BASE = 'https://api.hood.markets';
-
-const CONTRACTS = [
-  { name: 'HoodMarketsV3 factory (v0.10.0)', address: '0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9' },
-  { name: 'HoodMarketsV3 vault', address: '0xB38BC03B373e7dFD43727A5f6aF3b588b441121b' },
-  { name: 'HoodMarketsV3 LP locker', address: '0x3e51b0D25AA990d2e6C17b29D644F8eb0Ed2913A' },
-  { name: 'HoodMarketsV3 fraction deployer', address: '0x6542CdAaBdD69E3c830b162bB7946d24bcdA156c' },
-  { name: 'Platform fee wallet (5%)', address: '0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98' },
-  { name: 'WETH', address: '0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73' },
-  { name: 'Uniswap V3 SwapRouter02', address: '0xCaf681a66D020601342297493863E78C959E5cb2' },
-] as const;
 
 const AGENT_ENDPOINTS = [
   ['GET', '/health', 'API + chainId 4663'],
@@ -24,6 +37,7 @@ const AGENT_ENDPOINTS = [
   ['GET', '/api/agent/token-info?token=0x…', 'Token metadata + Uniswap trade link'],
   ['POST', '/api/deploy', 'Deploy token (X-Agent-Captcha-JWT header)'],
   ['POST', '/api/agent/claim', 'Claim fees (launcher pays gas)'],
+  ['POST', '/api/agent/claim-for-recipient', 'Claim for any catalog token (no JWT)'],
   ['GET', '/api/deployments?limit=50', 'Public token catalog'],
 ] as const;
 
@@ -48,6 +62,9 @@ export function DevPage() {
         to build on hood.markets outside the web UI.
       </p>
       <nav className="dev-nav" aria-label="Dev sections">
+        <a href="#capabilities" className="dev-nav-link">
+          Capabilities
+        </a>
         <a href="#contracts" className="dev-nav-link">
           Contracts
         </a>
@@ -59,12 +76,50 @@ export function DevPage() {
         </a>
       </nav>
 
-      <section id="contracts" className="dev-section lp-card">
-        <h2 className="dev-section-title">Contracts</h2>
+      <section id="capabilities" className="dev-section lp-card">
+        <h2 className="dev-section-title">What you can do</h2>
         <p className="dev-lead">
-          All hood.markets tokens deploy through <strong>HoodMarkets V3</strong> — Uniswap V3 pools on
-          Robinhood Chain (4663). Fee split: <strong>95%</strong> to your fee recipient ·{' '}
-          <strong>5%</strong> platform (on-chain in locker).
+          Platform fees in <strong>two places only</strong>: swap trading fees (5% / 95% to Holder NFT
+          holders) and share marketplace sales (5% of listed price). Sends and airdrops are free.
+        </p>
+        <div className="dev-table-wrap">
+          <table className="dev-table">
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>How</th>
+              </tr>
+            </thead>
+            <tbody>
+              {CAPABILITIES.map(([action, how]) => (
+                <tr key={action}>
+                  <td>{action}</td>
+                  <td>{how}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="dev-foot">
+          Full reference:{' '}
+          <a className="dev-link" href={SDK_MD} target="_blank" rel="noreferrer">
+            sdk.md
+          </a>
+          {' · '}
+          <a className="dev-link" href={V3_DOCS} target="_blank" rel="noreferrer">
+            HOODMARKETS_V3.md
+          </a>
+        </p>
+      </section>
+
+      <section id="contracts" className="dev-section lp-card">
+        <h2 className="dev-section-title">Contracts (v0.11.0)</h2>
+        <p className="dev-lead">
+          HoodMarkets V3 on Robinhood mainnet — each simple launch embeds a 1,000-share Holder NFT vault
+          (10% of supply). JSON:{' '}
+          <a className="dev-link" href={V3_JSON} target="_blank" rel="noreferrer">
+            deployed-hoodmarkets-v3-mainnet.json
+          </a>
         </p>
         <div className="dev-table-wrap">
           <table className="dev-table">

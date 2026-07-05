@@ -10,10 +10,13 @@
     "code": "curl -s 'https://api.hood.markets/api/agent/briefing?wallet=0xYOUR_WALLET' \\\n  -H 'x-wallet-address: 0xYOUR_WALLET'"
   },
   "setup": [
+    "Dev hub: https://hood.markets/Dev · sdk.md · agent.md",
     "API: https://api.hood.markets",
     "Site: https://hood.markets",
     "Chain: Robinhood (4663) — Bankr wallet must support Robinhood",
-    "V3 factory: 0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9 (v0.10.0 — batch share airdrop)",
+    "V3 factory: 0x9BDdC8ddf28f5629C989A36Eb5bb6C73cBA60Df5 (v0.11.0 — two fees only: swap + marketplace sales)",
+    "Holder NFTs: 1000 shares, buyer rewards opt-in (buyerRewardShareCount default 0) — references/HOLDER-NFTS.md",
+    "Platform fees only: (1) swap trading fees 5% platform / 95% holders, (2) share listings 5% of sale price",
     "Platform fee 5%: 0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98",
     "Deploy on X: extract media_url_https from tweet → tweetId + tweetImageUrl → resolve-deploy-image → prepare-deploy → confirm",
     "Deploy via API agent: preflight-deploy → prepare-deploy → haiku captcha → POST /api/deploy",

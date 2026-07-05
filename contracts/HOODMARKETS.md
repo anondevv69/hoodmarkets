@@ -8,7 +8,11 @@ Supporting modules use the `HoodMarkets*` prefix (fee locker, hooks, LP locker, 
 
 ## Robinhood mainnet deploy
 
-See [`deployed-robinhood-mainnet.json`](deployed-robinhood-mainnet.json) and [`../README.md`](../README.md).
+**Simple launches (V3):** [`deployed-hoodmarkets-v3-mainnet.json`](deployed-hoodmarkets-v3-mainnet.json) · [`../docs/HOODMARKETS_V3.md`](../docs/HOODMARKETS_V3.md)
+
+Current factory **v0.11.0:** `0x9BDdC8ddf28f5629C989A36Eb5bb6C73cBA60Df5`
+
+**Pro launches (V4):** [`deployed-robinhood-mainnet.json`](deployed-robinhood-mainnet.json) and [`../README.md`](../README.md).
 
 ```bash
 cp .env.robinhood.example .env.robinhood   # local only — never commit

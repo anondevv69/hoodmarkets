@@ -2,12 +2,23 @@
 name: hoodmarkets
 description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 14
+version: 16
 ---
 
 # hood.markets — Bankr agent skill
 
 Launch and trade tokens on **[hood.markets](https://hood.markets)** (Robinhood Chain, chain ID **4663**). Bankr supports Robinhood — users can deploy, swap, and claim through `@bankrbot` when this skill is installed.
+
+**Human / integrator docs:** [hood.markets/sdk.md](https://hood.markets/sdk.md) · [hood.markets/agent.md](https://hood.markets/agent.md) · [hood.markets/Dev](https://hood.markets/Dev)
+
+## Platform fees (only two)
+
+| Fee | Split |
+|-----|--------|
+| Swap trading fees | 5% platform / 95% pro-rata to Holder NFT share holders |
+| Share marketplace sales | 5% of listed price / 95% to seller |
+
+No fee on sends, airdrops, or other share moves (v0.11 factory `0x9BDd…0Df5`).
 
 ## CRITICAL — API host (read first)
 
@@ -51,9 +62,10 @@ Or from Bankr skill catalog once published to [BankrBot/skills](https://github.c
 | Term | Meaning |
 |------|---------|
 | **Launch / deploy** | Create a new token + liquidity pool on Robinhood |
-| **Simple launch** | Uniswap V3 via `0xbd79…E7b4` factory — DexScreener-friendly; **5%** platform / **95%** creator; **1000-share fraction** embedded |
+| **Simple launch** | Uniswap V3 via HoodMarketsV3 factory `0x9BDd…0Df5` (v0.11.0) — DexScreener-friendly; **5%** platform / **95%** trading fees to Holder NFT holders pro-rata; **1,000-share** Holder NFT vault embedded |
+| **Holder NFTs** | 1,000 shares. Platform fees **only**: (1) swap fees 5%/95% via locker + `claimTradingFees`, (2) share listings 5% of sale price. See `references/HOLDER-NFTS.md` |
 | **Pro launch** | Uniswap V4 hooks — one-click buy/sell on hood.markets |
-| **Buy / sell** | Swap ETH ↔ hood.markets token (Pro tokens via swap helper + Bankr submit) |
+| **Buy / sell** | Swap ETH ↔ token on Uniswap (Simple/V3). Pro tokens use swap helper + Bankr submit. **No “fund LP” on hood.markets** — launch LP is locked |
 | **Claim fees** | Pull WETH trading fees to creator wallet (launcher pays gas) |
 
 ---
@@ -290,11 +302,12 @@ Content-Type: application/json
 { "tokenAddress": "0x…" }
 ```
 
-**Default launches are Simple (V3).** Same endpoint auto-routes V3 `claimRewards` vs V4 locker.
+**Default launches are Simple (V3).** Same endpoint auto-routes V3 fraction `claimTradingFees` (v0.7+) vs legacy factory `claimRewards` vs V4 locker.
 
-| Launch | On-chain |
-|--------|----------|
-| **Simple (V3)** | `HoodMarketsV3.claimRewards(token)` → 95% fee wallet |
+| Launch | On-chain (API picks automatically) |
+|--------|--------------------------------------|
+| **Simple (V3) v0.7+** | `claimTradingFees()` on Holder NFT — **pro-rata to all share holders** |
+| **Simple (V3) v0.6** | `HoodMarketsV3.claimRewards(token)` — fee wallet only |
 | **Pro (V4)** | Collect pool → claim WETH from locker |
 
 Response includes `feeRecipientAddress`, `txHash`, `explorerUrl`, `feeModel` / `launchType`.
@@ -332,5 +345,6 @@ Response includes `feeRecipientAddress`, `txHash`, `explorerUrl`, `feeModel` / `
 | `references/BANKR-SUBMIT.md` | Bankr security scan rules |
 | `references/RESPONSE-SAFETY.md` | Format replies locally |
 | `references/ONE-LINE-INTENTS.md` | Tweet → API mapping |
+| `references/HOLDER-NFTS.md` | 1,000-share vault, buyer rewards, marketplace, airdrop, claim behavior |
 | `streaming-hints.json` | V3 vs Pro detection + preflight error codes |
 | `known-contracts.json` | Pinned Robinhood addresses |

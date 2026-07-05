@@ -157,7 +157,7 @@ interface IHoodMarketsV3TokenFraction {
         external
         returns (uint256 listingId);
 
-    /// @notice Platform fee on share sales and wallet transfers (5%, matches LP locker `TEAM_REWARD`).
+    /// @notice Platform fee on share marketplace sales only (5%, matches LP locker `TEAM_REWARD`).
     function SHARE_SALE_PLATFORM_FEE_BPS() external pure returns (uint256);
 
     /// @notice Platform wallet for share-sale fees (locker `teamRecipient`, or per-token override).

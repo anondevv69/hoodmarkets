@@ -62,14 +62,14 @@ V3_FRACTION=$(jq -r '.transactions[] | select(.contractName=="HoodMarketsV3Fract
 OUT="$ROOT/deployed-hoodmarkets-v3-mainnet.json"
 jq -n \
   --arg chainId "$CHAIN_ID" \
-  --arg version "0.6.0" \
+  --arg version "0.11.0" \
   --arg factory "$V3_FACTORY" \
   --arg vault "$V3_VAULT" \
   --arg lpLocker "$V3_LOCKER" \
   --arg fractionDeployer "$V3_FRACTION" \
   --arg platformFeeRecipient "$HOODMARKETS_PLATFORM_FEE_RECIPIENT" \
   --arg owner "${HOODMARKETS_OWNER:-}" \
-  --arg previousFactory "0x4c18e43F8B8b63f42a944b98b8af29f576c7Ffa8" \
+  --arg previousFactory "0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9" \
   '{
     chainId: ($chainId | tonumber),
     version: $version,

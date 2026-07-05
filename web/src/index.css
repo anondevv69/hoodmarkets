@@ -2842,6 +2842,42 @@ label {
   margin-bottom: 0.75rem;
 }
 
+.token-fraction-table-label {
+  margin: 0.75rem 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Cap visible rows (~2 body rows + sticky header); scroll when longer */
+.token-fraction-table-wrap--scroll {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 8.75rem;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  scrollbar-gutter: stable;
+}
+
+.token-fraction-table-wrap--scroll .token-fraction-table {
+  margin-bottom: 0;
+}
+
+.token-fraction-table-wrap--scroll .token-fraction-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg);
+  box-shadow: 0 1px 0 var(--border-soft);
+}
+
+.token-fraction-table-wrap--scroll .token-fraction-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 .token-fraction-table {
   width: 100%;
   border-collapse: collapse;

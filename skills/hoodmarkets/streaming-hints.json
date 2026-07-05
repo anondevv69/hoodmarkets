@@ -41,7 +41,27 @@
   "feeClaim": {
     "forAnyone": "POST /api/agent/claim-for-recipient { tokenAddress } — NO Bankr /wallet/submit",
     "ownWallet": "POST /api/agent/claim — NO Bankr /wallet/submit",
+    "v3Modern": "v0.7+ tokens: API calls claimTradingFees() on Holder NFT — pro-rata to all share holders",
+    "v3Legacy": "v0.6 tokens: HoodMarketsV3.claimRewards(token) — fee wallet only",
     "successReply": "When ok:true post replyHint verbatim — do NOT say Bankr failed to submit a tx",
     "seeAlso": "references/CLAIM-BANKR.md"
+  },
+  "holderNfts": {
+    "shareCount": 1000,
+    "buyerRewardDefault": 0,
+    "deployParam": "buyerRewardShareCount (0-1000, optional)",
+    "postLaunchFund": "fundBuyerRewardPool / cancelBuyerRewardPool (v0.9+ fraction)",
+    "batchAirdrop": "airdropShares (v0.10+ bytecode; no platform fee v0.11+)",
+    "sharePlatformFeePercent": 5,
+    "sharePlatformFeeAppliesTo": "buyShares marketplace sales only",
+    "swapTradingFeeSplit": "5% platform / 95% pro-rata to share holders (LP locker at claimTradingFees)",
+    "tradingFeeToHoldersPercent": 95,
+    "noFundLpOnSite": "Launch LP locked — users buy/sell token on Uniswap, not fund LP on hood.markets",
+    "seeAlso": "references/HOLDER-NFTS.md"
+  },
+  "hoodmarketsV3Factory": {
+    "currentVersion": "0.11.0",
+    "currentAddress": "0x9BDdC8ddf28f5629C989A36Eb5bb6C73cBA60Df5",
+    "legacyAddresses": "known-contracts.json legacyHoodmarketsV3Factories"
   }
 }
