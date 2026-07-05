@@ -231,7 +231,7 @@ export function LaunchTab() {
     if (cannotLaunch) return;
 
     if (feeTarget === 'other' && !looksLikeFeeRecipientInput(feeRecipient)) {
-      setError('Enter a wallet (0x…), @handle, or profile link for who receives trading fees.');
+      setError('Enter a wallet address (0x…) for who receives trading fees.');
       return;
     }
 
@@ -633,40 +633,34 @@ export function LaunchTab() {
                     Someone else
                   </span>
                   <span className="launch-mode-desc muted">
-                    Launch for a friend — fees go to their wallet or linked @handle.
+                    Launch for a friend — fees go to their wallet address.
                   </span>
                 </label>
               </div>
-              {feeTarget === 'self' ? (
-                <div className="launch-fraction-notice" role="note">
-                  <p className="launch-fraction-notice-title">1,000 Holder NFTs (automatic)</p>
-                  <p className="launch-fraction-notice-body muted">
-                    Every launch vaults <strong>10% of supply</strong> as{' '}
-                    <strong>1,000 equal tradable shares</strong>. All 1,000 mint to{' '}
-                    <strong>your fee wallet</strong> at launch — you decide whether to keep them,
-                    sell, or airdrop to buyers, collaborators, or any wallet. Holders earn a{' '}
-                    <strong>pro-rata share of the 95% trading-fee pool</strong>.
-                  </p>
-                </div>
-              ) : (
-                <div className="launch-fraction-notice" role="note">
-                  <p className="launch-fraction-notice-title">1,000 Holder NFTs (automatic)</p>
-                  <p className="launch-fraction-notice-body muted">
-                    All <strong>1,000 shares</strong> mint to the <strong>fee recipient’s wallet</strong>{' '}
-                    at launch. They control distribution — airdrops, sales, rewards to early buyers,
-                    or holding for fee share. Trading fees (95%) split pro-rata by share count.
-                  </p>
-                </div>
-              )}
+              <div className="launch-fraction-notice" role="note">
+                <p className="launch-fraction-notice-title">1,000 Holder NFTs (automatic)</p>
+                <p className="launch-fraction-notice-body muted">
+                  Every launch vaults <strong>10% of supply</strong> as{' '}
+                  <strong>1,000 equal tradable shares</strong>. All 1,000 mint to{' '}
+                  <strong>
+                    {feeTarget === 'self' ? 'your fee wallet' : 'the fee recipient’s wallet'}
+                  </strong>{' '}
+                  at launch — keep, sell, or airdrop to any wallet. Holders earn a{' '}
+                  <strong>pro-rata share of the 95% trading-fee pool</strong>. Buyer rewards are
+                  optional after launch on the token page (not at deploy).
+                </p>
+              </div>
               {feeTarget === 'other' ? (
                 <label style={{ marginTop: '0.85rem' }}>
-                  Fee recipient
+                  Fee recipient wallet
                   <input
                     className="lp-input"
                     value={feeRecipient}
                     onChange={(e) => setFeeRecipient(e.target.value)}
-                    placeholder="0x… or @handle or https://x.com/…"
+                    placeholder="0x…"
                     required
+                    spellCheck={false}
+                    autoComplete="off"
                   />
                   <span className="muted" style={{ fontSize: '0.8rem' }}>
                     Each wallet can receive at most{' '}
@@ -691,7 +685,7 @@ export function LaunchTab() {
                 : !hasImage
                   ? 'Add a logo to launch'
                   : feeTarget === 'other' && !looksLikeFeeRecipientInput(feeRecipient)
-                    ? 'Enter fee recipient'
+                    ? 'Enter wallet address'
                   : blockingReserved
                   ? 'Reserved name or ticker'
                   : blockingConflict
