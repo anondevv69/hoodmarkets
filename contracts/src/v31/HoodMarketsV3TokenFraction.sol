@@ -6,14 +6,18 @@ import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IHoodMarketsV3} from "./interfaces/IHoodMarketsV3.sol";
 import {IHoodMarketsV3TokenFraction} from "./interfaces/IHoodMarketsV3TokenFraction.sol";
 
 /// @notice Fixed 1000-share fractional vault for every HoodMarkets V3 launch.
 /// @dev ERC-1155 edition (id #0, supply 1000). Trading fees (95% creator slice) route here
-///      and are claimed pro-rata by share holders via `claimTradingFees()`.
-contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, IHoodMarketsV3TokenFraction {
+///      and are distributed pro-rata to all share holders in one permissionless `claimTradingFees()`.
+///      Shares can be listed and sold on-chain via `listShares` / `buyShares`.
+contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, ReentrancyGuard, IHoodMarketsV3TokenFraction {
     using SafeERC20 for IERC20;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     uint256 public constant FRACTION_COUNT = 1000;
     uint256 public constant FRACTION_TOKEN_ID = 0;
@@ -39,16 +43,21 @@ contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, IHoodMarketsV3Tok
 
     mapping(address => bool) public buyerShareIssued;
 
+    /// @dev Wallets with a non-zero share balance (excludes escrow on `address(this)`).
+    EnumerableSet.AddressSet private _shareHolders;
+
     /// @dev Reward accounting per ERC20 (excludes vaulted launch tokens).
     mapping(address => uint256) public accRewardPerShare;
     mapping(address => uint256) public rewardTokenAccounted;
     mapping(address => mapping(address => uint256)) public rewardDebt;
 
+    uint256 public nextListingId = 1;
+    mapping(uint256 => ShareListing) public listings;
+
     error AlreadyInitialized();
     error Unauthorized();
     error FeeRewardsAlreadyConfigured();
     error FeeRewardsNotConfigured();
-    error NothingToClaim();
 
     constructor(
         address hoodMarketsFactory_,
@@ -84,6 +93,7 @@ contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, IHoodMarketsV3Tok
         if (holderShares > 0) {
             _mint(initialHolder, FRACTION_TOKEN_ID, holderShares, "");
             _syncRewardDebt(initialHolder);
+            _shareHolders.add(initialHolder);
         }
         if (buyerRewardShareCount_ > 0) {
             _mint(address(this), FRACTION_TOKEN_ID, buyerRewardShareCount_, "");
@@ -136,18 +146,41 @@ contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, IHoodMarketsV3Tok
         emit FractionRedeemed(msg.sender, FRACTION_TOKEN_ID, amount, underlyingAmount);
     }
 
-    /// @notice Pull swap fees from the LP locker (if any), then pay the caller their pro-rata share.
+    /// @notice Pull swap fees from the LP locker (if any), then pay every share holder their pro-rata slice.
+    /// @dev Permissionless — `msg.sender` pays gas; rewards go to all holders, not the caller.
     function claimTradingFees() external {
         if (!_feeRewardsConfigured) revert FeeRewardsNotConfigured();
 
         IHoodMarketsV3(hoodMarketsFactory).claimRewards(launchToken);
         _accrueAll();
 
-        uint256 paid0 = _payoutRewardToken(msg.sender, rewardToken0);
-        uint256 paid1 = _payoutRewardToken(msg.sender, rewardToken1);
-        if (paid0 == 0 && paid1 == 0) revert NothingToClaim();
+        uint256 len = _shareHolders.length();
+        uint256 totalPaid0;
+        uint256 totalPaid1;
+        for (uint256 i = 0; i < len; i++) {
+            address holder = _shareHolders.at(i);
+            uint256 paid0 = _payoutRewardToken(holder, rewardToken0);
+            uint256 paid1 = _payoutRewardToken(holder, rewardToken1);
+            if (paid0 > 0 || paid1 > 0) {
+                emit TradingFeesClaimed(holder, rewardToken0, paid0, rewardToken1, paid1);
+            }
+            totalPaid0 += paid0;
+            totalPaid1 += paid1;
+        }
 
-        emit TradingFeesClaimed(msg.sender, rewardToken0, paid0, rewardToken1, paid1);
+        if (totalPaid0 == 0 && totalPaid1 == 0) revert NothingToClaim();
+
+        emit TradingFeesDistributed(msg.sender, len, totalPaid0, totalPaid1);
+    }
+
+    /// @inheritdoc IHoodMarketsV3TokenFraction
+    function shareHolderCount() external view returns (uint256) {
+        return _shareHolders.length();
+    }
+
+    /// @inheritdoc IHoodMarketsV3TokenFraction
+    function shareHolderAt(uint256 index) external view returns (address) {
+        return _shareHolders.at(index);
     }
 
     /// @inheritdoc IHoodMarketsV3TokenFraction
@@ -165,6 +198,76 @@ contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, IHoodMarketsV3Tok
         _syncRewardDebt(buyer);
 
         emit BuyerShareIssued(buyer, buyerRewardSharesRemaining);
+    }
+
+    /// @inheritdoc IHoodMarketsV3TokenFraction
+    function listShares(uint256 shareAmount, address paymentToken, uint256 price)
+        external
+        nonReentrant
+        returns (uint256 listingId)
+    {
+        if (shareAmount == 0) revert InvalidListAmount();
+        if (price == 0) revert InvalidListPrice();
+        if (balanceOf(msg.sender, FRACTION_TOKEN_ID) < shareAmount) revert InsufficientFractionBalance();
+
+        _accrueAll();
+        _syncRewardDebt(msg.sender);
+        _safeTransferFrom(msg.sender, address(this), FRACTION_TOKEN_ID, shareAmount, "");
+
+        listingId = nextListingId++;
+        listings[listingId] = ShareListing({
+            seller: msg.sender,
+            shareAmount: shareAmount,
+            paymentToken: paymentToken,
+            price: price,
+            active: true
+        });
+
+        emit SharesListed(listingId, msg.sender, shareAmount, paymentToken, price);
+    }
+
+    /// @inheritdoc IHoodMarketsV3TokenFraction
+    function buyShares(uint256 listingId) external payable nonReentrant {
+        ShareListing storage listing = listings[listingId];
+        if (listing.seller == address(0)) revert InvalidListing();
+        if (!listing.active) revert ListingInactive();
+
+        address seller = listing.seller;
+        uint256 shareAmount = listing.shareAmount;
+        address paymentToken = listing.paymentToken;
+        uint256 price = listing.price;
+
+        listing.active = false;
+
+        if (paymentToken == address(0)) {
+            if (msg.value != price) revert WrongPayment();
+            (bool sent,) = seller.call{value: price}("");
+            if (!sent) revert WrongPayment();
+        } else {
+            if (msg.value != 0) revert WrongPayment();
+            IERC20(paymentToken).safeTransferFrom(msg.sender, seller, price);
+        }
+
+        _accrueAll();
+        _safeTransferFrom(address(this), msg.sender, FRACTION_TOKEN_ID, shareAmount, "");
+        _syncRewardDebt(msg.sender);
+
+        emit SharesSold(listingId, msg.sender, seller, shareAmount, paymentToken, price);
+    }
+
+    /// @inheritdoc IHoodMarketsV3TokenFraction
+    function cancelListing(uint256 listingId) external nonReentrant {
+        ShareListing storage listing = listings[listingId];
+        if (listing.seller == address(0)) revert InvalidListing();
+        if (!listing.active) revert ListingInactive();
+        if (listing.seller != msg.sender) revert Unauthorized();
+
+        uint256 shareAmount = listing.shareAmount;
+        listing.active = false;
+
+        _safeTransferFrom(address(this), msg.sender, FRACTION_TOKEN_ID, shareAmount, "");
+
+        emit SharesListingCancelled(listingId, msg.sender, shareAmount);
     }
 
     /// @notice View pending trading fees for a share holder (both pool reward tokens).
@@ -262,8 +365,23 @@ contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, IHoodMarketsV3Tok
         super._update(from, to, ids, values);
 
         if (_feeRewardsConfigured && ids.length == 1 && ids[0] == FRACTION_TOKEN_ID) {
-            if (from != address(0)) _syncRewardDebt(from);
-            if (to != address(0)) _syncRewardDebt(to);
+            if (from != address(0)) {
+                _syncRewardDebt(from);
+                _syncShareHolderRegistry(from);
+            }
+            if (to != address(0)) {
+                _syncRewardDebt(to);
+                _syncShareHolderRegistry(to);
+            }
+        }
+    }
+
+    function _syncShareHolderRegistry(address account) internal {
+        if (account == address(0) || account == address(this)) return;
+        if (balanceOf(account, FRACTION_TOKEN_ID) > 0) {
+            _shareHolders.add(account);
+        } else {
+            _shareHolders.remove(account);
         }
     }
 

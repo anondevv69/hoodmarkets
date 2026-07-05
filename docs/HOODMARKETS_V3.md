@@ -22,7 +22,8 @@ Every token launched through **HoodMarkets V3 v0.5.0+** automatically:
 | **Vault** | **10%** of the 100B supply (`FRACTION_VAULT_PERCENTAGE = 10`) |
 | **Fraction collection** | New `HoodMarketsV3TokenFraction` ERC-1155 per token (id `#0`, supply **1000**) |
 | **Initial holder** | All 1,000 shares go to the fee recipient (`creatorAdmin`) at launch — send, sell, or airdrop via ERC-1155 transfer |
-| **Trading fees (95%)** | Routed to the fraction contract; holders call `claimTradingFees()` for pro-rata WETH/token |
+| **Trading fees (95%)** | Routed to the fraction contract; anyone calls `claimTradingFees()` once to pay all share holders pro-rata |
+| **Share marketplace** | `listShares` / `buyShares` / `cancelListing` — on-chain escrow; ETH (or ERC-20) to seller in one tx |
 | **Pool** | Remaining **90%** seeds the Uniswap V3 pool |
 
 ## Buyer reward pool (v0.6 contract — optional, not used in UI yet)
@@ -36,6 +37,15 @@ There is **no SDK toggle** and **no optional vault config** — legacy `vaultCon
 Lookup: `fractionCollectionForToken(tokenAddress)` on the factory, or `fractionCollection` in the `TokenCreated` event.
 
 **Deployed on mainnet 4663 (2026-07-04 v0.6.0).** Railway `HOODMARKETS_V3_*` env vars point at the v0.6 factory.
+
+### v0.7 fraction contract (redeploy required)
+
+New `HoodMarketsV3TokenFraction` bytecode adds:
+
+- **`claimTradingFees()`** — one permissionless tx pulls LP fees and pays **every** share holder pro-rata (not caller-only).
+- **`listShares` / `buyShares` / `cancelListing`** — on-chain marketplace; seller escrows shares, buyer pays ETH in one tx.
+
+**Existing v0.6 tokens keep old behavior.** Redeploy V3 stack (see below), update Railway `HOODMARKETS_V3_*`, redeploy API + web. New launches only.
 
 ## Deployed addresses (mainnet 4663)
 
@@ -103,7 +113,30 @@ HOODMARKETS_DEFAULT_LAUNCH_MODE=simple
 
 ## Claiming V3 fees
 
-Creators call `HoodMarketsV3LpLocker.collectRewards(positionId)` (or `HoodMarketsV3.claimRewards(token)`). UI claim flow for V3 is planned; use Blockscout write contract for now.
+Anyone triggers **`claimTradingFees()`** on the token’s Holder NFT contract (`fractionCollectionForToken`). One transaction pulls swap fees from the LP and pays every share holder pro-rata. The hood.markets site and `POST /api/deployments/:token/claim-fees` broadcast this from the launcher wallet.
+
+## Redeploy V3 (v0.7+)
+
+From `contracts/` with `.env.robinhood` funded:
+
+```bash
+forge test --match-contract HoodMarketsV3TokenFractionTest
+
+forge script script/robinhood/10_DeployHoodMarketsV3.s.sol:DeployHoodMarketsV3 \
+  --rpc-url "$ROBINHOOD_RPC_URL" --broadcast --slow -vvv
+```
+
+Copy logged addresses into Railway (`api/RAILWAY_ENV_CHECKLIST.md`):
+
+- `HOODMARKETS_V3_FACTORY`
+- `HOODMARKETS_V3_VAULT`
+- `HOODMARKETS_V3_LP_LOCKER`
+- `HOODMARKETS_V3_FRACTION_DEPLOYER` (implicit in factory init — log line `HoodMarketsV3FractionDeployer`)
+- Keep `HOODMARKETS_V3_PLATFORM_FEE_RECIPIENT` unless changing treasury
+
+Then **Redeploy Railway API** and **Vercel web**. Optional: verify new factory on Blockscout (`contracts/scripts/verify-robinhood.sh` pattern for V3 contracts).
+
+**Do not** mark the old factory `deprecated` until you are ready — existing tokens stay on the old fraction bytecode forever.
 
 ## Move admin to a Gnosis Safe (later)
 

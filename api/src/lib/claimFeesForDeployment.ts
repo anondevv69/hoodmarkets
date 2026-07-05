@@ -23,7 +23,7 @@ export type ClaimFeesForDeploymentResult =
 
 /**
  * Claim trading fees for a catalog deployment — V3 (simple) or V4 (pro).
- * V3: HoodMarketsV3.claimRewards(token) → WETH to fee recipient directly.
+ * V3: Holder NFT `claimTradingFees()` — pull LP fees and pay all share holders pro-rata (one tx).
  * V4: collect pool fees into locker (best-effort), then claim WETH from locker.
  */
 export async function claimFeesForDeployment(

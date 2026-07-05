@@ -1,13 +1,13 @@
 import type { Express, Request, Response } from 'express';
-import { encodeFunctionData } from 'viem';
+import { createPublicClient, encodeFunctionData, http } from 'viem';
 import { config } from '../config.js';
 import { resolveAgentClaimDeployment } from '../lib/claimDeploymentAuth.js';
 import { BASE_WETH } from '../lib/liquidFactoryDeploy.js';
 import {
-  HOODMARKETS_V3_CLAIM_ABI,
   isV3CatalogDeployment,
+  resolveV3ClaimTarget,
 } from '../lib/hoodmarketsV3Fees.js';
-import { ROBINHOOD_CHAIN_ID } from '../lib/robinhoodChain.js';
+import { robinhood, ROBINHOOD_CHAIN_ID } from '../lib/robinhoodChain.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 import { readAgentCaptchaToken, verifyAgentCaptchaJwt } from '../lib/agentCaptchaVerify.js';
 
@@ -35,7 +35,7 @@ interface ClaimBody {
 
 /**
  * Returns unsigned tx calldata so the agent can broadcast claim with their own wallet.
- * V3 simple launches → HoodMarketsV3.claimRewards(token).
+ * V3 simple launches → Holder NFT `claimTradingFees()` (one tx pays all share holders).
  * V4 pro launches → fee locker claim(feeOwner, WETH) after pool collect.
  */
 export function registerAgentClaimCalldataRoutes(app: Express): void {
@@ -90,28 +90,24 @@ export function registerAgentClaimCalldataRoutes(app: Express): void {
       const isV3 = isV3CatalogDeployment(resolved.row);
 
       if (isV3) {
-        const factory = config.hoodmarketsV3.factory;
-        if (!factory) {
-          res.status(500).json({ error: 'HoodMarkets V3 factory is not configured on the API.' });
-          return;
-        }
-        const data = encodeFunctionData({
-          abi: HOODMARKETS_V3_CLAIM_ABI,
-          functionName: 'claimRewards',
-          args: [token],
+        const publicClient = createPublicClient({
+          chain: robinhood,
+          transport: http(config.chainRpcUrl),
         });
+        const target = await resolveV3ClaimTarget(token, publicClient);
         res.json({
           ok: true,
           chainId: ROBINHOOD_CHAIN_ID,
-          to: factory,
-          data,
+          to: target.to,
+          data: target.data,
           value: '0x0',
           feeRecipient: walletFromCaptcha,
           tokenAddress: token,
           feeModel: 'v3',
           launchType: 'simple',
-          hint:
-            'Simple (V3) launch: call HoodMarketsV3.claimRewards(token). WETH goes directly to the fee recipient (95%) and platform (5%). Prefer POST /api/agent/claim so hood.markets pays gas.',
+          hint: target.usesFraction
+            ? 'Simple (V3) launch: call claimTradingFees() on the Holder NFT contract. One tx pulls pool fees and pays every share holder pro-rata. Prefer POST /api/agent/claim so hood.markets pays gas.'
+            : 'Simple (V3) legacy launch: call HoodMarketsV3.claimRewards(token). Prefer POST /api/agent/claim so hood.markets pays gas.',
         });
         return;
       }

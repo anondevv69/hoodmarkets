@@ -5,6 +5,7 @@ import {
   decodeEventLog,
   getAddress,
   http,
+  parseEther,
   zeroAddress,
   type Address,
   type Hex,
@@ -134,6 +135,51 @@ const FRACTION_ABI = [
     outputs: [{ name: '', type: 'bool' }],
   },
   {
+    type: 'function',
+    name: 'nextListingId',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'listings',
+    stateMutability: 'view',
+    inputs: [{ name: 'listingId', type: 'uint256' }],
+    outputs: [
+      { name: 'seller', type: 'address' },
+      { name: 'shareAmount', type: 'uint256' },
+      { name: 'paymentToken', type: 'address' },
+      { name: 'price', type: 'uint256' },
+      { name: 'active', type: 'bool' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'listShares',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'shareAmount', type: 'uint256' },
+      { name: 'paymentToken', type: 'address' },
+      { name: 'price', type: 'uint256' },
+    ],
+    outputs: [{ name: 'listingId', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'buyShares',
+    stateMutability: 'payable',
+    inputs: [{ name: 'listingId', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'cancelListing',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'listingId', type: 'uint256' }],
+    outputs: [],
+  },
+  {
     type: 'event',
     name: 'TransferSingle',
     inputs: [
@@ -184,6 +230,15 @@ export type FractionHolder = {
   address: Address;
   shares: number;
   pct: number;
+};
+
+export type FractionListing = {
+  id: number;
+  seller: Address;
+  shareAmount: number;
+  paymentToken: Address;
+  priceWei: bigint;
+  active: boolean;
 };
 
 export type TokenFractionInfo = {
@@ -451,6 +506,113 @@ export async function redeemFractionShares(
     args: [BigInt(amount)],
     chain: robinhood,
   });
+}
+
+export async function fetchFractionListings(collectionAddress: Address): Promise<FractionListing[]> {
+  const client = publicClient();
+  const nextId = await client.readContract({
+    address: collectionAddress,
+    abi: FRACTION_ABI,
+    functionName: 'nextListingId',
+  });
+  const max = Number(nextId);
+  if (max <= 1) return [];
+
+  const ids = Array.from({ length: max - 1 }, (_, i) => i + 1);
+  const rows = await Promise.all(
+    ids.map(async (id) => {
+      const [seller, shareAmount, paymentToken, price, active] = await client.readContract({
+        address: collectionAddress,
+        abi: FRACTION_ABI,
+        functionName: 'listings',
+        args: [BigInt(id)],
+      });
+      return {
+        id,
+        seller: seller as Address,
+        shareAmount: Number(shareAmount),
+        paymentToken: paymentToken as Address,
+        priceWei: price as bigint,
+        active: active as boolean,
+      };
+    }),
+  );
+  return rows.filter((r) => r.active);
+}
+
+export async function listFractionShares(
+  collectionAddress: Address,
+  walletAddress: Address,
+  shareAmount: number,
+  priceWei: bigint,
+  paymentToken: Address,
+  ethereumProvider: unknown,
+): Promise<Hex> {
+  const client = walletClientFor(walletAddress, ethereumProvider);
+  return client.writeContract({
+    address: collectionAddress,
+    abi: FRACTION_ABI,
+    functionName: 'listShares',
+    args: [BigInt(shareAmount), paymentToken, priceWei],
+    chain: robinhood,
+  });
+}
+
+export async function buyFractionListing(
+  collectionAddress: Address,
+  walletAddress: Address,
+  listingId: number,
+  priceWei: bigint,
+  paymentToken: Address,
+  ethereumProvider: unknown,
+): Promise<Hex> {
+  const client = walletClientFor(walletAddress, ethereumProvider);
+  const isNative = paymentToken.toLowerCase() === zeroAddress;
+  return client.writeContract({
+    address: collectionAddress,
+    abi: FRACTION_ABI,
+    functionName: 'buyShares',
+    args: [BigInt(listingId)],
+    value: isNative ? priceWei : 0n,
+    chain: robinhood,
+  });
+}
+
+export async function cancelFractionListing(
+  collectionAddress: Address,
+  walletAddress: Address,
+  listingId: number,
+  ethereumProvider: unknown,
+): Promise<Hex> {
+  const client = walletClientFor(walletAddress, ethereumProvider);
+  return client.writeContract({
+    address: collectionAddress,
+    abi: FRACTION_ABI,
+    functionName: 'cancelListing',
+    args: [BigInt(listingId)],
+    chain: robinhood,
+  });
+}
+
+export function parseEthPriceWei(raw: string): bigint | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    const wei = parseEther(trimmed);
+    if (wei <= 0n) return null;
+    return wei;
+  } catch {
+    return null;
+  }
+}
+
+export function formatListingPrice(paymentToken: Address, priceWei: bigint): string {
+  if (paymentToken.toLowerCase() === zeroAddress) {
+    const eth = Number(priceWei) / 1e18;
+    if (eth >= 0.0001) return `${eth.toFixed(eth >= 1 ? 4 : 6)} ETH`;
+    return `${priceWei.toString()} wei`;
+  }
+  return `${priceWei.toString()} token`;
 }
 
 export function parseFractionShareAmount(raw: string, maxShares: number): number | null {

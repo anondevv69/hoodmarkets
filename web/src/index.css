@@ -2620,7 +2620,7 @@ label {
 
 @media (min-width: 640px) {
   .token-fraction-stats--wide {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -2678,6 +2678,43 @@ label {
 .token-fraction-note {
   margin: 0;
   font-size: 0.85rem;
+}
+
+.token-fraction-action-hint + .token-fraction-action-hint {
+  margin-top: 0.35rem;
+}
+
+.token-fraction-action-steps {
+  margin: 0 0 0.75rem;
+  padding-left: 1.15rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.token-fraction-action-steps li + li {
+  margin-top: 0.25rem;
+}
+
+.token-fraction-action-foot {
+  margin: 0.65rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.token-fraction-listings {
+  margin-bottom: 1.25rem;
+}
+
+.token-fraction-listing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  white-space: nowrap;
+}
+
+.token-fraction-listing-tx {
+  font-size: 0.75rem;
 }
 
 .token-fraction-stats {
