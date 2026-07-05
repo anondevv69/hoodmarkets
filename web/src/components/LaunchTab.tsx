@@ -326,7 +326,9 @@ export function LaunchTab() {
         setWalletCompleteTxHash(err.transactionHash);
         setHasPendingFinalize(true);
         setError(
-          'Your launch transaction succeeded on-chain, but hood.markets could not finalize it yet. Try “Finalize launch” below or check Blockscout.',
+          /reverted on-chain|transaction reverted/i.test(err.message)
+            ? `${err.message} Clear pending launch, hard-refresh hood.markets, and submit a new launch.`
+            : 'Your wallet transaction succeeded on-chain, but hood.markets could not register it yet. Try “Finalize launch” below.',
         );
       } else if (err instanceof DeployApiError) {
         setError(err.message);
