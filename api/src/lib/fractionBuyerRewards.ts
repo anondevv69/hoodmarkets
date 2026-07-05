@@ -10,12 +10,12 @@ import {
   type PublicClient,
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import fractionAbiJson from './hoodmarketsV3FractionAbi.json';
+import { HOODMARKETS_V3_FRACTION_ABI } from './hoodmarketsV3FractionAbi.js';
 import { HOODMARKETS_V3_ABI } from './hoodmarketsV3Abi.js';
 import { config } from '../config.js';
 import { robinhood } from './robinhoodChain.js';
 
-const FRACTION_ABI = fractionAbiJson as readonly unknown[];
+const FRACTION_ABI = HOODMARKETS_V3_FRACTION_ABI;
 
 const SWAP_EVENT = {
   type: 'event',
