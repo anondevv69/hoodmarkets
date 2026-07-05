@@ -4,7 +4,7 @@
 
 > Robinhood Chain (4663) · API: `https://api.hood.markets` · Web: `https://hood.markets`
 
-Bankr: install skill from [anondevv69/hoodmarkets/skills/hoodmarkets](https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets) (v16) or [BankrBot/skills](https://github.com/BankrBot/skills).
+Bankr: install skill from [anondevv69/hoodmarkets/skills/hoodmarkets](https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets) (v17) or [BankrBot/skills](https://github.com/BankrBot/skills).
 
 ---
 
@@ -30,6 +30,8 @@ No fee on sends, airdrops, or other share moves (v0.11 factory).
 | Uniswap V3 SwapRouter02 | `0xCaf681a66D020601342297493863E78C959E5cb2` |
 
 Pinned JSON: [`skills/hoodmarkets/known-contracts.json`](https://github.com/anondevv69/hoodmarkets/blob/main/skills/hoodmarkets/known-contracts.json)
+
+**Legacy V3 factories** (existing tokens keep bytecode): v0.10 `0xf655…85C9`, v0.9 `0x3a94…76c8`, v0.8 `0xC2A6…00e8` — full list in `known-contracts.json`.
 
 ---
 
@@ -91,6 +93,8 @@ Content-Type: application/json
 - Launch LP locked — users trade on Uniswap
 - Gasless for user (launcher wallet pays)
 
+**Web UI:** “Someone else” fee recipient = **`0x…` wallet only**. Buyer rewards on token page after launch (not at deploy).
+
 ---
 
 ## Buy / sell
@@ -124,7 +128,7 @@ POST https://api.hood.markets/api/agent/claim-for-recipient
 | Capability | Method |
 |------------|--------|
 | Send shares | `safeTransferFrom` (no fee v0.11) |
-| Batch airdrop | `airdropShares` |
+| Batch airdrop | `airdropShares` — **one tx** (v0.10+; hood.markets auto-detects) |
 | List / buy / cancel | `listShares` / `buyShares` / `cancelListing` (5% on sale) |
 | Claim swap fees | `claimTradingFees()` |
 | Buyer rewards | `fundBuyerRewardPool` / `cancelBuyerRewardPool` (post-launch) |
@@ -141,4 +145,4 @@ GET https://api.hood.markets/api/agent/briefing?wallet=0x…
 
 ---
 
-*Skill: `skills/hoodmarkets/` v16 · Contracts: [sdk.md](https://hood.markets/sdk.md)*
+*Skill: `skills/hoodmarkets/` v17 · Contracts: [sdk.md](https://hood.markets/sdk.md)*

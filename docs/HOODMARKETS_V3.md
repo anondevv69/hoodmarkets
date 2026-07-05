@@ -11,7 +11,7 @@ Forked from upstream v3.1 launchpad contracts and rebranded as **HoodMarkets** �
 | **Uniswap swap / trading fees** | **5%** hood.markets platform · **95%** pro-rata to Holder NFT share holders (embedded in `HoodMarketsV3LpLocker` at `claimTradingFees()`) |
 | **Share marketplace sales (`buyShares`)** | **5%** of listed price to platform · **95%** to seller |
 
-No platform fee on wallet sends, airdrops, mint/burn, escrow, or buyer-reward mints.
+No platform fee on wallet sends, batch airdrops, list/cancel escrow, mint/burn, or buyer-reward mints.
 
 The 5% platform wallet is set at locker deploy (`HOODMARKETS_PLATFORM_FEE_RECIPIENT`). The locker **owner** can change the default platform wallet via `updateTeamRecipient()`.
 
@@ -28,19 +28,19 @@ Every token launched through **HoodMarkets V3 v0.5.0+** automatically:
 | **Share marketplace** | `listShares` / `buyShares` / `cancelListing` — on-chain escrow; buyer pays listed price; **5% platform fee** + 95% to seller |
 | **Pool** | Remaining **90%** seeds the Uniswap V3 pool |
 
-## Buyer reward pool (opt-in)
+## Buyer reward pool (opt-in, post-launch preferred)
 
 Buyer rewards are **never on by default**. The fee recipient chooses how many shares to escrow:
 
 | When | How |
 |------|-----|
-| **At launch** | Pass `buyerRewardShareCount` (1–1000) in the deploy API or launch form — that many shares mint to the contract escrow instead of the fee wallet. |
-| **After launch** | Fee recipient calls `fundBuyerRewardPool(amount)` on the fraction contract (v0.9+ bytecode) — transfers shares from wallet into escrow. |
+| **After launch (preferred)** | Fee recipient calls `fundBuyerRewardPool(amount)` on the fraction contract (v0.9+ bytecode) — or uses hood.markets token page “Reward on buy”. |
+| **At deploy (API legacy)** | Optional `buyerRewardShareCount` (1–1000) in `POST /api/deploy` — shares mint to contract escrow instead of fee wallet. **Not** on hood.markets web launch form. |
 | **Cancel** | `cancelBuyerRewardPool()` returns all **unused** escrow shares to the fee recipient. |
 
 The API background poller and `POST /api/deployments/:token/process-buyer-rewards` call `issueBuyerShare` when escrow remains — gasless for holders, no wallet popup per buyer.
 
-**v0.8 tokens** can escrow at launch via `buyerRewardShareCount` but cannot fund/cancel post-launch (use v0.9+ factory for that).
+**v0.8 tokens** can escrow at deploy via `buyerRewardShareCount` but cannot fund/cancel post-launch (use v0.9+ factory for that).
 
 There is **no SDK toggle** and **no optional vault config** — legacy `vaultConfig` values revert with `LegacyVaultDisabled`. Integrators call `deployToken` exactly as before; fractions are created inside the factory.
 
@@ -55,7 +55,8 @@ Lookup: `fractionCollectionForToken(tokenAddress)` on the factory, or `fractionC
 
 ### v0.10 batch share airdrop
 
-- **`airdropShares(recipients[], amounts[])`** — many recipients in one transaction. v0.10 bytecode incorrectly skimmed 5% like wallet sends; fixed in v0.11.
+- **`airdropShares(recipients[], amounts[])`** — many recipients in **one** transaction (v0.10+ bytecode). v0.10 incorrectly skimmed 5% like wallet sends; fixed in v0.11.
+- hood.markets token page probes the fraction contract and uses batch when supported (not legacy per-wallet sends).
 
 ### v0.11 sales-only share fees (deployed 2026-07-05)
 
@@ -75,9 +76,9 @@ Update Railway `HOODMARKETS_V3_*` to match the deployed addresses table below.
 - **`claimTradingFees()`** — one permissionless tx pulls LP fees and pays **every** share holder pro-rata (not caller-only).
 - **`listShares` / `buyShares` / `cancelListing`** — on-chain marketplace; seller escrows shares, buyer pays listed price; **5%** to platform fee wallet (`teamRecipient`), **95%** to seller.
 
-**Existing v0.6 tokens keep old behavior** (per-holder fee claim, no marketplace). **v0.7 tokens** have marketplace without share platform fees. **v0.8+** adds 5% on share sales and wallet transfers.
+**Existing v0.6 tokens keep old behavior** (per-holder fee claim, no marketplace). **v0.7 tokens** have marketplace without share platform fees. **v0.8–v0.10** add 5% on share sales; **v0.8–v0.10 also skimmed wallet sends** (removed in v0.11).
 
-### v0.8 share platform fees (fraction bytecode)
+### v0.8–v0.10 share platform fees (legacy fraction bytecode)
 
 - **`buyShares`** — buyer pays the full listed price; **5%** ETH/ERC-20 to the locker’s platform fee wallet, **95%** to the seller.
 - **Wallet transfers** — **5%** of shares skimmed to the platform fee wallet; recipient gets **95%** (integer rounding — transfers under ~20 shares may round to zero fee).
@@ -156,6 +157,12 @@ HOODMARKETS_DEFAULT_LAUNCH_MODE=simple
 
 - **Simple** (default): `launchMode: "simple"` → HoodMarkets V3
 - **Pro**: `launchMode: "pro"` → existing HoodMarkets V4 hook stack
+
+**hood.markets Launch tab (web UI):**
+
+- **Fee recipient “Someone else”** — **`0x…` wallet address only** (not `@handle` or profile URL).
+- **Buyer rewards** — configured **after launch** on the token page (`fundBuyerRewardPool`), not at deploy.
+- **Holder NFT airdrop** — “Airdrop to many” uses `airdropShares` in one transaction when fraction bytecode supports it (v0.10+).
 
 ## Claiming V3 fees
 

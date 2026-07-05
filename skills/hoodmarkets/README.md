@@ -1,4 +1,4 @@
-# hood.markets Bankr skill (v16)
+# hood.markets Bankr skill (v17)
 
 Bankr-compatible agent skill for [hood.markets](https://hood.markets) on Robinhood Chain **4663**.
 
@@ -15,7 +15,7 @@ install the hoodmarkets skill from https://github.com/anondevv69/hoodmarkets/tre
 | Swap trading fees | 5% platform / 95% pro-rata to Holder NFT share holders |
 | Share marketplace (`buyShares`) | 5% of sale price / 95% to seller |
 
-No fee on sends, airdrops, or escrow moves (v0.11 factory).
+No fee on sends, batch airdrops (`airdropShares`), or list/cancel escrow (v0.11 factory). **5% only on `buyShares` sale price.**
 
 ## Contracts (V3 v0.11.0)
 
@@ -37,7 +37,7 @@ No fee on sends, airdrops, or escrow moves (v0.11 factory).
 | Buy/sell Simple (V3) | No — Uniswap link from token-info |
 | Buy/sell Pro (V4) | Yes — prepare-buy/sell → submit chain 4663 |
 | Claim swap fees | No — POST /api/agent/claim or claim-for-recipient |
-| Holder NFTs | On-chain on token page — send, airdrop, list, claim (see HOLDER-NFTS.md) |
+| Holder NFTs | On-chain on token page — send, one-tx airdrop, list, claim; buyer rewards post-launch (see HOLDER-NFTS.md) |
 
 ## Skill files
 

@@ -12,6 +12,8 @@ Supporting modules use the `HoodMarkets*` prefix (fee locker, hooks, LP locker, 
 
 Current factory **v0.11.0:** `0x9BDdC8ddf28f5629C989A36Eb5bb6C73cBA60Df5`
 
+**Platform fees (only two):** swap trading fees 5%/95% to Holder NFT holders · share marketplace sales 5% on `buyShares`. No fee on sends or batch `airdropShares` (v0.11 bytecode).
+
 **Pro launches (V4):** [`deployed-robinhood-mainnet.json`](deployed-robinhood-mainnet.json) and [`../README.md`](../README.md).
 
 ```bash

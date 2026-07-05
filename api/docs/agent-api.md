@@ -2,7 +2,7 @@
 
 > Robinhood Chain (4663) · API: `https://api.hood.markets` · SDK: [hood.markets/sdk.md](https://hood.markets/sdk.md)
 
-Bankr skill v16: `skills/hoodmarkets/` · Full endpoint reference: `references/AGENT-API.md`
+Bankr skill v17: `skills/hoodmarkets/` · Full endpoint reference: `references/AGENT-API.md`
 
 ## Platform fees (only two)
 
@@ -50,7 +50,7 @@ No Bankr `/wallet/submit`. Post `replyHint` when `ok: true`.
 
 ## Holder NFTs
 
-1,000 shares per launch. On-chain: send, `airdropShares`, `listShares`/`buyShares`, `claimTradingFees()`, buyer rewards post-launch. See `references/HOLDER-NFTS.md`.
+1,000 shares per launch. On-chain: send, `airdropShares` (one tx v0.10+), `listShares`/`buyShares`, `claimTradingFees()`, buyer rewards post-launch on token page. Web launch: fee recipient “Someone else” = `0x…` only. See `references/HOLDER-NFTS.md`.
 
 ## Briefing & catalog
 

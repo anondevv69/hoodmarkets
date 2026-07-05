@@ -21,7 +21,7 @@
 | **Uniswap swap / trading fees** | **5%** hood.markets platform · **95%** pro-rata to Holder NFT share holders | Embedded in `HoodMarketsV3LpLocker` at `claimTradingFees()` |
 | **Share marketplace sales** (`buyShares`) | **5%** of listed price · **95%** to seller | When someone buys a share listing |
 
-**No platform fee** on wallet sends, batch airdrops, mint/burn, escrow moves, or buyer-reward mints.
+No platform fee on sends, batch airdrops (`airdropShares`), list/cancel escrow, mint/burn, or buyer-reward mints. **5% only on `buyShares` marketplace sales.**
 
 ---
 
@@ -42,13 +42,18 @@ Each token gets **1,000 ERC-1155 shares** = **10% of supply** vaulted at launch.
 | Action | On-chain | Notes |
 |--------|----------|--------|
 | **Send shares** | `safeTransferFrom` | Full amount — no platform fee (v0.11+) |
-| **Batch airdrop** | `airdropShares(recipients[], amounts[])` | One tx, full amounts (v0.11+) |
+| **Batch airdrop** | `airdropShares(recipients[], amounts[])` | **One tx**, full amounts (v0.10+ bytecode; v0.11+ no skim). hood.markets probes contract before batch. |
 | **List shares for sale** | `listShares(amount, paymentToken, price)` | Escrow in contract |
 | **Buy a listing** | `buyShares(listingId)` | **5%** platform on sale price |
 | **Cancel listing** | `cancelListing(listingId)` | Shares return to seller |
 | **Claim swap fees** | `claimTradingFees()` | One tx pays **all** share holders pro-rata (5%/95% split in locker first) |
 | **Redeem vault** | `redeem(amount)` | Burn shares → withdraw underlying tokens (forfeit fee rights on burned shares) |
-| **Buyer rewards** | `fundBuyerRewardPool` / `cancelBuyerRewardPool` / `issueBuyerShare` | Opt-in post-launch on token page (v0.9+) |
+| **Buyer rewards** | `fundBuyerRewardPool` / `cancelBuyerRewardPool` / `issueBuyerShare` | Opt-in **post-launch** on token page (v0.9+) — not on hood.markets launch form |
+
+### Web launch (hood.markets UI)
+
+- **Someone else** fee recipient: **`0x…` wallet address only** — not `@handle` or profile URL.
+- **Buyer rewards:** token page after launch — not at deploy.
 
 Lookup fraction contract: `factory.fractionCollectionForToken(tokenAddress)`
 
@@ -198,4 +203,4 @@ Update Railway `HOODMARKETS_V3_*` env vars — see [`api/RAILWAY_ENV_CHECKLIST.m
 
 - SDK: [github.com/anondevv69/hoodmarkets-sdk/issues](https://github.com/anondevv69/hoodmarkets-sdk/issues)
 - Contracts / API: [github.com/anondevv69/hoodmarkets](https://github.com/anondevv69/hoodmarkets)
-- Agents: [agent.md](https://hood.markets/agent.md) · Bankr skill v16
+- Agents: [agent.md](https://hood.markets/agent.md) · Bankr skill v17

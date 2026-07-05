@@ -8,7 +8,8 @@ const V3_DOCS = `${MONOREPO}/blob/main/docs/HOODMARKETS_V3.md`;
 const CAPABILITIES = [
   ['Deploy token', 'SDK, factory, or POST /api/deploy'],
   ['Buy / sell token', 'Uniswap on Robinhood — launch LP is locked'],
-  ['Holder NFT shares', '1,000 shares per launch; send, airdrop, list, redeem'],
+  ['Holder NFT shares', '1,000 shares per launch; send, one-tx airdrop, list, redeem'],
+  ['Buyer rewards', 'Post-launch on token page — fundBuyerRewardPool (not at deploy)'],
   ['Claim swap fees', 'claimTradingFees() — pro-rata to all share holders'],
   ['Share marketplace', 'listShares / buyShares — 5% platform on sale price only'],
   ['Agent automation', 'api.hood.markets — deploy, claim, catalog'],
@@ -80,7 +81,8 @@ export function DevPage() {
         <h2 className="dev-section-title">What you can do</h2>
         <p className="dev-lead">
           Platform fees in <strong>two places only</strong>: swap trading fees (5% / 95% to Holder NFT
-          holders) and share marketplace sales (5% of listed price). Sends and airdrops are free.
+          holders) and share marketplace sales (5% of listed price on <code>buyShares</code>). Sends and
+          batch airdrops are free. Web launch “Someone else” fee recipient = <code>0x…</code> wallet only.
         </p>
         <div className="dev-table-wrap">
           <table className="dev-table">
@@ -144,7 +146,11 @@ export function DevPage() {
           </table>
         </div>
         <p className="dev-foot">
-          Foundry source:{' '}
+          Legacy V3 factories (v0.10, v0.9, v0.8, …) remain valid for existing catalog tokens — see{' '}
+          <a className="dev-link" href={`${MONOREPO}/blob/main/skills/hoodmarkets/known-contracts.json`} target="_blank" rel="noreferrer">
+            known-contracts.json
+          </a>
+          . Foundry source:{' '}
           <a className="dev-link" href={CONTRACTS_REPO} target="_blank" rel="noreferrer">
             github.com/anondevv69/hoodmarkets/contracts
           </a>

@@ -13,7 +13,17 @@ Wallet on all agent routes: `x-wallet-address: 0x…` and/or `?wallet=0x…` and
 1. **Swap trading fees** — 5% platform / 95% pro-rata to Holder NFT share holders at `claimTradingFees()`
 2. **Share marketplace** — 5% of sale price on `buyShares` / 95% to seller
 
-No platform fee on sends, airdrops, mint/burn, escrow, or buyer-reward mints (v0.11+ factory).
+No platform fee on sends, batch airdrops, list/cancel escrow, mint/burn, or buyer-reward mints (v0.11+ factory). **5% only on `buyShares` sale price.**
+
+---
+
+## Web vs agent deploy
+
+| Topic | hood.markets web UI | Agent API |
+|-------|---------------------|-----------|
+| Fee recipient “other” | `0x…` wallet address **only** | May resolve `@handle` / social URL on some channels |
+| Buyer rewards | Post-launch on token page (`fundBuyerRewardPool`) | Optional `buyerRewardShareCount` at deploy (legacy) |
+| Batch airdrop | Token page `airdropShares` one tx (v0.10+) | On-chain only — not agent API |
 
 ---
 
@@ -197,12 +207,12 @@ Content-Type: application/json
   "clientKind": "agent",
   "agentProvider": "bankr",
   "launchMode": "simple",
-  "imageUrl": "https://…",
-  "buyerRewardShareCount": 0
+  "imageUrl": "https://…"
 }
 ```
 
-Optional **`buyerRewardShareCount`** (0–1000): escrow Holder NFT shares for automatic first-buyer rewards. **Default 0** (all 1,000 shares to fee wallet). See `references/HOLDER-NFTS.md`.
+- Omit **`buyerRewardShareCount`** unless you need deploy-time escrow (legacy). **Preferred:** post-launch `fundBuyerRewardPool` on token page (v0.9+). hood.markets web launch form has no buyer-reward field.
+- Optional **`buyerRewardShareCount`** (0–1000) in API only: escrow shares at deploy instead of fee wallet. Default **0** (all 1,000 to fee wallet). See `references/HOLDER-NFTS.md`.
 
 **Response:** `tokenAddress`, `transactionHash`, `links` (dexscreener, hood.markets, explorer).
 
@@ -313,7 +323,7 @@ GET https://api.hood.markets/api/deployments/0x…
 
 ## POST /api/deployments/:token/process-buyer-rewards
 
-Trigger buyer-reward issuance for a token with escrowed shares (v0.9+ `fundBuyerRewardPool` or deploy-time `buyerRewardShareCount`). Background poller also runs this — useful for manual refresh. Gas paid by hood.markets.
+Trigger buyer-reward issuance for a token with escrowed shares (v0.9+ `fundBuyerRewardPool`, or legacy deploy-time `buyerRewardShareCount`). Background poller also runs this — useful for manual refresh. Gas paid by hood.markets.
 
 ```http
 POST https://api.hood.markets/api/deployments/0x…/process-buyer-rewards

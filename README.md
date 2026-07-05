@@ -23,6 +23,8 @@ JSON: [`contracts/deployed-hoodmarkets-v3-mainnet.json`](contracts/deployed-hood
 
 **Platform fees (only two):** swap trading fees 5%/95% to holders · share marketplace sales 5% of price.
 
+**Web launch:** fee recipient “Someone else” = `0x…` wallet only · buyer rewards post-launch on token page · `airdropShares` one tx.
+
 ## Repository layout
 
 | Path | Description |
@@ -31,7 +33,7 @@ JSON: [`contracts/deployed-hoodmarkets-v3-mainnet.json`](contracts/deployed-hood
 | [`api/`](api/) | Node/Express launcher API |
 | [`web/`](web/) | Vite + Privy frontend |
 | [`docs/`](docs/) | Deploy, Railway, V3 reference |
-| [`skills/hoodmarkets/`](skills/hoodmarkets/) | **Bankr agent skill v16** |
+| [`skills/hoodmarkets/`](skills/hoodmarkets/) | **Bankr agent skill v17** |
 
 ## Bankr agents
 

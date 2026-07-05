@@ -10,7 +10,7 @@
 | sell 1M MTK on hoodmarkets | token-info → if pro: prepare-sell → Bankr submit |
 | claim fees 0x… for someone / help EA claim | POST /api/agent/claim-for-recipient `{ tokenAddress }` |
 | claim my hood fees MTK | captcha JWT or X wallet → POST /api/agent/claim |
-| airdrop holder shares / send shares | On-chain on token page — not agent API; no platform fee v0.11 |
+| airdrop holder shares / send shares | On-chain on token page — `airdropShares` one tx (v0.10+); not agent API; no platform fee v0.11 |
 | list hood shares for sale | On-chain listShares / buyShares on token page |
 | list hoodmarkets tokens | GET /api/deployments |
 | simple launch on hood | deploy with `"launchMode": "simple"` |
