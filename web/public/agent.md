@@ -12,10 +12,10 @@ Any agent with an EVM wallet can deploy tokens on Robinhood Chain through the ho
 
 | Contract | Address |
 |----------|---------|
-| HoodMarketsV3 factory (v0.9.0) | `0x3a94FD3422F50ed6cC08e547c6C697E4bb3e76c8` |
-| HoodMarketsV3 vault | `0x0Fb0Dd749A1D4953B944d626972E21113b15f53a` |
-| HoodMarketsV3 LP locker | `0x1e2AE7aA7237fA400eC0aeF7e98baAcBFAAF1D68` |
-| HoodMarketsV3 fraction deployer | `0x3d2d99963827662c0629d47B56F707161bE1d83A` |
+| HoodMarketsV3 factory (v0.10.0) | `0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9` |
+| HoodMarketsV3 vault | `0xB38BC03B373e7dFD43727A5f6aF3b588b441121b` |
+| HoodMarketsV3 LP locker | `0x3e51b0D25AA990d2e6C17b29D644F8eb0Ed2913A` |
+| HoodMarketsV3 fraction deployer | `0x6542CdAaBdD69E3c830b162bB7946d24bcdA156c` |
 | Platform fee wallet (5%) | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
 | Contract owner | `0xFA45A3b8d1662E3432D1B5bE3F37e4923D1b796C` |
 

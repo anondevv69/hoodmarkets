@@ -250,6 +250,41 @@ contract HoodMarketsV3TokenFractionTest is Test {
         assertEq(fresh.balanceOf(address(fresh), 0), 0);
     }
 
+    function test_airdropShares_oneTx() public {
+        address[] memory recipients = new address[](3);
+        recipients[0] = buyer;
+        recipients[1] = buyer2;
+        recipients[2] = makeAddr("recipient3");
+
+        uint256[] memory amounts = new uint256[](3);
+        amounts[0] = 10;
+        amounts[1] = 50;
+        amounts[2] = 100;
+
+        uint256 creatorBefore = fraction.balanceOf(creator, 0);
+        uint256 platformBefore = fraction.balanceOf(platformFeeWallet, 0);
+
+        vm.prank(creator);
+        fraction.airdropShares(recipients, amounts);
+
+        assertEq(fraction.balanceOf(creator, 0), creatorBefore - 160);
+        assertEq(fraction.balanceOf(buyer, 0), 10);
+        assertEq(fraction.balanceOf(buyer2, 0), 48);
+        assertEq(fraction.balanceOf(recipients[2], 0), 95);
+        assertEq(fraction.balanceOf(platformFeeWallet, 0), platformBefore + 7);
+    }
+
+    function test_revert_airdropShares_insufficientBalance() public {
+        address[] memory recipients = new address[](1);
+        recipients[0] = buyer;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 10_000;
+
+        vm.prank(creator);
+        vm.expectRevert(IHoodMarketsV3TokenFraction.InsufficientFractionBalance.selector);
+        fraction.airdropShares(recipients, amounts);
+    }
+
     function test_fundBuyerRewardPool_thenIssue() public {
         HoodMarketsV3TokenFraction fresh = _deployFraction(0);
 

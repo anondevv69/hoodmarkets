@@ -19,6 +19,7 @@ interface IHoodMarketsV3TokenFraction {
     error InvalidListPrice();
     error WrongPayment();
     error ZeroPlatformFeeRecipient();
+    error ArrayLengthMismatch();
 
     struct ShareListing {
         address seller;
@@ -90,6 +91,10 @@ interface IHoodMarketsV3TokenFraction {
         uint256 netShares
     );
 
+    event SharesAirdropped(
+        address indexed from, uint256 recipientCount, uint256 totalSharesSent
+    );
+
     function FRACTION_COUNT() external view returns (uint256);
     function FRACTION_TOKEN_ID() external view returns (uint256);
     function launchToken() external view returns (address);
@@ -135,6 +140,9 @@ interface IHoodMarketsV3TokenFraction {
 
     /// @notice Stop buyer rewards and return unissued escrow shares to the fee admin.
     function cancelBuyerRewardPool() external;
+
+    /// @notice Send shares to many wallets in one transaction (5% platform skim per recipient).
+    function airdropShares(address[] calldata recipients, uint256[] calldata amounts) external;
 
     /// @notice Next listing id (listings are `1 … nextListingId - 1`).
     function nextListingId() external view returns (uint256);

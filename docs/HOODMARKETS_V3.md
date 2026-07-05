@@ -46,12 +46,16 @@ There is **no SDK toggle** and **no optional vault config** — legacy `vaultCon
 
 Lookup: `fractionCollectionForToken(tokenAddress)` on the factory, or `fractionCollection` in the `TokenCreated` event.
 
-**Deployed on mainnet 4663 (2026-07-05 v0.9.0).** Railway `HOODMARKETS_V3_*` env vars point at the v0.9 factory.
+**Deployed on mainnet 4663 (2026-07-05 v0.10.0).** Railway `HOODMARKETS_V3_*` env vars point at the v0.10 factory.
 
 ### v0.9 buyer reward fund/cancel
 
 - **`fundBuyerRewardPool(amount)`** — fee recipient escrows shares from wallet after launch (can add more while pool is active).
 - **`cancelBuyerRewardPool()`** — returns unused escrow shares to fee recipient.
+
+### v0.10 batch share airdrop
+
+- **`airdropShares(recipients[], amounts[])`** — send shares to many wallets in **one transaction**; same 5% platform skim per recipient as wallet transfers.
 
 ### v0.7 fraction contract
 
@@ -72,12 +76,14 @@ Lookup: `fractionCollectionForToken(tokenAddress)` on the factory, or `fractionC
 
 | Contract | Address |
 |----------|---------|
-| HoodMarketsV3 factory (v0.9.0) | `0x3a94FD3422F50ed6cC08e547c6C697E4bb3e76c8` |
-| HoodMarketsV3Vault | `0x0Fb0Dd749A1D4953B944d626972E21113b15f53a` |
-| HoodMarketsV3LpLocker | `0x1e2AE7aA7237fA400eC0aeF7e98baAcBFAAF1D68` |
-| HoodMarketsV3FractionDeployer | `0x3d2d99963827662c0629d47B56F707161bE1d83A` |
+| HoodMarketsV3 factory (v0.10.0) | `0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9` |
+| HoodMarketsV3Vault | `0xB38BC03B373e7dFD43727A5f6aF3b588b441121b` |
+| HoodMarketsV3LpLocker | `0x3e51b0D25AA990d2e6C17b29D644F8eb0Ed2913A` |
+| HoodMarketsV3FractionDeployer | `0x6542CdAaBdD69E3c830b162bB7946d24bcdA156c` |
 | Platform fee recipient (5%) | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
 | Contract owner | `0xFA45A3b8d1662E3432D1B5bE3F37e4923D1b796C` |
+
+**Previous factory (v0.9.0):** `0x3a94FD3422F50ed6cC08e547c6C697E4bb3e76c8`
 
 **Previous factory (v0.8.0):** `0xC2A604fF131dDE9201838007A129ea28b85d00e8`
 
@@ -115,10 +121,10 @@ forge script script/robinhood/10_DeployHoodMarketsV3.s.sol:DeployHoodMarketsV3 \
 Add to `api.hood.markets` (alongside existing V4 vars):
 
 ```env
-HOODMARKETS_V3_FACTORY=0x3a94FD3422F50ed6cC08e547c6C697E4bb3e76c8
-HOODMARKETS_V3_VAULT=0x0Fb0Dd749A1D4953B944d626972E21113b15f53a
-HOODMARKETS_V3_LP_LOCKER=0x1e2AE7aA7237fA400eC0aeF7e98baAcBFAAF1D68
-HOODMARKETS_V3_FRACTION_DEPLOYER=0x3d2d99963827662c0629d47B56F707161bE1d83A
+HOODMARKETS_V3_FACTORY=0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9
+HOODMARKETS_V3_VAULT=0xB38BC03B373e7dFD43727A5f6aF3b588b441121b
+HOODMARKETS_V3_LP_LOCKER=0x3e51b0D25AA990d2e6C17b29D644F8eb0Ed2913A
+HOODMARKETS_V3_FRACTION_DEPLOYER=0x6542CdAaBdD69E3c830b162bB7946d24bcdA156c
 HOODMARKETS_V3_PLATFORM_FEE_RECIPIENT=0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98
 HOODMARKETS_DEFAULT_LAUNCH_MODE=simple
 ```

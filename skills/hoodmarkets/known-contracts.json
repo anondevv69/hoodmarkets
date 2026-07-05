@@ -2,10 +2,10 @@
   "chainId": 4663,
   "network": "Robinhood Chain",
   "contracts": {
-    "hoodmarketsV3Factory": "0x3a94FD3422F50ed6cC08e547c6C697E4bb3e76c8",
-    "hoodmarketsV3Vault": "0x0Fb0Dd749A1D4953B944d626972E21113b15f53a",
-    "hoodmarketsV3LpLocker": "0x1e2AE7aA7237fA400eC0aeF7e98baAcBFAAF1D68",
-    "hoodmarketsV3FractionDeployer": "0x3d2d99963827662c0629d47B56F707161bE1d83A",
+    "hoodmarketsV3Factory": "0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9",
+    "hoodmarketsV3Vault": "0xB38BC03B373e7dFD43727A5f6aF3b588b441121b",
+    "hoodmarketsV3LpLocker": "0x3e51b0D25AA990d2e6C17b29D644F8eb0Ed2913A",
+    "hoodmarketsV3FractionDeployer": "0x6542CdAaBdD69E3c830b162bB7946d24bcdA156c",
     "hoodmarketsV3PlatformFeeRecipient": "0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98"
   }
 }

@@ -8,10 +8,10 @@ const AGENT_SKILL = 'https://github.com/anondevv69/hoodmarkets/tree/main/skills/
 const API_BASE = 'https://api.hood.markets';
 
 const CONTRACTS = [
-  { name: 'HoodMarketsV3 factory (v0.9.0)', address: '0x3a94FD3422F50ed6cC08e547c6C697E4bb3e76c8' },
-  { name: 'HoodMarketsV3 vault', address: '0x0Fb0Dd749A1D4953B944d626972E21113b15f53a' },
-  { name: 'HoodMarketsV3 LP locker', address: '0x1e2AE7aA7237fA400eC0aeF7e98baAcBFAAF1D68' },
-  { name: 'HoodMarketsV3 fraction deployer', address: '0x3d2d99963827662c0629d47B56F707161bE1d83A' },
+  { name: 'HoodMarketsV3 factory (v0.10.0)', address: '0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9' },
+  { name: 'HoodMarketsV3 vault', address: '0xB38BC03B373e7dFD43727A5f6aF3b588b441121b' },
+  { name: 'HoodMarketsV3 LP locker', address: '0x3e51b0D25AA990d2e6C17b29D644F8eb0Ed2913A' },
+  { name: 'HoodMarketsV3 fraction deployer', address: '0x6542CdAaBdD69E3c830b162bB7946d24bcdA156c' },
   { name: 'Platform fee wallet (5%)', address: '0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98' },
   { name: 'WETH', address: '0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73' },
   { name: 'Uniswap V3 SwapRouter02', address: '0xCaf681a66D020601342297493863E78C959E5cb2' },

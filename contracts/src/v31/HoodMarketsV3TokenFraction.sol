@@ -243,6 +243,37 @@ contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, ReentrancyGuard, 
     }
 
     /// @inheritdoc IHoodMarketsV3TokenFraction
+    function airdropShares(address[] calldata recipients, uint256[] calldata amounts)
+        external
+        nonReentrant
+    {
+        uint256 len = recipients.length;
+        if (len != amounts.length) revert ArrayLengthMismatch();
+        if (len == 0) revert InvalidListAmount();
+
+        if (_feeRewardsConfigured) {
+            _accrueAll();
+            _syncRewardDebt(msg.sender);
+        }
+
+        uint256 totalSent;
+        for (uint256 i = 0; i < len; ++i) {
+            uint256 amount = amounts[i];
+            if (amount == 0) revert InvalidListAmount();
+            totalSent += amount;
+        }
+        if (balanceOf(msg.sender, FRACTION_TOKEN_ID) < totalSent) {
+            revert InsufficientFractionBalance();
+        }
+
+        for (uint256 i = 0; i < len; ++i) {
+            _safeTransferFrom(msg.sender, recipients[i], FRACTION_TOKEN_ID, amounts[i], "");
+        }
+
+        emit SharesAirdropped(msg.sender, len, totalSent);
+    }
+
+    /// @inheritdoc IHoodMarketsV3TokenFraction
     function listShares(uint256 shareAmount, address paymentToken, uint256 price)
         external
         nonReentrant

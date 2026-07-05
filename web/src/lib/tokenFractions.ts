@@ -144,6 +144,16 @@ const FRACTION_ABI = [
   },
   {
     type: 'function',
+    name: 'airdropShares',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'recipients', type: 'address[]' },
+      { name: 'amounts', type: 'uint256[]' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
     name: 'buyerShareIssued',
     stateMutability: 'view',
     inputs: [{ name: '', type: 'address' }],
@@ -666,6 +676,7 @@ export function parseAirdropRecipients(
   if (lines.length === 0) return { error: 'Add at least one wallet address.' };
 
   const entries: AirdropEntry[] = [];
+  const byAddress = new Map<string, AirdropEntry>();
   let total = 0;
   for (const line of lines) {
     let addrPart: string;
@@ -685,9 +696,16 @@ export function parseAirdropRecipients(
     if (!Number.isFinite(amount) || amount <= 0) {
       return { error: `Invalid share count on line: ${line}` };
     }
-    entries.push({ address: addr, amount });
+    const key = addr.toLowerCase();
+    const existing = byAddress.get(key);
+    if (existing) {
+      existing.amount += amount;
+    } else {
+      byAddress.set(key, { address: addr, amount });
+    }
     total += amount;
   }
+  entries.push(...byAddress.values());
   if (total > maxTotalShares) {
     return { error: `Total ${total} shares exceeds your balance (${maxTotalShares}).` };
   }
@@ -872,4 +890,61 @@ export async function transferFractionSharesToMany(
     onProgress?.(done, entries.length);
   }
   return { lastHash, count: entries.length };
+}
+
+export async function fractionSupportsBatchAirdrop(collectionAddress: Address): Promise<boolean> {
+  try {
+    await publicClient().simulateContract({
+      address: collectionAddress,
+      abi: FRACTION_ABI,
+      functionName: 'airdropShares',
+      args: [[zeroAddress], [0n]],
+      account: '0x0000000000000000000000000000000000000001',
+    });
+    return true;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/InvalidListAmount|ArrayLengthMismatch/i.test(msg)) return true;
+    return false;
+  }
+}
+
+/** One tx when fraction contract supports `airdropShares` (v0.10+); falls back to per-wallet sends. */
+export async function airdropFractionShares(
+  collectionAddress: Address,
+  walletAddress: Address,
+  entries: AirdropEntry[],
+  tokenId: number,
+  ethereumProvider: unknown,
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ hash: Hex; count: number; batched: boolean }> {
+  if (entries.length === 0) {
+    throw new Error('No recipients.');
+  }
+
+  const batched = await fractionSupportsBatchAirdrop(collectionAddress);
+  if (!batched) {
+    const fallback = await transferFractionSharesToMany(
+      collectionAddress,
+      walletAddress,
+      entries,
+      tokenId,
+      ethereumProvider,
+      onProgress,
+    );
+    return { hash: fallback.lastHash, count: fallback.count, batched: false };
+  }
+
+  const client = walletClientFor(walletAddress, ethereumProvider);
+  const recipients = entries.map((e) => e.address);
+  const amounts = entries.map((e) => BigInt(e.amount));
+  const hash = await client.writeContract({
+    address: collectionAddress,
+    abi: FRACTION_ABI,
+    functionName: 'airdropShares',
+    args: [recipients, amounts],
+    chain: robinhood,
+  });
+  onProgress?.(entries.length, entries.length);
+  return { hash, count: entries.length, batched: true };
 }
