@@ -678,6 +678,21 @@ label {
   flex-shrink: 0;
   overflow: hidden;
   border-radius: 10px;
+  background: rgba(0, 230, 118, 0.06);
+}
+
+.token-avatar-wrap--loading {
+  animation: token-avatar-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes token-avatar-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .token-avatar,
