@@ -29,6 +29,7 @@ export type HoodMarketsV3DeployInput = {
   /** Rate-limit excess: route the creator share (95%) to the platform wallet on-chain. */
   feesToPlatformOnly?: boolean;
   platformFeeRecipient?: Address;
+  buyerRewardShareCount?: number;
 };
 
 export type HoodMarketsV3DeployResult = {
@@ -79,7 +80,17 @@ export type HoodMarketsV3DeploymentConfig = {
     interfaceAdmin: Address;
     interfaceRewardRecipient: Address;
   };
+  fractionConfig: {
+    buyerRewardShareCount: number;
+  };
 };
+
+export function clampBuyerRewardShareCount(value: unknown): number {
+  const n = typeof value === 'number' ? value : Number.parseInt(String(value ?? '0'), 10);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  if (n > 1000) return 1000;
+  return Math.floor(n);
+}
 
 export function buildHoodMarketsV3DeploymentConfig(input: {
   name: string;
@@ -90,6 +101,7 @@ export function buildHoodMarketsV3DeploymentConfig(input: {
   context: string;
   feesToPlatformOnly?: boolean;
   platformFeeRecipient?: Address;
+  buyerRewardShareCount?: number;
 }): HoodMarketsV3DeploymentConfig {
   const salt = keccak256(toHex(randomBytes(32)));
   const tokenAdmin = getAddress(input.tokenAdmin);
@@ -131,6 +143,9 @@ export function buildHoodMarketsV3DeploymentConfig(input: {
       interfaceAdmin: tokenAdmin,
       interfaceRewardRecipient: '0x0000000000000000000000000000000000000000' as Address,
     },
+    fractionConfig: {
+      buyerRewardShareCount: clampBuyerRewardShareCount(input.buyerRewardShareCount),
+    },
   };
 }
 
@@ -144,6 +159,7 @@ function buildDeploymentConfig(input: HoodMarketsV3DeployInput) {
     context: input.context,
     feesToPlatformOnly: input.feesToPlatformOnly,
     platformFeeRecipient: input.platformFeeRecipient,
+    buyerRewardShareCount: input.buyerRewardShareCount,
   });
 }
 

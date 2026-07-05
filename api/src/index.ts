@@ -28,6 +28,7 @@ import { registerTokenSpaceRoutes } from './routes/tokenSpaces.js';
 import { registerMyDeploymentsClaimRoutes } from './routes/myDeploymentsClaim.js';
 import { registerMyDeploymentsCollectPoolRoutes } from './routes/myDeploymentsCollectPool.js';
 import { registerDeploymentFeeActionRoutes } from './routes/deploymentFeeActions.js';
+import { registerFractionBuyerRewardRoutes } from './routes/fractionBuyerRewards.js';
 import { registerAgentClaimCalldataRoutes } from './routes/agentClaimCalldata.js';
 import { registerAgentClaimRoutes } from './routes/agentClaim.js';
 import { registerAgentClaimForRecipientRoutes } from './routes/agentClaimForRecipient.js';
@@ -208,6 +209,7 @@ async function main() {
     registerResolveSourceRoutes(app, neynar);
     registerDeploymentCatalogRoutes(app);
     registerDeploymentFeeActionRoutes(app);
+    registerFractionBuyerRewardRoutes(app);
     registerTokenSwapRoutes(app);
     registerMyDeploymentsRoutes(app);
     registerDeployerProfileRoutes(app);

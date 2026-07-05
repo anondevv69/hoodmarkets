@@ -12,8 +12,8 @@ Wallet on all agent routes: `x-wallet-address: 0x…` and/or `?wallet=0x…` and
 
 | Role | Address |
 |------|---------|
-| HoodMarketsV3 factory | `0x4c18e43F8B8b63f42a944b98b8af29f576c7Ffa8` |
-| HoodMarketsV3 LP locker | `0x5296C54C3f5D8d0e0ced4A95BC6B85d6Db715AD5` |
+| HoodMarketsV3 factory | `0x7E2905ddF3Dca96117A9e9d50F2924C1E7FE7Be1` |
+| HoodMarketsV3 LP locker | `0x48BCd46147a74A186913d41aE0e7210C03910fA5` |
 | Platform 5% fees | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
 
 Full pin list: `../known-contracts.json` (repo root: `skills/hoodmarkets/known-contracts.json`).

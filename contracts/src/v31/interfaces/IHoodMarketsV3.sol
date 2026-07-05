@@ -24,6 +24,8 @@ interface IHoodMarketsV3 {
     error InvalidCreatorInfo();
     /// @notice When the interface information is invalid
     error InvalidInterfaceInfo();
+    /// @notice When buyer reward share count exceeds 1000
+    error InvalidBuyerRewardShareCount();
     /// @notice When the team reward recipient is invalid
     error ZeroTeamRewardRecipient();
 
@@ -60,12 +62,18 @@ interface IHoodMarketsV3 {
         address interfaceRewardRecipient;
     }
 
+    struct FractionConfig {
+        /// @notice Shares reserved for the first unique pool buyers (0–1000).
+        uint16 buyerRewardShareCount;
+    }
+
     struct DeploymentConfig {
         TokenConfig tokenConfig;
         VaultConfig vaultConfig;
         PoolConfig poolConfig;
         InitialBuyConfig initialBuyConfig;
         RewardsConfig rewardsConfig;
+        FractionConfig fractionConfig;
     }
 
     struct DeploymentInfo {
@@ -99,6 +107,8 @@ interface IHoodMarketsV3 {
     event HoodMarketsV3DeployerUpdated(address oldHoodMarketsV3Deployer, address newHoodMarketsV3Deployer);
     event SetDeprecated(bool deprecated);
     event SetAdmin(address admin, bool isAdmin);
+    event BuyerRewardRelayUpdated(address oldRelay, address newRelay);
+    event BuyerShareIssued(address indexed token, address indexed buyer, address indexed fractionCollection);
 
     function MAX_CREATOR_REWARD() external pure returns (uint256);
     function TOKEN_SUPPLY() external pure returns (uint256);
@@ -118,6 +128,8 @@ interface IHoodMarketsV3 {
     function updateVault(address newVault) external;
     function setDeprecated(bool deprecated_) external;
     function setAdmin(address admin, bool isAdmin) external;
+    function setBuyerRewardRelay(address relay) external;
+    function issueBuyerShare(address token, address buyer) external;
     function claimRewards(address token) external;
 
     function deployTokenZeroSupply(TokenConfig memory tokenConfig, address tokenAdmin)

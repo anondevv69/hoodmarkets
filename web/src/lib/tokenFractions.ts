@@ -10,7 +10,7 @@ import {
   type Hex,
 } from 'viem';
 import { robinhood } from '../chain';
-import { HOODMARKETS_V3_FACTORY } from './launchType';
+import { HOODMARKETS_V3_FACTORY, isHoodMarketsV3Factory } from './launchType';
 
 const FRACTION_FACTORY_ABI = [
   {
@@ -123,11 +123,19 @@ function publicClient() {
   return createPublicClient({ chain: robinhood, transport: http() });
 }
 
-async function resolveCollectionAddress(token: Address): Promise<Address | null> {
+async function resolveCollectionAddress(
+  token: Address,
+  factoryAddress?: string | null,
+): Promise<Address | null> {
+  const factory = (() => {
+    const fromCatalog = factoryAddress?.trim();
+    if (fromCatalog && isHoodMarketsV3Factory(fromCatalog)) return getAddress(fromCatalog);
+    return getAddress(HOODMARKETS_V3_FACTORY);
+  })();
   const client = publicClient();
   try {
     const collection = await client.readContract({
-      address: HOODMARKETS_V3_FACTORY,
+      address: factory,
       abi: FRACTION_FACTORY_ABI,
       functionName: 'fractionCollectionForToken',
       args: [token],
@@ -188,10 +196,10 @@ export async function fetchWalletFractionBalance(
 
 export async function fetchTokenFractionInfo(
   tokenAddress: string,
-  opts?: { fromBlock?: bigint },
+  opts?: { fromBlock?: bigint; factoryAddress?: string | null },
 ): Promise<TokenFractionInfo | null> {
   const launchToken = getAddress(tokenAddress.trim());
-  const collectionAddress = await resolveCollectionAddress(launchToken);
+  const collectionAddress = await resolveCollectionAddress(launchToken, opts?.factoryAddress);
   if (!collectionAddress) return null;
 
   const client = publicClient();

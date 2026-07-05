@@ -5,6 +5,11 @@ import { openWalletProfile } from '../lib/deployerProfileRoute';
 import { formatTokenBalance } from '../lib/formatTokenBalance';
 import { isSimpleLaunchDeployment } from '../lib/launchType';
 import {
+  fetchBuyerRewardStatus,
+  processBuyerRewards,
+  type BuyerRewardStatus,
+} from '../api';
+import {
   claimFractionTradingFees,
   fetchPendingFractionTradingFees,
   fetchTokenFractionInfo,
@@ -45,6 +50,10 @@ export function TokenFractionPanel({
   const [claimError, setClaimError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [buyerRewards, setBuyerRewards] = useState<BuyerRewardStatus | null>(null);
+  const [processingBuyerRewards, setProcessingBuyerRewards] = useState(false);
+  const [buyerRewardMessage, setBuyerRewardMessage] = useState<string | null>(null);
+  const [buyerRewardError, setBuyerRewardError] = useState<string | null>(null);
 
   const isSimple = isSimpleLaunchDeployment({ poolId, factoryAddress });
 
@@ -61,9 +70,13 @@ export function TokenFractionPanel({
       setError(null);
       try {
         const fromBlock = deployBlockNumber ? BigInt(deployBlockNumber) : undefined;
-        const row = await fetchTokenFractionInfo(tokenAddress, { fromBlock });
+        const [row, buyerStatus] = await Promise.all([
+          fetchTokenFractionInfo(tokenAddress, { fromBlock, factoryAddress }),
+          fetchBuyerRewardStatus(tokenAddress).catch(() => null),
+        ]);
         if (cancelled) return;
         setInfo(row);
+        setBuyerRewards(buyerStatus);
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Failed to load holder NFTs.');
@@ -181,7 +194,11 @@ export function TokenFractionPanel({
             <li>Claim your pro-rata trading fees below (pulls from pool if needed)</li>
             <li>Sell or list on NFT marketplaces (ERC-1155 transfer)</li>
             <li>Gift or airdrop shares to any wallet</li>
-            <li>Reward early buyers — send shares to their wallets after they trade</li>
+            {buyerRewards?.enabled ? (
+              <li>First {buyerRewards.cap} unique buyers can earn 1 share each automatically</li>
+            ) : (
+              <li>Reward early buyers — send shares to their wallets after they trade</li>
+            )}
             <li>Redeem on-chain via the collection contract to receive underlying tokens</li>
           </ul>
           {authenticated && wallet && walletShares != null && walletShares > 0 ? (
@@ -242,6 +259,51 @@ export function TokenFractionPanel({
               {claimError ? <p className="error">{claimError}</p> : null}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {buyerRewards?.enabled ? (
+        <div className="token-fraction-buyer-rewards">
+          <p className="token-fraction-manage-title">Buyer reward pool</p>
+          <p className="muted token-fraction-note">
+            {buyerRewards.issued.toLocaleString()} of {buyerRewards.cap.toLocaleString()} shares
+            issued · {buyerRewards.remaining.toLocaleString()} remaining for first unique buyers
+          </p>
+          {buyerRewards.remaining > 0 ? (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={processingBuyerRewards}
+              onClick={() => {
+                void (async () => {
+                  setBuyerRewardError(null);
+                  setBuyerRewardMessage(null);
+                  setProcessingBuyerRewards(true);
+                  try {
+                    const result = await processBuyerRewards(tokenAddress);
+                    setBuyerRewards(result.status);
+                    setBuyerRewardMessage(result.message);
+                    const fromBlock = deployBlockNumber ? BigInt(deployBlockNumber) : undefined;
+                    const refreshed = await fetchTokenFractionInfo(tokenAddress, {
+                      fromBlock,
+                      factoryAddress,
+                    });
+                    setInfo(refreshed);
+                  } catch (e) {
+                    setBuyerRewardError(
+                      e instanceof Error ? e.message : 'Failed to process buyer rewards.',
+                    );
+                  } finally {
+                    setProcessingBuyerRewards(false);
+                  }
+                })();
+              }}
+            >
+              {processingBuyerRewards ? 'Scanning buys…' : 'Issue shares to new buyers'}
+            </button>
+          ) : null}
+          {buyerRewardMessage ? <p className="muted token-fraction-note">{buyerRewardMessage}</p> : null}
+          {buyerRewardError ? <p className="error">{buyerRewardError}</p> : null}
         </div>
       ) : null}
 
@@ -320,9 +382,12 @@ export function TokenFractionPanel({
       )}
 
       <p className="muted token-fraction-foot">
-        Shares are ERC-1155 tokens — transferable like NFTs. All 1,000 mint to the fee recipient at
-        launch. Holders call <code>claimTradingFees()</code> for their pro-rata slice of swap fees
-        (95% creator pool) and <code>redeem(amount)</code> to burn shares for vaulted tokens.
+        Shares are ERC-1155 tokens — transferable like NFTs. The fee recipient receives{' '}
+        {buyerRewards?.enabled
+          ? `${1000 - buyerRewards.cap} shares at launch; up to ${buyerRewards.cap} go to first unique buyers.`
+          : 'all 1,000 shares at launch.'}{' '}
+        Holders call <code>claimTradingFees()</code> for their pro-rata slice of swap fees (95%
+        creator pool) and <code>redeem(amount)</code> to burn shares for vaulted tokens.
       </p>
     </section>
   );

@@ -30,6 +30,9 @@ export type SerializedV3DeploymentConfig = {
     interfaceAdmin: `0x${string}`;
     interfaceRewardRecipient: `0x${string}`;
   };
+  fractionConfig: {
+    buyerRewardShareCount: number;
+  };
 };
 
 export function serializeV3DeploymentConfig(
@@ -65,6 +68,9 @@ export function serializeV3DeploymentConfig(
       interfaceAdmin: config.rewardsConfig.interfaceAdmin,
       interfaceRewardRecipient: config.rewardsConfig.interfaceRewardRecipient,
     },
+    fractionConfig: {
+      buyerRewardShareCount: config.fractionConfig.buyerRewardShareCount,
+    },
   };
 }
 
@@ -99,6 +105,9 @@ export function deserializeV3DeploymentConfig(
       creatorRewardRecipient: getAddress(raw.rewardsConfig.creatorRewardRecipient),
       interfaceAdmin: getAddress(raw.rewardsConfig.interfaceAdmin),
       interfaceRewardRecipient: getAddress(raw.rewardsConfig.interfaceRewardRecipient),
+    },
+    fractionConfig: {
+      buyerRewardShareCount: raw.fractionConfig?.buyerRewardShareCount ?? 0,
     },
   };
 }
