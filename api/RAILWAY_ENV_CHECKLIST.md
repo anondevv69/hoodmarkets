@@ -25,6 +25,13 @@ The monorepo has no root `package.json`. Deploying from repo root will fail to b
 - [ ] `HOODMARKETS_LP_LOCKER_FEE_CONVERSION`
 - [ ] `HOODMARKETS_SNIPER_AUCTION_V2`
 - [ ] `HOODMARKETS_UNIV4_ETH_DEV_BUY`
+- [ ] **HoodMarkets V3 (simple launch — required when `HOODMARKETS_DEFAULT_LAUNCH_MODE=simple`)** — v0.6.0 mainnet (2026-07-04):
+  - [ ] `HOODMARKETS_V3_FACTORY=0x7E2905ddF3Dca96117A9e9d50F2924C1E7FE7Be1`
+  - [ ] `HOODMARKETS_V3_VAULT=0xdad973Ec5f0B56D64326dB78de9d90Aa9acDB842`
+  - [ ] `HOODMARKETS_V3_LP_LOCKER=0x48BCd46147a74A186913d41aE0e7210C03910fA5`
+  - [ ] `HOODMARKETS_V3_FRACTION_DEPLOYER=0x722AfdFa376844497783A1EAb3B3490Ff8eb8bB2`
+  - [ ] `HOODMARKETS_V3_PLATFORM_FEE_RECIPIENT=0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98`
+  - [ ] `HOODMARKETS_DEFAULT_LAUNCH_MODE=simple`
 - [ ] `PRIVY_APP_ID`
 - [ ] `PRIVY_APP_SECRET`
 - [ ] `AGENT_CAPTCHA_JWT_SECRET` — HS256 secret for agent haiku JWT (`openssl rand -hex 32`). Optional when skip-captcha is on.
@@ -73,6 +80,23 @@ curl -sI -H "Origin: https://hood.markets" https://api.hood.markets/api/web-depl
 ```
 
 Expected header: `access-control-allow-origin: https://hood.markets`
+
+---
+
+## HoodMarkets V3 v0.6.0 — copy/paste block
+
+After updating variables, **Redeploy** the API service. Full reference: [`api/.env.hood.example`](.env.hood.example) and [`docs/HOODMARKETS_V3.md`](../docs/HOODMARKETS_V3.md).
+
+```env
+HOODMARKETS_V3_FACTORY=0x7E2905ddF3Dca96117A9e9d50F2924C1E7FE7Be1
+HOODMARKETS_V3_VAULT=0xdad973Ec5f0B56D64326dB78de9d90Aa9acDB842
+HOODMARKETS_V3_LP_LOCKER=0x48BCd46147a74A186913d41aE0e7210C03910fA5
+HOODMARKETS_V3_FRACTION_DEPLOYER=0x722AfdFa376844497783A1EAb3B3490Ff8eb8bB2
+HOODMARKETS_V3_PLATFORM_FEE_RECIPIENT=0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98
+HOODMARKETS_DEFAULT_LAUNCH_MODE=simple
+```
+
+**Previous factory (v0.5.0 — do not use for new deploys):** `0x4c18e43F8B8b63f42a944b98b8af29f576c7Ffa8`
 
 ---
 
