@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 16
+version: 17
 ---
 
 # hood.markets — Bankr agent skill
@@ -66,7 +66,7 @@ Or from Bankr skill catalog once published to [BankrBot/skills](https://github.c
 | **Holder NFTs** | 1,000 shares. Platform fees **only**: (1) swap fees 5%/95% via locker + `claimTradingFees`, (2) share listings 5% of sale price. See `references/HOLDER-NFTS.md` |
 | **Pro launch** | Uniswap V4 hooks — one-click buy/sell on hood.markets |
 | **Buy / sell** | Swap ETH ↔ token on Uniswap (Simple/V3). Pro tokens use swap helper + Bankr submit. **No “fund LP” on hood.markets** — launch LP is locked |
-| **Claim fees** | Pull WETH trading fees to creator wallet (launcher pays gas) |
+| **Claim fees** | Pull swap trading fees — **95% pro-rata to all Holder NFT share holders** (launcher pays gas) |
 
 ---
 
@@ -220,7 +220,10 @@ Use **haiku JWT** — no in-thread confirm step:
 
 - `launchMode`: `"simple"` (V3, DexScreener) or `"pro"` (V4, hood.markets swap UI)
 - Fee recipient = wallet from captcha JWT (Bankr linked wallet)
-- **Simple:** 5% platform / 95% creator — embedded in `HoodMarketsV3LpLocker`
+- **Simple:** 5% platform / 95% pro-rata to Holder NFT share holders — embedded in `HoodMarketsV3LpLocker`
+- **Buyer rewards:** post-launch on token page (`fundBuyerRewardPool`) — not on hood.markets launch form. API deploy may accept optional `buyerRewardShareCount` (legacy).
+
+**Web UI (hood.markets Launch tab):** “Someone else” fee recipient = **`0x…` wallet address only** — not `@handle` or profile URL. Agents/API may still resolve social handles for other channels.
 
 Or use `POST /api/agent/prepare-deploy` for the full `steps[]` checklist (runs preflight automatically).
 
@@ -345,6 +348,6 @@ Response includes `feeRecipientAddress`, `txHash`, `explorerUrl`, `feeModel` / `
 | `references/BANKR-SUBMIT.md` | Bankr security scan rules |
 | `references/RESPONSE-SAFETY.md` | Format replies locally |
 | `references/ONE-LINE-INTENTS.md` | Tweet → API mapping |
-| `references/HOLDER-NFTS.md` | 1,000-share vault, buyer rewards, marketplace, airdrop, claim behavior |
+| `references/HOLDER-NFTS.md` | 1,000-share vault, one-tx airdrop, buyer rewards post-launch, marketplace, claim behavior |
 | `streaming-hints.json` | V3 vs Pro detection + preflight error codes |
 | `known-contracts.json` | Pinned Robinhood addresses |

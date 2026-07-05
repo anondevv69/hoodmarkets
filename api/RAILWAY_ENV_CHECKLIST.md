@@ -35,7 +35,6 @@ The monorepo has no root `package.json`. Deploying from repo root will fail to b
 - [ ] `PRIVY_APP_ID`
 - [ ] `PRIVY_APP_SECRET`
 - [ ] `AGENT_CAPTCHA_JWT_SECRET` — HS256 secret for agent haiku JWT (`openssl rand -hex 32`). Optional when skip-captcha is on.
-- [ ] `AGENT_CAPTCHA_JWT_SECRET` — haiku JWT for non-X agents (generate: `openssl rand -hex 32`)
 - [ ] `AGENT_DEPLOY_SKIP_CAPTCHA_CHANNELS=x,twitter` — **default** — X skips haiku (Bankr confirms in-thread); other agents need haiku. Do **not** set `AGENT_DEPLOY_SKIP_CAPTCHA=true` unless you want to skip haiku for every channel.
 
 **Not required** for web-only: `NEYNAR_*`, `DISCORD_*`, `TELEGRAM_*`.
@@ -96,9 +95,7 @@ HOODMARKETS_V3_PLATFORM_FEE_RECIPIENT=0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98
 HOODMARKETS_DEFAULT_LAUNCH_MODE=simple
 ```
 
-**Previous factory (v0.10.0):** `0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9`
-
-**Previous factory (v0.6.0 — existing tokens only):** `0x7E2905ddF3Dca96117A9e9d50F2924C1E7FE7Be1`
+**Previous factories (existing tokens only):** v0.10 `0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9` · v0.9 `0x3a94FD3422F50ed6cC08e547c6C697E4bb3e76c8` · v0.8 `0xC2A604fF131dDE9201838007A129ea28b85d00e8` · v0.7 `0x45A3820A9A563e78A4cF7F355F7Be10fA6B706B3` · v0.6 `0x7E2905ddF3Dca96117A9e9d50F2924C1E7FE7Be1` — full list in `skills/hoodmarkets/known-contracts.json`
 
 ---
 
