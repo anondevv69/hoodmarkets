@@ -13,7 +13,7 @@
     "API: https://api.hood.markets",
     "Site: https://hood.markets",
     "Chain: Robinhood (4663) — Bankr wallet must support Robinhood",
-    "V3 factory: 0x3a94FD3422F50ed6cC08e547c6C697E4bb3e76c8 (v0.9.0 — opt-in buyer rewards fund/cancel)",
+    "V3 factory: 0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9 (v0.10.0 — batch share airdrop)",
     "Platform fee 5%: 0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98",
     "Deploy on X: extract media_url_https from tweet → tweetId + tweetImageUrl → resolve-deploy-image → prepare-deploy → confirm",
     "Deploy via API agent: preflight-deploy → prepare-deploy → haiku captcha → POST /api/deploy",

@@ -11,7 +11,7 @@ import {
   parseFractionShareAmount,
   redeemFractionShares,
   transferFractionShares,
-  transferFractionSharesToMany,
+  airdropFractionShares,
   type TokenFractionInfo,
 } from '../lib/tokenFractions';
 import { processBuyerRewards, claimTradingFeesPublic } from '../api';
@@ -326,8 +326,9 @@ export function TokenFractionShareActions({
       <div className="token-fraction-action">
         <p className="token-fraction-action-title">Airdrop to many</p>
         <p className="muted token-fraction-action-hint">
-          One address per line. Optional <code>,count</code> per line — otherwise uses default count. Each
-          line is a wallet send with the same 5% platform skim (95% delivered).
+          One address per line. Optional <code>,count</code> per line — otherwise uses default count.
+          Duplicate wallets are merged. One transaction when the collection supports batch airdrop
+          (v0.10+); older tokens fall back to one tx per wallet. 5% platform skim per recipient.
         </p>
         <label className="token-fraction-field">
           Wallets
@@ -367,22 +368,29 @@ export function TokenFractionShareActions({
               setAirdropping(true);
               try {
                 const provider = await wallet.getEthereumProvider();
-                const result = await transferFractionSharesToMany(
+                const result = await airdropFractionShares(
                   info.collectionAddress,
                   wallet.address as `0x${string}`,
                   parsed.entries,
                   info.tokenId,
                   provider,
-                  (done, total) => setAirdropProgress(`${done}/${total} transfers`),
+                  (done, total) =>
+                    setAirdropProgress(
+                      done >= total ? 'Confirming…' : `${done}/${total} transfers (legacy)`,
+                    ),
                 );
-                setAirdropTx(result.lastHash);
+                setAirdropTx(result.hash);
+                setAirdropProgress(
+                  result.batched
+                    ? `Sent to ${result.count} wallet${result.count === 1 ? '' : 's'} in one transaction.`
+                    : `Sent via ${result.count} transaction${result.count === 1 ? '' : 's'} (upgrade factory for one-tx airdrop).`,
+                );
                 setAirdropText('');
                 await onRefresh();
               } catch (e) {
                 setAirdropError(e instanceof Error ? e.message : 'Airdrop failed');
               } finally {
                 setAirdropping(false);
-                setAirdropProgress(null);
               }
             })();
           }}
@@ -392,7 +400,7 @@ export function TokenFractionShareActions({
         {airdropProgress ? <p className="muted token-fraction-action-hint">{airdropProgress}</p> : null}
         {airdropTx ? (
           <p className="mono token-fraction-action-tx">
-            Last tx ·{' '}
+            Tx ·{' '}
             <a href={txUrl(airdropTx)} target="_blank" rel="noreferrer">
               {airdropTx.slice(0, 10)}…
             </a>
