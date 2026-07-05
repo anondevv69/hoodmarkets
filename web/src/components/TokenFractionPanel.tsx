@@ -10,6 +10,7 @@ import {
   type TokenFractionInfo,
 } from '../lib/tokenFractions';
 import { TokenFractionShareActions } from './TokenFractionShareActions';
+import { TokenFractionListings } from './TokenFractionListings';
 
 function pctLabel(n: number): string {
   if (n >= 10) return `${n.toFixed(1)}%`;
@@ -172,7 +173,7 @@ export function TokenFractionPanel({
 
       <p className="muted token-space-note token-fraction-public-note">
         Vault shares are public on-chain. Anyone can view holders; connect a wallet that holds shares
-        to send, sell, redeem, or claim fees.
+        to send, list for sale on-chain, exit the vault, or trigger a fee claim for all holders.
       </p>
 
       <div className="token-fraction-layout">
@@ -180,10 +181,6 @@ export function TokenFractionPanel({
           <div className="token-fraction-stat">
             <span className="token-fraction-stat-k">Outstanding</span>
             <span className="token-fraction-stat-v">{info.outstandingShares.toLocaleString()}</span>
-          </div>
-          <div className="token-fraction-stat">
-            <span className="token-fraction-stat-k">Redeemed</span>
-            <span className="token-fraction-stat-v">{info.redeemedShares.toLocaleString()}</span>
           </div>
           <div className="token-fraction-stat">
             <span className="token-fraction-stat-k">Holders</span>
@@ -249,6 +246,12 @@ export function TokenFractionPanel({
         ) : null}
 
         <div className="token-fraction-layout-table">
+          <TokenFractionListings
+            collectionAddress={info.collectionAddress}
+            wallet={authenticated && wallet ? wallet : null}
+            onRefresh={() => refreshFractionState(info.collectionAddress)}
+          />
+
           {info.holders.length > 0 ? (
             <div className="token-fraction-table-wrap">
               <table className="token-fraction-table">
@@ -287,9 +290,10 @@ export function TokenFractionPanel({
 
         <p className="muted token-fraction-foot">
           Shares are ERC-1155 tokens — transferable like NFTs. All 1,000 mint to the fee recipient at
-          launch. Send any number to other wallets; those holders can airdrop, sell, or claim fees
-          pro-rata. On-chain: <code>claimTradingFees()</code> for swap fees (95% creator pool) and{' '}
-          <code>redeem(amount)</code> to burn shares for vaulted tokens.
+          launch. Hold shares to earn trading fees pro-rata, or list shares for sale on-chain (
+          <code>listShares</code> / <code>buyShares</code>). Burn shares to withdraw launch tokens from
+          the 10% vault (you forfeit fee rights on burned shares). Anyone can call{' '}
+          <code>claimTradingFees()</code> once to pay every holder.
         </p>
       </div>
     </section>

@@ -158,7 +158,7 @@ export function ClaimFeesActions({
             disabled={collecting || claiming}
             onClick={() => void onClaim()}
           >
-            {claiming ? 'Collecting…' : 'Collect trading fees'}
+            {claiming ? 'Claiming…' : 'Claim trading fees'}
           </button>
         ) : (
           <>
@@ -185,7 +185,9 @@ export function ClaimFeesActions({
         <p className="tp-footnote">
           {platformFees
             ? 'Anyone can trigger this claim. Fees go to the hood.markets treasury — the caller only pays gas.'
-            : 'Anyone can trigger this claim. WETH is sent to the fee recipient — hood.markets pays gas.'}
+            : isV3
+              ? 'Anyone can trigger this claim. One transaction pays every Holder NFT share wallet pro-rata — hood.markets pays gas from the site.'
+              : 'Anyone can trigger this claim. WETH is sent to the fee recipient — hood.markets pays gas.'}
         </p>
 
         {message ? <p className="muted claim-fees-message">{message}</p> : null}
@@ -214,10 +216,9 @@ export function ClaimFeesActions({
         ) : isV3 ? (
           <>
             Simple (V3) launch: swap fees accrue in the Uniswap V3 pool. Anyone can trigger{' '}
-            <strong>Collect trading fees</strong> below — that pulls the 95% creator slice into the
-            Holder NFT contract. Each share holder then claims their pro-rata amount via{' '}
-            <strong>Claim my trading fees</strong> on the Holder NFTs panel (hood.markets pays gas
-            for the collect step only).
+            <strong>Claim trading fees</strong> below — one transaction pulls fees from the pool
+            and sends each Holder NFT share wallet its pro-rata slice (95% creator pool). hood.markets
+            pays gas when triggered from the site.
           </>
         ) : publicCollect ? (
           <>
@@ -245,8 +246,7 @@ export function ClaimFeesActions({
         <p className="claim-fees-status">
           {isV3 ? (
             <span className="muted">
-              V3: collect pulls fees into the Holder NFT contract; share holders claim their slice
-              separately.
+              V3: one claim pulls pool fees and pays every share holder pro-rata.
             </span>
           ) : hasPending ? (
             <span className="lp-display">{pending} WETH in fee locker</span>
@@ -270,7 +270,7 @@ export function ClaimFeesActions({
             disabled={collecting || claiming}
             onClick={() => void onClaim()}
           >
-            {claiming ? 'Collecting…' : 'Collect trading fees'}
+            {claiming ? 'Claiming…' : 'Claim trading fees'}
           </button>
         ) : (
           <>

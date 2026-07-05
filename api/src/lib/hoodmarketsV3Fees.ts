@@ -1,7 +1,14 @@
-import { createPublicClient, createWalletClient, encodeFunctionData, http } from 'viem';
+import {
+  createPublicClient,
+  createWalletClient,
+  encodeFunctionData,
+  http,
+  zeroAddress,
+} from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { config } from '../config.js';
 import type { DeploymentCatalogRow } from './deploymentCatalog.js';
+import { HOODMARKETS_V3_FRACTION_ABI } from './hoodmarketsV3FractionAbi.js';
 import { robinhood, robinhoodTxUrl } from './robinhoodChain.js';
 
 export const HOODMARKETS_V3_CLAIM_ABI = [
@@ -11,6 +18,13 @@ export const HOODMARKETS_V3_CLAIM_ABI = [
     inputs: [{ name: 'token', type: 'address', internalType: 'address' }],
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'fractionCollectionForToken',
+    inputs: [{ name: 'token', type: 'address', internalType: 'address' }],
+    outputs: [{ name: '', type: 'address', internalType: 'address' }],
+    stateMutability: 'view',
   },
 ] as const;
 
@@ -28,18 +42,57 @@ export function isV3CatalogDeployment(
   return false;
 }
 
-/**
- * V3 simple launches: one permissionless tx on HoodMarketsV3 pulls swap fees from the
- * Uniswap V3 LP NFT and sends WETH (95%) to the fee recipient wallet directly.
- */
-export async function claimV3RewardsForToken(
+/** Resolve V3 claim target: Holder NFT `claimTradingFees()` when present, else legacy factory `claimRewards`. */
+export async function resolveV3ClaimTarget(
   tokenAddress: `0x${string}`,
-): Promise<{ txHash: string; basescanUrl: string; message: string }> {
+  publicClient: ReturnType<typeof createPublicClient>,
+): Promise<{
+  to: `0x${string}`;
+  data: `0x${string}`;
+  usesFraction: boolean;
+}> {
   const factory = config.hoodmarketsV3.factory;
   if (!factory) {
     throw new Error('HoodMarkets V3 factory is not configured on the API.');
   }
 
+  const fractionCollection = await publicClient.readContract({
+    address: factory as `0x${string}`,
+    abi: HOODMARKETS_V3_CLAIM_ABI,
+    functionName: 'fractionCollectionForToken',
+    args: [tokenAddress],
+  });
+
+  if (fractionCollection && fractionCollection !== zeroAddress) {
+    return {
+      to: fractionCollection as `0x${string}`,
+      data: encodeFunctionData({
+        abi: HOODMARKETS_V3_FRACTION_ABI,
+        functionName: 'claimTradingFees',
+        args: [],
+      }),
+      usesFraction: true,
+    };
+  }
+
+  return {
+    to: factory as `0x${string}`,
+    data: encodeFunctionData({
+      abi: HOODMARKETS_V3_CLAIM_ABI,
+      functionName: 'claimRewards',
+      args: [tokenAddress],
+    }),
+    usesFraction: false,
+  };
+}
+
+/**
+ * V3 simple launches: permissionless `claimTradingFees()` on the Holder NFT contract
+ * pulls swap fees from the LP and pays every share holder pro-rata in one transaction.
+ */
+export async function claimV3RewardsForToken(
+  tokenAddress: `0x${string}`,
+): Promise<{ txHash: string; basescanUrl: string; message: string }> {
   const account = privateKeyToAccount(config.deployerPrivateKey);
   const publicClient = createPublicClient({
     chain: robinhood,
@@ -51,36 +104,46 @@ export async function claimV3RewardsForToken(
     account,
   });
 
-  await publicClient.simulateContract({
-    address: factory,
-    abi: HOODMARKETS_V3_CLAIM_ABI,
-    functionName: 'claimRewards',
-    args: [tokenAddress],
-    account: account.address,
-  });
+  const target = await resolveV3ClaimTarget(tokenAddress, publicClient);
 
-  const data = encodeFunctionData({
-    abi: HOODMARKETS_V3_CLAIM_ABI,
-    functionName: 'claimRewards',
-    args: [tokenAddress],
-  });
+  if (target.usesFraction) {
+    await publicClient.simulateContract({
+      address: target.to,
+      abi: HOODMARKETS_V3_FRACTION_ABI,
+      functionName: 'claimTradingFees',
+      args: [],
+      account: account.address,
+    });
+  } else {
+    await publicClient.simulateContract({
+      address: target.to,
+      abi: HOODMARKETS_V3_CLAIM_ABI,
+      functionName: 'claimRewards',
+      args: [tokenAddress],
+      account: account.address,
+    });
+  }
 
   const txHash = await walletClient.sendTransaction({
-    to: factory,
-    data,
+    to: target.to,
+    data: target.data,
     value: 0n,
   });
 
   return {
     txHash,
     basescanUrl: robinhoodTxUrl(txHash),
-    message:
-      'V3 swap fees collected from the pool into the Holder NFT contract. Share holders call claimTradingFees() on the collection for their pro-rata slice (95% creator / 5% platform).',
+    message: target.usesFraction
+      ? 'Trading fees collected from the pool and sent pro-rata to all Holder NFT share wallets in one transaction.'
+      : 'V3 swap fees collected from the pool into the fee recipient wallet (legacy launch without Holder NFTs).',
   };
 }
 
 export function friendlyV3ClaimError(msg: string): string {
   const lower = msg.toLowerCase();
+  if (lower.includes('nothingtoclaim') || lower.includes('nothing to claim')) {
+    return 'No trading fees to claim yet — the pool may have no accrued swap fees.';
+  }
   if (lower.includes('execution reverted') || lower.includes('revert')) {
     return (
       'Could not claim V3 fees yet. The pool may have no accrued swap fees, or this token was not deployed via HoodMarkets V3.'

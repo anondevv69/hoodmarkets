@@ -3,7 +3,9 @@ import { txUrl } from '../chain';
 import {
   fetchBuyerRewardPoolState,
   fetchUniquePoolBuyerCandidates,
+  listFractionShares,
   parseAirdropRecipients,
+  parseEthPriceWei,
   parseFractionRecipient,
   parseFractionShareAmount,
   redeemFractionShares,
@@ -11,8 +13,9 @@ import {
   transferFractionSharesToMany,
   type TokenFractionInfo,
 } from '../lib/tokenFractions';
-import { processBuyerRewards } from '../api';
+import { processBuyerRewards, claimTradingFeesPublic } from '../api';
 import { formatTokenBalance } from '../lib/formatTokenBalance';
+import { zeroAddress } from 'viem';
 
 type WalletLike = {
   address: string;
@@ -40,12 +43,11 @@ export function TokenFractionShareActions({
   const [transferTx, setTransferTx] = useState<string | null>(null);
   const [transferError, setTransferError] = useState<string | null>(null);
 
-  const [sellTo, setSellTo] = useState('');
-  const [sellAmount, setSellAmount] = useState('1');
-  const [sellNote, setSellNote] = useState('');
-  const [selling, setSelling] = useState(false);
-  const [sellTx, setSellTx] = useState<string | null>(null);
-  const [sellError, setSellError] = useState<string | null>(null);
+  const [listAmount, setListAmount] = useState('1');
+  const [listPriceEth, setListPriceEth] = useState('');
+  const [listing, setListing] = useState(false);
+  const [listTx, setListTx] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
 
   const [airdropText, setAirdropText] = useState('');
   const [airdropDefaultAmount, setAirdropDefaultAmount] = useState('1');
@@ -185,63 +187,83 @@ export function TokenFractionShareActions({
       </div>
 
       <div className="token-fraction-action">
-        <p className="token-fraction-action-title">Sell shares (OTC)</p>
+        <p className="token-fraction-action-title">List shares for sale</p>
         <p className="muted token-fraction-action-hint">
-          Transfer to the buyer after payment (off-chain or P2P). On-chain = ERC-1155 transfer only.
+          Escrow shares in the contract at your asking price. Anyone can buy in one transaction — they
+          pay you in ETH and receive the shares automatically.
         </p>
-        <label className="token-fraction-field">
-          Buyer wallet
-          <input
-            className="lp-input"
-            value={sellTo}
-            onChange={(e) => setSellTo(e.target.value.trim())}
-            placeholder="0x…"
-            spellCheck={false}
-            autoComplete="off"
-          />
-        </label>
         <label className="token-fraction-field">
           Share count
           <input
             className="lp-input"
-            value={sellAmount}
-            onChange={(e) => setSellAmount(e.target.value.replace(/[^\d]/g, ''))}
+            value={listAmount}
+            onChange={(e) => setListAmount(e.target.value.replace(/[^\d]/g, ''))}
             placeholder="1"
             inputMode="numeric"
           />
         </label>
         <label className="token-fraction-field">
-          Price note (optional, off-chain)
+          Price (ETH)
           <input
             className="lp-input"
-            value={sellNote}
-            onChange={(e) => setSellNote(e.target.value)}
-            placeholder="e.g. 0.05 ETH — for your records"
+            value={listPriceEth}
+            onChange={(e) => setListPriceEth(e.target.value)}
+            placeholder="0.05"
+            inputMode="decimal"
           />
         </label>
         <button
           type="button"
           className="btn btn-secondary btn-sm"
-          disabled={selling}
+          disabled={listing}
           onClick={() => {
-            void runTransfer(sellTo, sellAmount, setSellError, setSellTx, setSelling, () => {
-              setSellTo('');
-              setSellAmount('1');
-              setSellNote('');
-            });
+            void (async () => {
+              setListError(null);
+              setListTx(null);
+              const amount = parseFractionShareAmount(listAmount, walletShares);
+              if (amount == null) {
+                setListError(`Enter 1–${walletShares.toLocaleString()} shares.`);
+                return;
+              }
+              const priceWei = parseEthPriceWei(listPriceEth);
+              if (priceWei == null) {
+                setListError('Enter a valid ETH price (e.g. 0.05).');
+                return;
+              }
+              setListing(true);
+              try {
+                const provider = await wallet.getEthereumProvider();
+                const hash = await listFractionShares(
+                  info.collectionAddress,
+                  wallet.address as `0x${string}`,
+                  amount,
+                  priceWei,
+                  zeroAddress,
+                  provider,
+                );
+                setListTx(hash);
+                setListAmount('1');
+                setListPriceEth('');
+                await onRefresh();
+              } catch (e) {
+                setListError(e instanceof Error ? e.message : 'List failed');
+              } finally {
+                setListing(false);
+              }
+            })();
           }}
         >
-          {selling ? 'Transferring…' : 'Transfer to buyer'}
+          {listing ? 'Listing…' : 'List for sale'}
         </button>
-        {sellTx ? (
+        {listTx ? (
           <p className="mono token-fraction-action-tx">
-            Sold ·{' '}
-            <a href={txUrl(sellTx)} target="_blank" rel="noreferrer">
-              {sellTx.slice(0, 10)}…
+            Listed ·{' '}
+            <a href={txUrl(listTx)} target="_blank" rel="noreferrer">
+              {listTx.slice(0, 10)}…
             </a>
           </p>
         ) : null}
-        {sellError ? <p className="error">{sellError}</p> : null}
+        {listError ? <p className="error">{listError}</p> : null}
       </div>
 
       <div className="token-fraction-action">
@@ -440,12 +462,19 @@ export function TokenFractionShareActions({
       </div>
 
       <div className="token-fraction-action">
-        <p className="token-fraction-action-title">Redeem for tokens</p>
+        <p className="token-fraction-action-title">Exit vault for launch tokens (optional)</p>
         <p className="muted token-fraction-action-hint">
-          Burn shares for vaulted tokens ({shareTokenHuman} per share).
+          At launch, 10% of supply sits in a vault as 1,000 shares. You can permanently burn shares
+          to withdraw {shareTokenHuman} launch tokens per share — a one-time cash-out from that
+          vault.
+        </p>
+        <p className="muted token-fraction-action-hint">
+          <strong>You lose those shares</strong> and stop earning trading fees on them. Fees keep
+          going to whoever still holds shares — if everyone exits, no shares remain and the fee
+          split ends (pool fees may still accrue until claimed).
         </p>
         <label className="token-fraction-field">
-          Share count
+          Share count to burn
           <input
             className="lp-input"
             value={redeemAmount}
@@ -460,7 +489,7 @@ export function TokenFractionShareActions({
           const underlying = BigInt(parsed) * info.tokensPerShare;
           return (
             <p className="muted token-fraction-action-preview">
-              You receive ~{formatTokenBalance(underlying, 18)} launch tokens.
+              Vault sends ~{formatTokenBalance(underlying, 18)} launch tokens to your wallet.
             </p>
           );
         })()}
@@ -490,18 +519,18 @@ export function TokenFractionShareActions({
                 setRedeemAmount('1');
                 await onRefresh();
               } catch (e) {
-                setRedeemError(e instanceof Error ? e.message : 'Redeem failed');
+                setRedeemError(e instanceof Error ? e.message : 'Exit failed');
               } finally {
                 setRedeeming(false);
               }
             })();
           }}
         >
-          {redeeming ? 'Redeeming…' : 'Redeem shares'}
+          {redeeming ? 'Exiting…' : 'Burn shares for tokens'}
         </button>
         {redeemTx ? (
           <p className="mono token-fraction-action-tx">
-            Redeemed ·{' '}
+            Exited vault ·{' '}
             <a href={txUrl(redeemTx)} target="_blank" rel="noreferrer">
               {redeemTx.slice(0, 10)}…
             </a>
@@ -511,17 +540,20 @@ export function TokenFractionShareActions({
       </div>
 
       <div className="token-fraction-action">
-        <p className="token-fraction-action-title">Claim trading fees</p>
-        <p className="muted token-fraction-action-hint">Pro-rata slice of the 95% creator fee pool.</p>
+        <p className="token-fraction-action-title">Trading fees</p>
+        <p className="muted token-fraction-action-hint">
+          Anyone can claim in one transaction — pool fees are pulled and sent pro-rata to every share
+          holder.
+        </p>
         {pendingFees && (pendingFees.pending0 > 0n || pendingFees.pending1 > 0n) ? (
           <p className="muted token-fraction-pending">
-            Pending:{' '}
+            Your share when claimed:{' '}
             {pendingFees.pending0 > 0n ? `${formatTokenBalance(pendingFees.pending0, 18)} WETH` : null}
             {pendingFees.pending0 > 0n && pendingFees.pending1 > 0n ? ' · ' : null}
             {pendingFees.pending1 > 0n ? `${formatTokenBalance(pendingFees.pending1, 18)} token` : null}
           </p>
         ) : (
-          <p className="muted token-fraction-pending">No unclaimed fees yet for your shares.</p>
+          <p className="muted token-fraction-pending">No unclaimed fees for your shares yet.</p>
         )}
         <button
           type="button"
@@ -533,20 +565,16 @@ export function TokenFractionShareActions({
               setClaimTx(null);
               setClaimingFees(true);
               try {
-                const { claimFractionTradingFees, fetchPendingFractionTradingFees } =
-                  await import('../lib/tokenFractions');
-                const provider = await wallet.getEthereumProvider();
-                const hash = await claimFractionTradingFees(
-                  info.collectionAddress,
-                  wallet.address as `0x${string}`,
-                  provider,
-                );
-                setClaimTx(hash);
+                const out = await claimTradingFeesPublic(info.launchToken);
+                if (!out.ok && out.error) throw new Error(out.error);
+                if (out.txHash) setClaimTx(out.txHash);
+                const { fetchPendingFractionTradingFees } = await import('../lib/tokenFractions');
                 const pending = await fetchPendingFractionTradingFees(
                   info.collectionAddress,
                   wallet.address as `0x${string}`,
                 );
                 setPendingFees(pending);
+                await onRefresh();
               } catch (e) {
                 setClaimError(e instanceof Error ? e.message : 'Claim failed');
               } finally {
@@ -555,11 +583,11 @@ export function TokenFractionShareActions({
             })();
           }}
         >
-          {claimingFees ? 'Claiming…' : 'Claim my trading fees'}
+          {claimingFees ? 'Claiming…' : 'Claim trading fees'}
         </button>
         {claimTx ? (
           <p className="mono token-fraction-action-tx">
-            Claimed ·{' '}
+            Claimed for all holders ·{' '}
             <a href={txUrl(claimTx)} target="_blank" rel="noreferrer">
               {claimTx.slice(0, 10)}…
             </a>
