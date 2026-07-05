@@ -20,7 +20,8 @@ contract HoodMarketsV3FractionDeployer {
     function deployFraction(
         address tokenAddress,
         address initialHolder,
-        uint256 fractionVaultAmount
+        uint256 fractionVaultAmount,
+        uint256 buyerRewardShareCount
     ) external returns (address fractionCollection) {
         if (msg.sender != hoodMarketsFactory) revert UnauthorizedFactory();
 
@@ -32,7 +33,7 @@ contract HoodMarketsV3FractionDeployer {
             fractionVaultAmount
         );
         IERC20(tokenAddress).safeTransferFrom(msg.sender, address(fraction), fractionVaultAmount);
-        fraction.initialize(initialHolder, fractionVaultAmount);
+        fraction.initialize(initialHolder, fractionVaultAmount, buyerRewardShareCount);
 
         return address(fraction);
     }

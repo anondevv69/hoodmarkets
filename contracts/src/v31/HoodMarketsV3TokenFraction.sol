@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IHoodMarketsV3} from "./interfaces/IHoodMarketsV3.sol";
@@ -10,7 +11,7 @@ import {IHoodMarketsV3TokenFraction} from "./interfaces/IHoodMarketsV3TokenFract
 /// @notice Fixed 1000-share fractional vault for every HoodMarkets V3 launch.
 /// @dev ERC-1155 edition (id #0, supply 1000). Trading fees (95% creator slice) route here
 ///      and are claimed pro-rata by share holders via `claimTradingFees()`.
-contract HoodMarketsV3TokenFraction is ERC1155, IHoodMarketsV3TokenFraction {
+contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, IHoodMarketsV3TokenFraction {
     using SafeERC20 for IERC20;
 
     uint256 public constant FRACTION_COUNT = 1000;
@@ -26,9 +27,16 @@ contract HoodMarketsV3TokenFraction is ERC1155, IHoodMarketsV3TokenFraction {
     uint256 public positionId;
     address public rewardToken0;
     address public rewardToken1;
+    address public pool;
+
+    address public buyerRewardAdmin;
+    uint256 public buyerRewardShareCap;
+    uint256 public buyerRewardSharesRemaining;
 
     bool private _initialized;
     bool private _feeRewardsConfigured;
+
+    mapping(address => bool) public buyerShareIssued;
 
     /// @dev Reward accounting per ERC20 (excludes vaulted launch tokens).
     mapping(address => uint256) public accRewardPerShare;
@@ -56,29 +64,48 @@ contract HoodMarketsV3TokenFraction is ERC1155, IHoodMarketsV3TokenFraction {
         tokensPerFraction = vaultAmount_ / FRACTION_COUNT;
     }
 
-    /// @notice Mint all fractional shares after the vault tokens are on this contract.
-    function initialize(address initialHolder, uint256 vaultAmount) external {
+    /// @notice Mint fractional shares; escrow `buyerRewardShareCount` for first buyers.
+    function initialize(address initialHolder, uint256 vaultAmount, uint256 buyerRewardShareCount_)
+        external
+    {
         if (msg.sender != fractionDeployer) revert Unauthorized();
         if (_initialized) revert AlreadyInitialized();
         if (IERC20(launchToken).balanceOf(address(this)) < vaultAmount) revert Unauthorized();
+        if (buyerRewardShareCount_ > FRACTION_COUNT) revert InvalidBuyerRewardShareCount();
+
         _initialized = true;
         outstandingShares = FRACTION_COUNT;
+        buyerRewardAdmin = initialHolder;
+        buyerRewardShareCap = buyerRewardShareCount_;
+        buyerRewardSharesRemaining = buyerRewardShareCount_;
 
-        _mint(initialHolder, FRACTION_TOKEN_ID, FRACTION_COUNT, "");
-        _syncRewardDebt(initialHolder);
+        uint256 holderShares = FRACTION_COUNT - buyerRewardShareCount_;
+        if (holderShares > 0) {
+            _mint(initialHolder, FRACTION_TOKEN_ID, holderShares, "");
+            _syncRewardDebt(initialHolder);
+        }
+        if (buyerRewardShareCount_ > 0) {
+            _mint(address(this), FRACTION_TOKEN_ID, buyerRewardShareCount_, "");
+        }
     }
 
     /// @notice Called once by the factory after the Uniswap V3 pool is created.
-    function configureFeeRewards(uint256 positionId_, address rewardToken0_, address rewardToken1_)
-        external
-    {
+    function configureFeeRewards(
+        uint256 positionId_,
+        address rewardToken0_,
+        address rewardToken1_,
+        address pool_
+    ) external {
         if (msg.sender != hoodMarketsFactory) revert Unauthorized();
         if (_feeRewardsConfigured) revert FeeRewardsAlreadyConfigured();
-        if (rewardToken0_ == address(0) || rewardToken1_ == address(0)) revert Unauthorized();
+        if (rewardToken0_ == address(0) || rewardToken1_ == address(0) || pool_ == address(0)) {
+            revert Unauthorized();
+        }
 
         positionId = positionId_;
         rewardToken0 = rewardToken0_;
         rewardToken1 = rewardToken1_;
+        pool = pool_;
         _feeRewardsConfigured = true;
     }
 
@@ -111,6 +138,23 @@ contract HoodMarketsV3TokenFraction is ERC1155, IHoodMarketsV3TokenFraction {
         emit TradingFeesClaimed(msg.sender, rewardToken0, paid0, rewardToken1, paid1);
     }
 
+    /// @inheritdoc IHoodMarketsV3TokenFraction
+    function issueBuyerShare(address buyer) external {
+        if (buyer == address(0)) revert InvalidBuyer();
+        if (msg.sender != hoodMarketsFactory && msg.sender != buyerRewardAdmin) revert Unauthorized();
+        if (buyerShareIssued[buyer]) revert BuyerShareAlreadyIssued();
+        if (buyerRewardSharesRemaining == 0) revert BuyerRewardPoolExhausted();
+
+        buyerShareIssued[buyer] = true;
+        buyerRewardSharesRemaining--;
+
+        _accrueAll();
+        _safeTransferFrom(address(this), buyer, FRACTION_TOKEN_ID, 1, "");
+        _syncRewardDebt(buyer);
+
+        emit BuyerShareIssued(buyer, buyerRewardSharesRemaining);
+    }
+
     /// @notice View pending trading fees for a share holder (both pool reward tokens).
     function pendingTradingFees(address account)
         external
@@ -138,13 +182,14 @@ contract HoodMarketsV3TokenFraction is ERC1155, IHoodMarketsV3TokenFraction {
 
     function _pendingWithUnaccounted(address account, address token) internal view returns (uint256) {
         uint256 shares = balanceOf(account, FRACTION_TOKEN_ID);
-        if (shares == 0 || outstandingShares == 0) return 0;
+        uint256 eligible = _feeEligibleShares();
+        if (shares == 0 || eligible == 0) return 0;
 
         uint256 acc = accRewardPerShare[token];
         uint256 balance = _rewardableBalance(token);
         uint256 accounted = rewardTokenAccounted[token];
         if (balance > accounted) {
-            acc += ((balance - accounted) * ACC_PRECISION) / outstandingShares;
+            acc += ((balance - accounted) * ACC_PRECISION) / eligible;
         }
 
         uint256 accumulated = (shares * acc) / ACC_PRECISION;
@@ -162,15 +207,21 @@ contract HoodMarketsV3TokenFraction is ERC1155, IHoodMarketsV3TokenFraction {
         return balance;
     }
 
+    function _feeEligibleShares() internal view returns (uint256) {
+        uint256 escrow = balanceOf(address(this), FRACTION_TOKEN_ID);
+        return outstandingShares > escrow ? outstandingShares - escrow : 0;
+    }
+
     function _accrue(address token) internal {
         if (token == address(0)) return;
 
+        uint256 eligible = _feeEligibleShares();
         uint256 balance = _rewardableBalance(token);
         uint256 accounted = rewardTokenAccounted[token];
-        if (balance <= accounted || outstandingShares == 0) return;
+        if (balance <= accounted || eligible == 0) return;
 
         uint256 unrewarded = balance - accounted;
-        accRewardPerShare[token] += (unrewarded * ACC_PRECISION) / outstandingShares;
+        accRewardPerShare[token] += (unrewarded * ACC_PRECISION) / eligible;
         rewardTokenAccounted[token] = balance;
     }
 
@@ -202,5 +253,14 @@ contract HoodMarketsV3TokenFraction is ERC1155, IHoodMarketsV3TokenFraction {
             if (from != address(0)) _syncRewardDebt(from);
             if (to != address(0)) _syncRewardDebt(to);
         }
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC1155, ERC1155Holder)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 }

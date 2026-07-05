@@ -68,6 +68,8 @@ export interface TokenDeploymentParams {
   xUrl?: string;
   /** `simple` = HoodMarkets V3 (Uniswap V3). `pro` = HoodMarkets V4. */
   launchMode?: 'simple' | 'pro';
+  /** First X unique pool buyers each receive 1 Holder NFT share (0–1000). Self-fee launches only. */
+  buyerRewardShareCount?: number;
   /** User description for catalog UI (may differ from on-chain metadata text). */
   tokenDescription?: string;
 }
@@ -207,6 +209,7 @@ export class LiquidDeployer {
                   platformFeeRecipient: config.platformFeeRecipient,
                 }
               : {}),
+            buyerRewardShareCount: params.buyerRewardShareCount,
           })
         : await deployTokenOnchain(
             this.publicClient,

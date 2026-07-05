@@ -368,6 +368,8 @@ export interface LaunchPayload {
   feeTarget?: 'self' | 'other';
   recipientPaste?: string;
   recipientAddress?: string;
+  /** First X unique buyers each get 1 Holder NFT share (0–1000). Self-fee simple launches only. */
+  buyerRewardShareCount?: number;
 }
 
 export type { WalletDeployPrepare } from './lib/walletDeploy';
@@ -661,4 +663,36 @@ export async function claimTradingFees(
     body: JSON.stringify({ tokenAddress, walletAddress }),
   });
   return parseJson<ClaimFeesResult>(res);
+}
+
+export interface BuyerRewardStatus {
+  enabled: boolean;
+  cap: number;
+  remaining: number;
+  issued: number;
+  pool: string | null;
+}
+
+export interface ProcessBuyerRewardsResult {
+  ok: boolean;
+  issued: number;
+  buyers: string[];
+  remaining: number;
+  message: string;
+  txHashes: string[];
+  status: BuyerRewardStatus;
+}
+
+export async function fetchBuyerRewardStatus(tokenAddress: string): Promise<BuyerRewardStatus> {
+  const res = await fetch(`${API_BASE}/api/deployments/${tokenAddress}/buyer-rewards-status`);
+  return parseJson<BuyerRewardStatus>(res);
+}
+
+export async function processBuyerRewards(tokenAddress: string): Promise<ProcessBuyerRewardsResult> {
+  const res = await fetch(`${API_BASE}/api/deployments/${tokenAddress}/process-buyer-rewards`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return parseJson<ProcessBuyerRewardsResult>(res);
 }

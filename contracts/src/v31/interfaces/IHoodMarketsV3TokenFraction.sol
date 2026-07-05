@@ -8,6 +8,10 @@ interface IHoodMarketsV3TokenFraction {
     error InsufficientFractionBalance();
     /// @notice When redeem amount is zero
     error ZeroRedeemAmount();
+    error InvalidBuyerRewardShareCount();
+    error BuyerRewardPoolExhausted();
+    error BuyerShareAlreadyIssued();
+    error InvalidBuyer();
 
     event FractionRedeemed(
         address indexed owner, uint256 indexed id, uint256 amount, uint256 underlyingAmount
@@ -21,6 +25,8 @@ interface IHoodMarketsV3TokenFraction {
         uint256 amount1
     );
 
+    event BuyerShareIssued(address indexed buyer, uint256 sharesRemaining);
+
     function FRACTION_COUNT() external view returns (uint256);
     function FRACTION_TOKEN_ID() external view returns (uint256);
     function launchToken() external view returns (address);
@@ -29,6 +35,11 @@ interface IHoodMarketsV3TokenFraction {
     function positionId() external view returns (uint256);
     function rewardToken0() external view returns (address);
     function rewardToken1() external view returns (address);
+    function pool() external view returns (address);
+    function buyerRewardAdmin() external view returns (address);
+    function buyerRewardShareCap() external view returns (uint256);
+    function buyerRewardSharesRemaining() external view returns (uint256);
+    function buyerShareIssued(address buyer) external view returns (bool);
 
     /// @notice Burn fractional shares and receive the underlying launch token.
     function redeem(uint256 amount) external;
@@ -40,6 +51,13 @@ interface IHoodMarketsV3TokenFraction {
     function pendingTradingFees(address account) external view returns (uint256, uint256);
 
     /// @notice Wire pool reward tokens after launch (factory-only, once).
-    function configureFeeRewards(uint256 positionId, address rewardToken0, address rewardToken1)
-        external;
+    function configureFeeRewards(
+        uint256 positionId,
+        address rewardToken0,
+        address rewardToken1,
+        address pool_
+    ) external;
+
+    /// @notice Transfer one buyer-reward share from the escrow pool (factory relay or fee admin).
+    function issueBuyerShare(address buyer) external;
 }

@@ -15,36 +15,45 @@ The 5% platform wallet is set at locker deploy (`HOODMARKETS_PLATFORM_FEE_RECIPI
 
 ## Embedded 1000-share fraction (v0.5.0+)
 
-Every token launched through **HoodMarkets V3 v0.5.0** automatically:
+Every token launched through **HoodMarkets V3 v0.5.0+** automatically:
 
 | Step | On-chain behavior |
 |------|-------------------|
 | **Vault** | **10%** of the 100B supply (`FRACTION_VAULT_PERCENTAGE = 10`) |
 | **Fraction collection** | New `HoodMarketsV3TokenFraction` ERC-1155 per token (id `#0`, supply **1000**) |
-| **Initial holder** | All 1000 shares go to `creatorAdmin` — sell via transfers, redeem via `redeem(amount)` |
+| **Initial holder** | Fee recipient receives **1000 − X** shares at launch (v0.6+) or all 1000 (v0.5) |
 | **Trading fees (95%)** | Routed to the fraction contract; holders call `claimTradingFees()` for pro-rata WETH/token |
 | **Pool** | Remaining **90%** seeds the Uniswap V3 pool |
 
-**v0.4.0 tokens** mint shares but route fees to a single wallet — upgrade requires a new factory deploy.
+## Buyer reward pool (v0.6.0+)
+
+At launch, the fee recipient sets **`buyerRewardShareCount = X`** (0–1000). **X shares** are escrowed on the fraction contract; the **first X unique pool buyers** each receive **1 share** via `factory.issueBuyerShare(token, buyer)` (called by the hood.markets deployer relay after indexing Uniswap V3 `Swap` events).
+
+| API | Purpose |
+|-----|---------|
+| `GET /api/deployments/:token/buyer-rewards-status` | Cap, issued, remaining |
+| `POST /api/deployments/:token/process-buyer-rewards` | Scan swaps and issue shares |
+
+**v0.5.0 tokens** mint all 1000 shares to the fee recipient — no buyer pool. **v0.4.0 tokens** mint shares but route fees to a single wallet.
 
 There is **no SDK toggle** and **no optional vault config** — legacy `vaultConfig` values revert with `LegacyVaultDisabled`. Integrators call `deployToken` exactly as before; fractions are created inside the factory.
 
 Lookup: `fractionCollectionForToken(tokenAddress)` on the factory, or `fractionCollection` in the `TokenCreated` event.
 
-**Deployed on mainnet 4663 (2026-07-04 v0.5.0).** Railway `HOODMARKETS_V3_*` env vars point at the v0.5 factory.
+**Deployed on mainnet 4663 (2026-07-04 v0.6.0).** Railway `HOODMARKETS_V3_*` env vars point at the v0.6 factory.
 
 ## Deployed addresses (mainnet 4663)
 
 | Contract | Address |
 |----------|---------|
-| HoodMarketsV3 factory (v0.5.0) | `0x4c18e43F8B8b63f42a944b98b8af29f576c7Ffa8` |
-| HoodMarketsV3Vault | `0x1b84cBb1837F17d6d433195b7e57E869b3522848` |
-| HoodMarketsV3LpLocker | `0x5296C54C3f5D8d0e0ced4A95BC6B85d6Db715AD5` |
-| HoodMarketsV3FractionDeployer | `0x77Aea5d5EAae608d932bfD1e99fCf83e983c3641` |
+| HoodMarketsV3 factory (v0.6.0) | `0x7E2905ddF3Dca96117A9e9d50F2924C1E7FE7Be1` |
+| HoodMarketsV3Vault | `0xdad973Ec5f0B56D64326dB78de9d90Aa9acDB842` |
+| HoodMarketsV3LpLocker | `0x48BCd46147a74A186913d41aE0e7210C03910fA5` |
+| HoodMarketsV3FractionDeployer | `0x722AfdFa376844497783A1EAb3B3490Ff8eb8bB2` |
 | Platform fee recipient (5%) | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
 | Contract owner | `0xFA45A3b8d1662E3432D1B5bE3F37e4923D1b796C` |
 
-**Previous factory (v0.4.0, deprecated on-chain):** `0xbd794cd9E10728Bb1CB5056A92830C3e945cE7b4`
+**Previous factory (v0.5.0):** `0x4c18e43F8B8b63f42a944b98b8af29f576c7Ffa8`
 
 **Previous factory (v0.3.1):** `0xcFE4D69Ac8e5F79a95d99e991162902f68029f09`
 
@@ -76,10 +85,10 @@ forge script script/robinhood/10_DeployHoodMarketsV3.s.sol:DeployHoodMarketsV3 \
 Add to `api.hood.markets` (alongside existing V4 vars):
 
 ```env
-HOODMARKETS_V3_FACTORY=0x4c18e43F8B8b63f42a944b98b8af29f576c7Ffa8
-HOODMARKETS_V3_VAULT=0x1b84cBb1837F17d6d433195b7e57E869b3522848
-HOODMARKETS_V3_LP_LOCKER=0x5296C54C3f5D8d0e0ced4A95BC6B85d6Db715AD5
-HOODMARKETS_V3_FRACTION_DEPLOYER=0x77Aea5d5EAae608d932bfD1e99fCf83e983c3641
+HOODMARKETS_V3_FACTORY=0x7E2905ddF3Dca96117A9e9d50F2924C1E7FE7Be1
+HOODMARKETS_V3_VAULT=0xdad973Ec5f0B56D64326dB78de9d90Aa9acDB842
+HOODMARKETS_V3_LP_LOCKER=0x48BCd46147a74A186913d41aE0e7210C03910fA5
+HOODMARKETS_V3_FRACTION_DEPLOYER=0x722AfdFa376844497783A1EAb3B3490Ff8eb8bB2
 HOODMARKETS_V3_PLATFORM_FEE_RECIPIENT=0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98
 HOODMARKETS_DEFAULT_LAUNCH_MODE=simple
 ```

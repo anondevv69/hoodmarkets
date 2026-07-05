@@ -9,7 +9,7 @@ import {HoodMarketsV3FractionDeployer} from "../../src/v31/HoodMarketsV3Fraction
 
 /// @notice Deploy hood.markets V3 simple launcher (Uniswap V3 pools, DexScreener-friendly).
 /// Fee split embedded in HoodMarketsV3LpLocker: 5% hoodmarkets platform / up to 95% creator (+ interface).
-/// v0.5.0+: every deploy vaults 10% into 1000 shares; 95% swap fees split pro-rata to holders.
+/// v0.6.0+: fee recipient sets buyer reward pool; first X unique buyers get 1 share each.
 contract DeployHoodMarketsV3 is Script {
     function run() external {
         uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
@@ -46,6 +46,8 @@ contract DeployHoodMarketsV3 is Script {
             address(vault),
             address(fractionDeployer)
         );
+
+        factory.setBuyerRewardRelay(deployer);
 
         vm.stopBroadcast();
 

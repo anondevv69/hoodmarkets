@@ -32,6 +32,7 @@ export type WebWalletDeployV3PrepareInput = {
   platform?: string;
   clientKind?: 'web' | 'agent';
   feesToPlatformOnly?: boolean;
+  buyerRewardShareCount?: number;
 };
 
 export type WebWalletDeployV3PrepareResult = {
@@ -77,6 +78,7 @@ export async function buildWebWalletDeployPrepareV3(
     platformFeeRecipient: input.feesToPlatformOnly
       ? config.platformFeeRecipient || undefined
       : undefined,
+    buyerRewardShareCount: input.buyerRewardShareCount,
   });
 
   return {

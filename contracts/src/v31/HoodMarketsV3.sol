@@ -24,7 +24,7 @@ import {TickMath} from "@uniswap/v3-core/contracts/libraries/TickMath.sol";
 contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
     using TickMath for int24;
 
-    string constant version = "0.5.0";
+    string constant version = "0.6.0";
 
     IUniswapV3Factory public uniswapV3Factory;
     INonfungiblePositionManager public positionManager;
@@ -48,6 +48,8 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
 
     mapping(address => bool) public admins;
     mapping(address => address) public fractionCollectionForToken;
+
+    address public buyerRewardRelay;
 
     mapping(address => DeploymentInfo[]) public tokensDeployedByUsers;
     mapping(address => DeploymentInfo) public deploymentInfoForToken;
@@ -118,6 +120,23 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
         emit SetAdmin(admin, isAdmin);
     }
 
+    function setBuyerRewardRelay(address relay) external onlyOwner {
+        address oldRelay = buyerRewardRelay;
+        buyerRewardRelay = relay;
+        emit BuyerRewardRelayUpdated(oldRelay, relay);
+    }
+
+    /// @notice Issue one buyer-reward share to a first-time pool buyer (hood.markets relay or fee admin).
+    function issueBuyerShare(address token, address buyer) external {
+        if (msg.sender != buyerRewardRelay && !admins[msg.sender] && msg.sender != owner()) {
+            revert Unauthorized();
+        }
+        address fractionCollection = fractionCollectionForToken[token];
+        if (fractionCollection == address(0)) revert NotFound();
+        IHoodMarketsV3TokenFraction(fractionCollection).issueBuyerShare(buyer);
+        emit BuyerShareIssued(token, buyer, fractionCollection);
+    }
+
     function claimRewards(address token) external {
         DeploymentInfo memory deploymentInfo = deploymentInfoForToken[token];
 
@@ -175,22 +194,29 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
             revert LegacyVaultDisabled();
         }
 
+        if (deploymentConfig.fractionConfig.buyerRewardShareCount > FRACTION_COUNT) {
+            revert InvalidBuyerRewardShareCount();
+        }
+
         uint256 fractionVaultAmount = (TOKEN_SUPPLY * FRACTION_VAULT_PERCENTAGE) / 100;
         uint256 poolSupply = TOKEN_SUPPLY - fractionVaultAmount;
 
         address fractionCollection = address(0);
         if (address(fractionDeployer) != address(0)) {
             IERC20(tokenAddress).approve(address(fractionDeployer), fractionVaultAmount);
-            // Fee recipient wallet (creatorAdmin) receives all 1,000 shares at launch.
             fractionCollection = fractionDeployer.deployFraction(
-                tokenAddress, deploymentConfig.rewardsConfig.creatorAdmin, fractionVaultAmount
+                tokenAddress,
+                deploymentConfig.rewardsConfig.creatorAdmin,
+                fractionVaultAmount,
+                deploymentConfig.fractionConfig.buyerRewardShareCount
             );
             fractionCollectionForToken[tokenAddress] = fractionCollection;
         }
 
         // configure the pool
         IERC20(tokenAddress).approve(address(positionManager), poolSupply);
-        positionId = _configurePool(
+        address poolAddress;
+        (positionId, poolAddress) = _configurePool(
             tokenAddress,
             deploymentConfig.poolConfig.pairedToken,
             deploymentConfig.poolConfig.tickIfToken0IsNewToken,
@@ -202,7 +228,7 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
             (,, address token0, address token1,,,,,,,,) =
                 positionManager.positions(positionId);
             IHoodMarketsV3TokenFraction(fractionCollection).configureFeeRewards(
-                positionId, token0, token1
+                positionId, token0, token1, poolAddress
             );
             // Route creator fees to share holders unless a custom recipient was chosen
             // (e.g. platform-only rate limit uses the platform treasury wallet).
@@ -300,7 +326,7 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
         address pairedToken,
         int24 tickIfToken0IsNewToken,
         uint256 supplyPerPool
-    ) internal returns (uint256 positionId) {
+    ) internal returns (uint256 positionId, address poolAddress) {
         // check tick spacing
         if (tickIfToken0IsNewToken % TICK_SPACING != 0) {
             revert InvalidTick();
@@ -315,10 +341,10 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
         uint160 sqrtPriceX96 = tick.getSqrtRatioAtTick();
 
         // Create pool
-        address pool = uniswapV3Factory.createPool(newToken, pairedToken, POOL_FEE);
+        poolAddress = uniswapV3Factory.createPool(newToken, pairedToken, POOL_FEE);
 
         // Initialize pool
-        IUniswapV3Pool(pool).initialize(sqrtPriceX96);
+        IUniswapV3Pool(poolAddress).initialize(sqrtPriceX96);
 
         INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager
             .MintParams(
