@@ -71,6 +71,7 @@ export default function App() {
     loadingMetrics,
     error,
     ensureMetrics,
+    ensureCatalogSize,
   } = useExploreTokens(showExploreChrome);
 
   return (
@@ -150,6 +151,7 @@ export default function App() {
               loadingMetrics={loadingMetrics}
               error={error}
               onEnsureMetrics={ensureMetrics}
+              onEnsureCatalogSize={ensureCatalogSize}
             />
           ) : tab === 'launch' ? (
             <LaunchTab />

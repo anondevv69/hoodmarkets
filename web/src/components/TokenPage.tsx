@@ -5,6 +5,7 @@ import { fetchTokenMetricsFromDexscreener, type DexTokenMetrics } from '../lib/d
 import { fetchTokenDescriptionFromChain } from '../lib/tokenOnChainMetadata';
 import { closeTokenPage } from '../lib/tokenRoute';
 import { formatTickerAge } from '../lib/exploreTokens';
+import { resolveTokenImageUrl } from '../lib/tokenImageUrl';
 import { splitTokenDescriptionForDisplay } from '../lib/tokenDescriptionDisplay';
 import { DexScreenerChartEmbed } from './TokenListingStatus';
 import { LiveTradesTable } from './LiveTradesTable';
@@ -121,6 +122,21 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
       cancelled = true;
     };
   }, [tokenAddress]);
+
+  useEffect(() => {
+    const img = token?.tokenImageUrl;
+    if (!img) return;
+    const href = resolveTokenImageUrl(img);
+    if (!href) return;
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = href;
+    document.head.appendChild(link);
+    return () => {
+      link.remove();
+    };
+  }, [token?.tokenImageUrl]);
 
   if (loading) return <p className="muted">Loading token…</p>;
   if (error || !token) {

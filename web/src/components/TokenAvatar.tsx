@@ -30,7 +30,6 @@ export function TokenAvatar({
   const src = candidates[candidateIndex];
   const exhausted = candidates.length === 0 || candidateIndex >= candidates.length;
   const showImage = !exhausted && !!src;
-  const showInitials = exhausted;
   const showLoading = showImage && !loaded;
 
   return (
@@ -39,15 +38,16 @@ export function TokenAvatar({
       style={{ width: size, height: size }}
       aria-label={symbol}
     >
-      {showInitials ? (
-        <div
-          className="token-avatar token-avatar-fallback"
-          style={{ fontSize: size * 0.36 }}
-          aria-hidden={showImage}
-        >
-          {initials(symbol)}
-        </div>
-      ) : null}
+      <div
+        className="token-avatar token-avatar-fallback"
+        style={{
+          fontSize: size * 0.36,
+          opacity: loaded && showImage ? 0 : 1,
+        }}
+        aria-hidden={loaded && showImage}
+      >
+        {initials(symbol)}
+      </div>
       {showImage ? (
         <img
           src={src}
