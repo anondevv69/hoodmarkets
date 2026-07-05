@@ -149,7 +149,7 @@ export async function completeWebWalletDeployV3(
 
   if (receipt.status !== 'success') {
     throw new Error(
-      `deployToken transaction reverted: ${txHash} (see https://robinhoodchain.blockscout.com/tx/${txHash})`,
+      `Launch transaction reverted on-chain (no token was created). Hard-refresh hood.markets and launch again — Finalize cannot recover a reverted tx. Tx: https://robinhoodchain.blockscout.com/tx/${txHash}`,
     );
   }
 

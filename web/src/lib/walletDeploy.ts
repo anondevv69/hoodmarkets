@@ -8,6 +8,15 @@ import {
   type SerializedV3DeploymentConfig,
 } from './v3DeploymentConfigJson';
 
+export function assertV3WalletDeployPrepare(prepare: WalletDeployPrepare): void {
+  if (prepare.factoryKind !== 'hoodmarkets-v3') return;
+  if (prepare.deploymentConfig.fractionConfig == null) {
+    throw new Error(
+      'Launch config is outdated (missing v0.6 fractionConfig). Hard-refresh hood.markets and launch again — do not finalize an old attempt.',
+    );
+  }
+}
+
 export type WalletDeployPrepare =
   | {
       mode: 'wallet';
@@ -46,6 +55,7 @@ export async function signWalletDeployToken(opts: {
   });
 
   if (opts.prepare.factoryKind === 'hoodmarkets-v3') {
+    assertV3WalletDeployPrepare(opts.prepare);
     const deploymentConfig = deserializeV3DeploymentConfig(opts.prepare.deploymentConfig);
     return client.writeContract({
       address: opts.prepare.factory,

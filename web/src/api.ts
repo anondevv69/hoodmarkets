@@ -22,7 +22,7 @@ export class DeployApiError extends Error {
   }
 }
 
-/** Wallet tx succeeded on-chain but POST /api/deploy complete failed — tx hash is known. */
+/** Wallet tx hash returned but POST /api/deploy complete failed — may still succeed if chain receipt is ok. */
 export class WalletDeployCompleteError extends Error {
   transactionHash: string;
 
@@ -350,8 +350,10 @@ export async function checkDeployCooldown(
 }
 
 import type { WalletDeployPrepare } from './lib/walletDeploy';
-import { signWalletDeployToken } from './lib/walletDeploy';
+import { assertV3WalletDeployPrepare, signWalletDeployToken } from './lib/walletDeploy';
 import { ensureRobinhoodChainInWallet } from './lib/ensureRobinhoodChain';
+import { createPublicClient, http, type Hash } from 'viem';
+import { robinhood, txUrl } from './chain';
 
 export interface LaunchPayload {
   name: string;
@@ -531,6 +533,7 @@ export async function deployToken(
     }
 
     const walletPrepare = prepare as WalletDeployPrepare;
+    assertV3WalletDeployPrepare(walletPrepare);
 
     const provider = await wallet.getEthereumProvider();
     await ensureRobinhoodChainInWallet(
@@ -542,6 +545,18 @@ export async function deployToken(
       walletProvider: provider as Parameters<typeof signWalletDeployToken>[0]['walletProvider'],
       account: wallet.address as `0x${string}`,
     });
+
+    const receipt = await createPublicClient({
+      chain: robinhood,
+      transport: http(),
+    }).waitForTransactionReceipt({ hash: txHash as Hash });
+
+    if (receipt.status !== 'success') {
+      clearPendingWalletDeploy();
+      throw new Error(
+        `Launch transaction reverted on-chain (no token was created). Hard-refresh the page and launch again with a new name/ticker. ${txUrl(txHash)}`,
+      );
+    }
 
     try {
       const complete = await postDeploy(token, {
@@ -575,6 +590,12 @@ export async function deployToken(
           : err instanceof Error
             ? err.message
             : 'Launch failed';
+      const canFinalize =
+        !/reverted on-chain/i.test(message) && !/transaction reverted/i.test(message);
+      if (!canFinalize) {
+        clearPendingWalletDeploy();
+        throw new Error(message);
+      }
       throw new WalletDeployCompleteError(message, txHash);
     }
   }
