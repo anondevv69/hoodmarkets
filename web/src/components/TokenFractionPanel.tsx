@@ -236,19 +236,14 @@ export function TokenFractionPanel({
           <p className="muted token-fraction-viewer-note">
             Your connected wallet does not hold shares for this token.
           </p>
-        ) : !authenticated ? (
-          <p className="muted token-fraction-viewer-note">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={login}>
-              Sign in
-            </button>{' '}
-            to send, redeem, or claim from a wallet that holds shares.
-          </p>
         ) : null}
 
         <div className="token-fraction-layout-table">
           <TokenFractionListings
             collectionAddress={info.collectionAddress}
             wallet={authenticated && wallet ? wallet : null}
+            authenticated={authenticated}
+            onLogin={login}
             onRefresh={() => refreshFractionState(info.collectionAddress)}
           />
 
@@ -291,10 +286,19 @@ export function TokenFractionPanel({
         <p className="muted token-fraction-foot">
           Shares are ERC-1155 tokens — transferable like NFTs. All 1,000 mint to the fee recipient at
           launch. Hold shares to earn trading fees pro-rata, or list shares for sale on-chain (
-          <code>listShares</code> / <code>buyShares</code>). Burn shares to withdraw launch tokens from
+          <code>listShares</code> / <code>buyShares</code> — 5% platform fee on sales and wallet sends). Burn shares to withdraw launch tokens from
           the 10% vault (you forfeit fee rights on burned shares). Anyone can call{' '}
           <code>claimTradingFees()</code> once to pay every holder.
         </p>
+
+        {!authenticated ? (
+          <p className="muted token-fraction-viewer-note token-fraction-signin-foot">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={login}>
+              Sign in
+            </button>{' '}
+            to send, redeem, or claim from a wallet that holds shares.
+          </p>
+        ) : null}
       </div>
     </section>
   );

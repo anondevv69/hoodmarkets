@@ -109,6 +109,31 @@ export function TokenSpaceComments({ tokenAddress }: { tokenAddress: string }) {
         Holder-only posts for this token. Anyone can read.
       </p>
 
+      {loading ? <p className="muted">Loading discussion…</p> : null}
+      {error ? <p className="error">{error}</p> : null}
+
+      {!loading && posts.length === 0 ? (
+        <p className="muted">No posts yet. Holders can start the conversation.</p>
+      ) : (
+        <ul className="token-space-list">
+          {posts.map((post) => (
+            <li key={post.id} className="token-space-post">
+              <div className="token-space-post-meta">
+                <button
+                  type="button"
+                  className="token-space-post-author lp-mono"
+                  onClick={() => openWalletProfile(post.walletAddress)}
+                >
+                  {shortenAddress(post.walletAddress)}
+                </button>
+                <span className="muted">{formatPostTime(post.createdAt)}</span>
+              </div>
+              <p className="token-space-post-body">{post.body}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {authenticated && walletAddress ? (
         holds ? (
           <form className="token-space-compose" onSubmit={(e) => void onSubmit(e)}>
@@ -137,37 +162,12 @@ export function TokenSpaceComments({ tokenAddress }: { tokenAddress: string }) {
           </p>
         )
       ) : (
-        <p className="muted">
+        <p className="muted token-space-signin-foot">
           <button type="button" className="btn btn-ghost btn-sm" onClick={login}>
             Sign in
           </button>{' '}
           to post as a holder.
         </p>
-      )}
-
-      {loading ? <p className="muted">Loading discussion…</p> : null}
-      {error ? <p className="error">{error}</p> : null}
-
-      {!loading && posts.length === 0 ? (
-        <p className="muted">No posts yet. Holders can start the conversation.</p>
-      ) : (
-        <ul className="token-space-list">
-          {posts.map((post) => (
-            <li key={post.id} className="token-space-post">
-              <div className="token-space-post-meta">
-                <button
-                  type="button"
-                  className="token-space-post-author lp-mono"
-                  onClick={() => openWalletProfile(post.walletAddress)}
-                >
-                  {shortenAddress(post.walletAddress)}
-                </button>
-                <span className="muted">{formatPostTime(post.createdAt)}</span>
-              </div>
-              <p className="token-space-post-body">{post.body}</p>
-            </li>
-          ))}
-        </ul>
       )}
     </section>
   );
