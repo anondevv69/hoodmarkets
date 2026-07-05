@@ -210,6 +210,39 @@ contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, ReentrancyGuard, 
     }
 
     /// @inheritdoc IHoodMarketsV3TokenFraction
+    function fundBuyerRewardPool(uint256 shareAmount) external nonReentrant {
+        if (msg.sender != buyerRewardAdmin) revert Unauthorized();
+        if (shareAmount == 0) revert InvalidBuyerRewardShareCount();
+        if (balanceOf(msg.sender, FRACTION_TOKEN_ID) < shareAmount) revert InsufficientFractionBalance();
+
+        _accrueAll();
+        _syncRewardDebt(msg.sender);
+        _safeTransferFrom(msg.sender, address(this), FRACTION_TOKEN_ID, shareAmount, "");
+
+        buyerRewardShareCap += shareAmount;
+        buyerRewardSharesRemaining += shareAmount;
+
+        emit BuyerRewardPoolFunded(msg.sender, shareAmount, buyerRewardSharesRemaining);
+    }
+
+    /// @inheritdoc IHoodMarketsV3TokenFraction
+    function cancelBuyerRewardPool() external nonReentrant {
+        if (msg.sender != buyerRewardAdmin) revert Unauthorized();
+
+        uint256 amount = buyerRewardSharesRemaining;
+        if (amount == 0) return;
+
+        _accrueAll();
+        buyerRewardSharesRemaining = 0;
+        buyerRewardShareCap -= amount;
+
+        _safeTransferFrom(address(this), msg.sender, FRACTION_TOKEN_ID, amount, "");
+        _syncRewardDebt(msg.sender);
+
+        emit BuyerRewardPoolCancelled(msg.sender, amount);
+    }
+
+    /// @inheritdoc IHoodMarketsV3TokenFraction
     function listShares(uint256 shareAmount, address paymentToken, uint256 price)
         external
         nonReentrant

@@ -93,6 +93,7 @@ import {
   buildWebWalletDeployPrepareV3,
   completeWebWalletDeployV3,
 } from '../lib/webWalletDeployV3.js';
+import { clampBuyerRewardShareCount } from '../lib/hoodmarketsV3Deploy.js';
 import {
   deserializeV3DeploymentConfig,
   v3DeploymentConfigRewardRecipient,
@@ -232,6 +233,8 @@ interface DeployWebBody {
   deploymentConfig?: SerializedDeploymentConfig;
   /** `simple` = HoodMarkets V3 (DexScreener). `pro` = HoodMarkets V4 hooks. */
   launchMode?: 'simple' | 'pro';
+  /** Optional Holder NFT shares escrowed for automatic first-buyer rewards (0–1000). */
+  buyerRewardShareCount?: number | string;
   /** Paid X/Bankr deploy over daily free cap — from HTTP 402 `commitment`. */
   deployCommitment?: string;
   /** Robinhood ETH payment tx from agent wallet to treasury (402 flow). */
@@ -908,6 +911,11 @@ export function registerWebDeployRoutes(
       const launchMode: 'simple' | 'pro' =
         launchModeRaw === 'pro' ? 'pro' : launchModeRaw === 'simple' ? 'simple' : config.defaultLaunchMode;
 
+      const buyerRewardShareCount =
+        body.buyerRewardShareCount !== undefined && body.buyerRewardShareCount !== ''
+          ? clampBuyerRewardShareCount(body.buyerRewardShareCount)
+          : 0;
+
       const deployerPaysPoolSeed =
         (feeTarget === 'self' || feeTarget === 'other') &&
         !anonymousNoDev &&
@@ -987,6 +995,7 @@ export function registerWebDeployRoutes(
             platform: 'web',
             clientKind: webClientKind,
             feesToPlatformOnly: rateLimitForcedPlatformFee,
+            buyerRewardShareCount,
           });
           res.json(prepare);
           return;

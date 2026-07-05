@@ -49,6 +49,7 @@ export function LaunchTab() {
   const [feeTarget, setFeeTarget] = useState<'self' | 'other'>('self');
   const [feeRecipient, setFeeRecipient] = useState('');
   const [initialBuyEth, setInitialBuyEth] = useState('');
+  const [buyerRewardShares, setBuyerRewardShares] = useState('');
   const [rateLimitNotice, setRateLimitNotice] = useState<string | null>(null);
   const [config, setConfig] = useState<WebDeployConfig | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -248,6 +249,13 @@ export function LaunchTab() {
 
     const defaultBuyEth = config?.initialBuyDefaultEth ?? '0.005';
     const buyEth = initialBuyEth.trim() || defaultBuyEth;
+    const rewardSharesRaw = buyerRewardShares.trim();
+    const rewardShares =
+      rewardSharesRaw === '' ? 0 : Math.min(1000, Math.max(0, Math.floor(Number(rewardSharesRaw))));
+    if (rewardSharesRaw !== '' && (!Number.isFinite(Number(rewardSharesRaw)) || rewardShares <= 0)) {
+      setError('Buyer reward shares must be a whole number from 1 to 1000, or leave blank for none.');
+      return;
+    }
     const needsWallet = Boolean(config?.walletDeployEnabled);
 
     if (needsWallet && !wallet?.address) {
@@ -281,6 +289,7 @@ export function LaunchTab() {
           description: description.trim() || undefined,
           initialBuyEth: buyEth,
           launchMode: 'simple',
+          ...(rewardShares > 0 ? { buyerRewardShareCount: rewardShares } : {}),
           feeTarget,
           recipientPaste: feeTarget === 'other' ? feeRecipient.trim() : undefined,
         },
@@ -308,6 +317,7 @@ export function LaunchTab() {
       setFeeTarget('self');
       setFeeRecipient('');
       setInitialBuyEth(config?.initialBuyDefaultEth ?? '0.005');
+      setBuyerRewardShares('');
       setRateLimitNotice(null);
       setLiveTickerConflict(null);
       setLiveNameConflict(null);
@@ -647,6 +657,21 @@ export function LaunchTab() {
                     sell, or airdrop to buyers, collaborators, or any wallet. Holders earn a{' '}
                     <strong>pro-rata share of the 95% trading-fee pool</strong>.
                   </p>
+                  <label style={{ marginTop: '0.75rem', display: 'block' }}>
+                    Buyer reward shares (optional)
+                    <input
+                      className="lp-input"
+                      value={buyerRewardShares}
+                      onChange={(e) => setBuyerRewardShares(e.target.value.replace(/[^\d]/g, ''))}
+                      placeholder="0 — leave blank for none"
+                      inputMode="numeric"
+                    />
+                    <span className="muted" style={{ fontSize: '0.8rem' }}>
+                      Escrow up to 1,000 shares for automatic rewards when someone buys the token
+                      and does not hold a share yet. Cancel anytime on the token page to reclaim
+                      unused shares.
+                    </span>
+                  </label>
                 </div>
               ) : (
                 <div className="launch-fraction-notice" role="note">

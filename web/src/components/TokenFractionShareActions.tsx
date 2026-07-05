@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { txUrl } from '../chain';
 import {
+  cancelBuyerRewardPool,
   fetchBuyerRewardPoolState,
-  fetchUniquePoolBuyerCandidates,
+  fundBuyerRewardPool,
   listFractionShares,
   parseAirdropRecipients,
   parseEthPriceWei,
@@ -28,6 +29,7 @@ export function TokenFractionShareActions({
   walletShares,
   deployBlockNumber,
   shareTokenHuman,
+  isFeeRecipient,
   onRefresh,
 }: {
   info: TokenFractionInfo;
@@ -35,6 +37,7 @@ export function TokenFractionShareActions({
   walletShares: number;
   deployBlockNumber?: string | null;
   shareTokenHuman: string;
+  isFeeRecipient: boolean;
   onRefresh: () => Promise<void>;
 }) {
   const [transferTo, setTransferTo] = useState('');
@@ -56,8 +59,10 @@ export function TokenFractionShareActions({
   const [airdropTx, setAirdropTx] = useState<string | null>(null);
   const [airdropError, setAirdropError] = useState<string | null>(null);
 
-  const [buyRewardMax, setBuyRewardMax] = useState('10');
+  const [fundRewardAmount, setFundRewardAmount] = useState('10');
   const [buyRewarding, setBuyRewarding] = useState(false);
+  const [fundingRewards, setFundingRewards] = useState(false);
+  const [cancellingRewards, setCancellingRewards] = useState(false);
   const [buyRewardMsg, setBuyRewardMsg] = useState<string | null>(null);
   const [buyRewardError, setBuyRewardError] = useState<string | null>(null);
   const [escrowRemaining, setEscrowRemaining] = useState<number | null>(null);
@@ -86,6 +91,12 @@ export function TokenFractionShareActions({
   const rewardNewBuyers = useCallback(
     async (opts?: { silent?: boolean }) => {
       if (buyRewardInFlight.current) return;
+      if (escrowCap <= 0 || (escrowRemaining ?? 0) <= 0) {
+        if (!opts?.silent) {
+          setBuyRewardMsg('Fund a buyer-reward pool first to enable automatic rewards.');
+        }
+        return;
+      }
       buyRewardInFlight.current = true;
       const showUi = !opts?.silent;
       if (showUi) {
@@ -94,59 +105,12 @@ export function TokenFractionShareActions({
         setBuyRewarding(true);
       }
       try {
-        if (escrowCap > 0 && (escrowRemaining ?? 0) > 0) {
-          const result = await processBuyerRewards(info.launchToken);
-          if (result.issued > 0 || showUi) {
-            setBuyRewardMsg(result.message);
-          }
-          setEscrowRemaining(result.status.remaining);
-          if (result.issued > 0) await onRefresh();
-          return;
+        const result = await processBuyerRewards(info.launchToken);
+        if (result.issued > 0 || showUi) {
+          setBuyRewardMsg(result.message);
         }
-
-        const max = Number.parseInt(buyRewardMax.trim() || '10', 10);
-        const fromBlock = deployBlockNumber ? BigInt(deployBlockNumber) : undefined;
-        const candidates = await fetchUniquePoolBuyerCandidates({
-          collectionAddress: info.collectionAddress,
-          launchToken: info.launchToken,
-          fromBlock,
-          maxBuyers: Number.isFinite(max) && max > 0 ? max : 10,
-          excludeAddresses: [wallet.address as `0x${string}`],
-        });
-
-        if (candidates.length === 0) {
-          if (showUi) setBuyRewardMsg('No new qualifying buyers yet.');
-          return;
-        }
-
-        const totalShares = candidates.length;
-        if (totalShares > walletShares) {
-          if (showUi) {
-            setBuyRewardError(`Need ${totalShares} shares; you hold ${walletShares}.`);
-          }
-          return;
-        }
-
-        if (!showUi) {
-          setBuyRewardMsg(`Rewarding ${candidates.length} new buyer(s)…`);
-        }
-        setBuyRewarding(true);
-
-        const provider = await wallet.getEthereumProvider();
-        const entries = candidates.map((a) => ({
-          address: a as `0x${string}`,
-          amount: 1,
-        }));
-        await transferFractionSharesToMany(
-          info.collectionAddress,
-          wallet.address as `0x${string}`,
-          entries,
-          info.tokenId,
-          provider,
-          (done, total) => setBuyRewardMsg(`Rewarding ${done}/${total}…`),
-        );
-        setBuyRewardMsg(`Sent 1 share to ${candidates.length} buyer(s).`);
-        await onRefresh();
+        setEscrowRemaining(result.status.remaining);
+        if (result.issued > 0) await onRefresh();
       } catch (e) {
         if (showUi) {
           setBuyRewardError(e instanceof Error ? e.message : 'Reward failed');
@@ -156,18 +120,7 @@ export function TokenFractionShareActions({
         buyRewardInFlight.current = false;
       }
     },
-    [
-      buyRewardMax,
-      deployBlockNumber,
-      escrowCap,
-      escrowRemaining,
-      info.collectionAddress,
-      info.launchToken,
-      info.tokenId,
-      onRefresh,
-      wallet,
-      walletShares,
-    ],
+    [escrowCap, escrowRemaining, info.launchToken, onRefresh],
   );
 
   useEffect(() => {
@@ -180,6 +133,12 @@ export function TokenFractionShareActions({
     const id = window.setInterval(tick, 45_000);
     return () => window.clearInterval(id);
   }, [escrowCap, escrowRemaining, rewardNewBuyers]);
+
+  async function refreshEscrowState() {
+    const s = await fetchBuyerRewardPoolState(info.collectionAddress);
+    setEscrowCap(s.cap);
+    setEscrowRemaining(s.remaining);
+  }
 
   useEffect(() => {
     void import('../lib/tokenFractions').then(({ fetchPendingFractionTradingFees }) =>
@@ -444,62 +403,127 @@ export function TokenFractionShareActions({
 
       <div className="token-fraction-action">
         <p className="token-fraction-action-title">Reward on buy</p>
-        {escrowCap > 0 ? (
-          <>
-            <p className="muted token-fraction-action-hint">
-              <strong>{escrowRemaining ?? 0}</strong> of <strong>{escrowCap}</strong> shares escrowed
-              at launch for first unique pool buyers. When someone buys who does not hold a share yet,
-              hood.markets automatically sends them 1 share from escrow — no wallet approval needed.
-            </p>
-            {(escrowRemaining ?? 0) > 0 ? (
-              <p className="muted token-fraction-action-hint">
-                Checks run in the background on the API and while this page is open.
-              </p>
-            ) : (
-              <p className="muted token-fraction-action-hint">Buyer reward escrow is exhausted.</p>
-            )}
-            {(escrowRemaining ?? 0) > 0 ? (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={buyRewarding}
-                onClick={() => {
-                  void rewardNewBuyers();
-                }}
-              >
-                {buyRewarding ? 'Checking…' : 'Check for new buyers now'}
-              </button>
-            ) : null}
-          </>
+        <p className="muted token-fraction-action-hint">
+          Escrow shares for first unique pool buyers — hood.markets sends 1 share automatically when
+          someone buys who does not hold one yet. You choose how many to escrow; cancel anytime to
+          get unused shares back.
+        </p>
+        {(escrowRemaining ?? 0) > 0 ? (
+          <p className="muted token-fraction-action-preview">
+            <strong>{escrowRemaining ?? 0}</strong> of <strong>{escrowCap}</strong> shares in escrow
+            {escrowCap > (escrowRemaining ?? 0)
+              ? ` · ${escrowCap - (escrowRemaining ?? 0)} already rewarded`
+              : ''}
+          </p>
+        ) : escrowCap > 0 ? (
+          <p className="muted token-fraction-action-hint">Buyer reward escrow is exhausted.</p>
         ) : (
+          <p className="muted token-fraction-action-hint">No buyer-reward escrow active yet.</p>
+        )}
+        {isFeeRecipient ? (
           <>
-            <p className="muted token-fraction-action-hint">
-              This token has no buyer-reward escrow (launched before escrow was enabled). Send shares
-              manually from your wallet, or launch a new token on the latest factory for automatic
-              escrow rewards.
-            </p>
             <label className="token-fraction-field">
-              Max buyers per send
+              Shares to escrow
               <input
                 className="lp-input"
-                value={buyRewardMax}
-                onChange={(e) => setBuyRewardMax(e.target.value.replace(/[^\d]/g, ''))}
+                value={fundRewardAmount}
+                onChange={(e) => setFundRewardAmount(e.target.value.replace(/[^\d]/g, ''))}
                 placeholder="10"
                 inputMode="numeric"
               />
             </label>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              disabled={buyRewarding || walletShares <= 0}
-              onClick={() => {
-                void rewardNewBuyers();
-              }}
-            >
-              {buyRewarding ? 'Sending…' : 'Send shares to new buyers'}
-            </button>
+            <div className="token-fraction-action-row">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={fundingRewards || walletShares <= 0}
+                onClick={() => {
+                  void (async () => {
+                    setBuyRewardError(null);
+                    setBuyRewardMsg(null);
+                    const amount = parseFractionShareAmount(fundRewardAmount, walletShares);
+                    if (amount == null) {
+                      setBuyRewardError(`Enter 1–${walletShares.toLocaleString()} shares.`);
+                      return;
+                    }
+                    setFundingRewards(true);
+                    try {
+                      const provider = await wallet.getEthereumProvider();
+                      await fundBuyerRewardPool(
+                        info.collectionAddress,
+                        wallet.address as `0x${string}`,
+                        amount,
+                        provider,
+                      );
+                      setBuyRewardMsg(`Escrowed ${amount} share(s) for buyer rewards.`);
+                      setFundRewardAmount('10');
+                      await refreshEscrowState();
+                      await onRefresh();
+                    } catch (e) {
+                      setBuyRewardError(e instanceof Error ? e.message : 'Escrow failed');
+                    } finally {
+                      setFundingRewards(false);
+                    }
+                  })();
+                }}
+              >
+                {fundingRewards ? 'Escrowing…' : 'Fund buyer rewards'}
+              </button>
+              {(escrowRemaining ?? 0) > 0 ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    disabled={buyRewarding}
+                    onClick={() => {
+                      void rewardNewBuyers();
+                    }}
+                  >
+                    {buyRewarding ? 'Checking…' : 'Check now'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    disabled={cancellingRewards}
+                    onClick={() => {
+                      void (async () => {
+                        setBuyRewardError(null);
+                        setBuyRewardMsg(null);
+                        setCancellingRewards(true);
+                        try {
+                          const provider = await wallet.getEthereumProvider();
+                          await cancelBuyerRewardPool(
+                            info.collectionAddress,
+                            wallet.address as `0x${string}`,
+                            provider,
+                          );
+                          setBuyRewardMsg(
+                            'Cancelled buyer rewards — unused shares returned to your wallet.',
+                          );
+                          await refreshEscrowState();
+                          await onRefresh();
+                        } catch (e) {
+                          setBuyRewardError(
+                            e instanceof Error ? e.message : 'Cancel failed (needs latest factory)',
+                          );
+                        } finally {
+                          setCancellingRewards(false);
+                        }
+                      })();
+                    }}
+                  >
+                    {cancellingRewards ? 'Cancelling…' : 'Cancel & reclaim'}
+                  </button>
+                </>
+              ) : null}
+            </div>
           </>
-        )}
+        ) : (escrowRemaining ?? 0) > 0 ? (
+          <p className="muted token-fraction-action-hint">
+            Rewards run automatically while escrow remains. Only the launch fee recipient can fund or
+            cancel the pool.
+          </p>
+        ) : null}
         {buyRewardMsg ? <p className="muted token-fraction-pending">{buyRewardMsg}</p> : null}
         {buyRewardError ? <p className="error">{buyRewardError}</p> : null}
       </div>
