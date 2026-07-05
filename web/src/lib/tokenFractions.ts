@@ -99,6 +99,41 @@ const FRACTION_ABI = [
     outputs: [{ name: '', type: 'address' }],
   },
   {
+    type: 'function',
+    name: 'launchToken',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'pool',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'buyerRewardShareCap',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'buyerRewardSharesRemaining',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'buyerShareIssued',
+    stateMutability: 'view',
+    inputs: [{ name: '', type: 'address' }],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
     type: 'event',
     name: 'TransferSingle',
     inputs: [
@@ -121,6 +156,30 @@ const FRACTION_ABI = [
   },
 ] as const;
 
+const POOL_TOKEN0_ABI = [
+  {
+    type: 'function',
+    name: 'token0',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+  },
+] as const;
+
+const SWAP_EVENT = {
+  type: 'event',
+  name: 'Swap',
+  inputs: [
+    { name: 'sender', type: 'address', indexed: true },
+    { name: 'recipient', type: 'address', indexed: true },
+    { name: 'amount0', type: 'int256', indexed: false },
+    { name: 'amount1', type: 'int256', indexed: false },
+    { name: 'sqrtPriceX96', type: 'uint160', indexed: false },
+    { name: 'liquidity', type: 'uint128', indexed: false },
+    { name: 'tick', type: 'int24', indexed: false },
+  ],
+} as const;
+
 export type FractionHolder = {
   address: Address;
   shares: number;
@@ -130,6 +189,7 @@ export type FractionHolder = {
 export type TokenFractionInfo = {
   collectionAddress: Address;
   launchToken: Address;
+  poolAddress: Address | null;
   totalShares: number;
   tokenId: number;
   tokensPerShare: bigint;
@@ -137,6 +197,13 @@ export type TokenFractionInfo = {
   redeemedShares: number;
   holderCount: number;
   holders: FractionHolder[];
+};
+
+export type AirdropEntry = { address: Address; amount: number };
+
+export type BuyerRewardPoolState = {
+  cap: number;
+  remaining: number;
 };
 
 function publicClient() {
@@ -223,7 +290,7 @@ export async function fetchTokenFractionInfo(
   if (!collectionAddress) return null;
 
   const client = publicClient();
-  const [totalShares, tokenId, tokensPerShare] = await Promise.all([
+  const [totalShares, tokenId, tokensPerShare, poolRaw, launchTokenOnChain] = await Promise.all([
     client.readContract({
       address: collectionAddress,
       abi: FRACTION_ABI,
@@ -239,6 +306,16 @@ export async function fetchTokenFractionInfo(
       abi: FRACTION_ABI,
       functionName: 'tokensPerFraction',
     }),
+    client.readContract({
+      address: collectionAddress,
+      abi: FRACTION_ABI,
+      functionName: 'pool',
+    }).catch(() => zeroAddress),
+    client.readContract({
+      address: collectionAddress,
+      abi: FRACTION_ABI,
+      functionName: 'launchToken',
+    }).catch(() => launchToken),
   ]);
 
   const total = Number(totalShares);
@@ -281,10 +358,13 @@ export async function fetchTokenFractionInfo(
 
   const outstandingShares = Number(outstanding);
   const redeemedShares = Math.max(0, total - outstandingShares);
+  const poolAddress =
+    poolRaw && poolRaw !== zeroAddress ? getAddress(poolRaw as Address) : null;
 
   return {
     collectionAddress,
-    launchToken,
+    launchToken: getAddress(launchTokenOnChain as Address),
+    poolAddress,
     totalShares: total,
     tokenId: id,
     tokensPerShare,
@@ -389,4 +469,196 @@ export function parseFractionRecipient(raw: string): Address | null {
   } catch {
     return null;
   }
+}
+
+export function parseAirdropRecipients(
+  text: string,
+  defaultAmount: number,
+  maxTotalShares: number,
+): { entries: AirdropEntry[] } | { error: string } {
+  if (!Number.isFinite(defaultAmount) || defaultAmount <= 0) {
+    return { error: 'Default share count must be at least 1.' };
+  }
+  const lines = text
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return { error: 'Add at least one wallet address.' };
+
+  const entries: AirdropEntry[] = [];
+  let total = 0;
+  for (const line of lines) {
+    let addrPart: string;
+    let amtPart: string | undefined;
+    const comma = line.indexOf(',');
+    if (comma >= 0) {
+      addrPart = line.slice(0, comma).trim();
+      amtPart = line.slice(comma + 1).trim();
+    } else {
+      const parts = line.split(/\s+/).filter(Boolean);
+      addrPart = parts[0] ?? '';
+      amtPart = parts[1];
+    }
+    const addr = parseFractionRecipient(addrPart);
+    if (!addr) return { error: `Invalid address: ${line}` };
+    const amount = amtPart ? Number.parseInt(amtPart, 10) : defaultAmount;
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { error: `Invalid share count on line: ${line}` };
+    }
+    entries.push({ address: addr, amount });
+    total += amount;
+  }
+  if (total > maxTotalShares) {
+    return { error: `Total ${total} shares exceeds your balance (${maxTotalShares}).` };
+  }
+  return { entries };
+}
+
+function isBuyOfLaunchToken(
+  launchToken: Address,
+  poolToken0: Address,
+  amount0: bigint,
+  amount1: bigint,
+): boolean {
+  const launchIsToken0 = launchToken.toLowerCase() === poolToken0.toLowerCase();
+  if (launchIsToken0) return amount0 < 0n;
+  return amount1 < 0n;
+}
+
+export async function fetchBuyerRewardPoolState(
+  collectionAddress: Address,
+): Promise<BuyerRewardPoolState> {
+  const client = publicClient();
+  const [cap, remaining] = await Promise.all([
+    client.readContract({
+      address: collectionAddress,
+      abi: FRACTION_ABI,
+      functionName: 'buyerRewardShareCap',
+    }),
+    client.readContract({
+      address: collectionAddress,
+      abi: FRACTION_ABI,
+      functionName: 'buyerRewardSharesRemaining',
+    }),
+  ]);
+  return { cap: Number(cap), remaining: Number(remaining) };
+}
+
+export async function fetchUniquePoolBuyerCandidates(opts: {
+  collectionAddress: Address;
+  launchToken: Address;
+  fromBlock?: bigint;
+  maxBuyers: number;
+  excludeAddresses?: Address[];
+}): Promise<Address[]> {
+  const client = publicClient();
+  const pool = await client.readContract({
+    address: opts.collectionAddress,
+    abi: FRACTION_ABI,
+    functionName: 'pool',
+  });
+  if (!pool || pool === zeroAddress) return [];
+
+  const tokenId = await client.readContract({
+    address: opts.collectionAddress,
+    abi: FRACTION_ABI,
+    functionName: 'FRACTION_TOKEN_ID',
+  });
+
+  const poolToken0 = getAddress(
+    (await client.readContract({
+      address: pool as Address,
+      abi: POOL_TOKEN0_ABI,
+      functionName: 'token0',
+    })) as Address,
+  );
+
+  const logs = await client.getLogs({
+    address: pool as Address,
+    event: SWAP_EVENT,
+    fromBlock: opts.fromBlock ?? 0n,
+    toBlock: 'latest',
+  });
+
+  const exclude = new Set(
+    (opts.excludeAddresses ?? []).map((a) => a.toLowerCase()).concat([zeroAddress.toLowerCase()]),
+  );
+  const seen = new Set<string>();
+  const candidates: Address[] = [];
+
+  for (const log of logs) {
+    if (candidates.length >= opts.maxBuyers) break;
+    try {
+      const decoded = decodeEventLog({
+        abi: [SWAP_EVENT],
+        data: log.data,
+        topics: log.topics as [Hex, ...Hex[]],
+      });
+      const recipient = getAddress(decoded.args.recipient as Address);
+      const key = recipient.toLowerCase();
+      if (exclude.has(key) || seen.has(key)) continue;
+      if (
+        !isBuyOfLaunchToken(
+          opts.launchToken,
+          poolToken0,
+          decoded.args.amount0 as bigint,
+          decoded.args.amount1 as bigint,
+        )
+      ) {
+        continue;
+      }
+
+      const [balance, issued] = await Promise.all([
+        client.readContract({
+          address: opts.collectionAddress,
+          abi: FRACTION_ABI,
+          functionName: 'balanceOf',
+          args: [recipient, tokenId],
+        }),
+        client.readContract({
+          address: opts.collectionAddress,
+          abi: FRACTION_ABI,
+          functionName: 'buyerShareIssued',
+          args: [recipient],
+        }).catch(() => false),
+      ]);
+
+      if (Number(balance) > 0 || issued) {
+        seen.add(key);
+        continue;
+      }
+
+      seen.add(key);
+      candidates.push(recipient);
+    } catch {
+      // skip malformed logs
+    }
+  }
+
+  return candidates;
+}
+
+export async function transferFractionSharesToMany(
+  collectionAddress: Address,
+  walletAddress: Address,
+  entries: AirdropEntry[],
+  tokenId: number,
+  ethereumProvider: unknown,
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ lastHash: Hex; count: number }> {
+  const client = walletClientFor(walletAddress, ethereumProvider);
+  let lastHash: Hex = '0x';
+  let done = 0;
+  for (const entry of entries) {
+    lastHash = await client.writeContract({
+      address: collectionAddress,
+      abi: FRACTION_ABI,
+      functionName: 'safeTransferFrom',
+      args: [walletAddress, entry.address, BigInt(tokenId), BigInt(entry.amount), '0x'],
+      chain: robinhood,
+    });
+    done += 1;
+    onProgress?.(done, entries.length);
+  }
+  return { lastHash, count: entries.length };
 }
