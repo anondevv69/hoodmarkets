@@ -215,6 +215,9 @@ const FRACTION_ABI = [
       { name: 'value', type: 'uint256', indexed: false },
     ],
   },
+  { type: 'error', name: 'InvalidListAmount', inputs: [] },
+  { type: 'error', name: 'ArrayLengthMismatch', inputs: [] },
+  { type: 'error', name: 'InsufficientFractionBalance', inputs: [] },
   {
     type: 'event',
     name: 'FractionRedeemed',
@@ -892,6 +895,9 @@ export async function transferFractionSharesToMany(
   return { lastHash, count: entries.length };
 }
 
+/** Custom error selectors for v0.10+ fraction contracts (Robinhood RPC often omits decoded names). */
+const BATCH_AIRDROP_PROBE_REVERTS = /InvalidListAmount|ArrayLengthMismatch|InsufficientFractionBalance|0x9ba2943a|0xa24a13a6|0x512d1fe6/i;
+
 export async function fractionSupportsBatchAirdrop(collectionAddress: Address): Promise<boolean> {
   try {
     await publicClient().simulateContract({
@@ -904,7 +910,8 @@ export async function fractionSupportsBatchAirdrop(collectionAddress: Address): 
     return true;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (/InvalidListAmount|ArrayLengthMismatch/i.test(msg)) return true;
+    // Probe reverted on validation — function exists (v0.10+). Raw selector when RPC omits error name.
+    if (BATCH_AIRDROP_PROBE_REVERTS.test(msg)) return true;
     return false;
   }
 }
