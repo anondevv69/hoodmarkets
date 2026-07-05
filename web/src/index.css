@@ -994,6 +994,15 @@ label {
   gap: 1rem;
 }
 
+.token-page-discussion-full {
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.token-page-discussion-full .tp-discussion-zone {
+  margin-top: 0;
+}
+
 .tp-zone {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -2729,6 +2738,63 @@ label {
   font-size: 0.84rem;
   color: var(--muted);
   line-height: 1.5;
+}
+
+.token-fraction-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.token-fraction-action {
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border-soft);
+}
+
+.token-fraction-action:first-child {
+  padding-top: 0.35rem;
+  border-top: none;
+}
+
+.token-fraction-action-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.token-fraction-action-hint,
+.token-fraction-action-preview,
+.token-fraction-action-foot {
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.token-fraction-action-foot {
+  margin-top: 0.15rem;
+  margin-bottom: 0;
+}
+
+.token-fraction-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+}
+
+.token-fraction-field .lp-input {
+  max-width: 100%;
+}
+
+.token-fraction-action-tx {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+}
+
+.token-fraction-pending {
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
 }
 
 .tp-discussion-zone {
