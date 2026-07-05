@@ -1009,12 +1009,14 @@ label {
   gap: 1rem;
 }
 
-.token-page-discussion-full {
+.token-page-discussion-full,
+.token-page-full-bleed {
   margin-top: 1rem;
   width: 100%;
 }
 
-.token-page-discussion-full .tp-discussion-zone {
+.token-page-full-bleed .tp-discussion-zone,
+.token-page-full-bleed .tp-fraction-zone {
   margin-top: 0;
 }
 
@@ -2589,6 +2591,89 @@ label {
   margin-top: 0;
 }
 
+.token-fraction-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'manage'
+    'aside'
+    'meta'
+    'table'
+    'foot';
+}
+
+.token-fraction-layout-manage {
+  grid-area: manage;
+}
+
+.token-fraction-layout-aside {
+  grid-area: aside;
+}
+
+.token-fraction-layout-meta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.token-fraction-layout-table {
+  grid-area: table;
+}
+
+.token-fraction-layout-foot {
+  grid-area: foot;
+}
+
+@media (min-width: 960px) {
+  .token-fraction-layout {
+    grid-template-columns: minmax(0, 1.55fr) minmax(220px, 0.75fr);
+    grid-template-areas:
+      'manage aside'
+      'meta meta'
+      'table table'
+      'foot foot';
+  }
+
+  .token-fraction-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+  }
+
+  .token-fraction-action {
+    padding: 0.85rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    background: var(--surface-2);
+    border-top: 1px solid var(--border-soft);
+  }
+
+  .token-fraction-action:first-child {
+    padding-top: 0.85rem;
+  }
+
+  .token-fraction-action-foot {
+    grid-column: 1 / -1;
+    margin-top: 0.25rem;
+  }
+
+  .token-fraction-layout-meta .token-fraction-wallet {
+    margin: 0;
+  }
+
+  .token-fraction-layout-meta .token-fraction-links {
+    margin: 0;
+  }
+
+  .token-fraction-layout-table .token-fraction-table-wrap {
+    margin-bottom: 0;
+  }
+}
+
 .token-fraction-head {
   margin-bottom: 0.75rem;
 }
@@ -2608,12 +2693,12 @@ label {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.65rem;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0;
 }
 
 @media (min-width: 640px) {
-  .token-fraction-stats {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  .token-fraction-layout-aside .token-fraction-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -2734,11 +2819,17 @@ label {
 }
 
 .token-fraction-manage {
-  margin-bottom: 0.85rem;
+  margin-bottom: 0;
   padding: 0.75rem 0.85rem;
   border: 1px solid var(--border-soft);
   border-radius: 10px;
   background: var(--surface-2);
+}
+
+.token-fraction-layout-manage--empty {
+  min-height: 4rem;
+  display: flex;
+  align-items: center;
 }
 
 .token-fraction-manage-title {
