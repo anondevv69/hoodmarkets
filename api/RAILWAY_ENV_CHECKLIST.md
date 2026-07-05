@@ -32,6 +32,7 @@ The monorepo has no root `package.json`. Deploying from repo root will fail to b
   - [ ] `HOODMARKETS_V3_FRACTION_DEPLOYER=0x3a6C79aA075647eb221AFf346a0435930a7FB8CC`
   - [ ] `HOODMARKETS_V3_PLATFORM_FEE_RECIPIENT=0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98`
   - [ ] `HOODMARKETS_DEFAULT_LAUNCH_MODE=simple`
+  - [ ] `HOODMARKETS_DEFAULT_BUYER_REWARD_SHARES=10` (escrow for auto buyer rewards; `0` = off)
 - [ ] `PRIVY_APP_ID`
 - [ ] `PRIVY_APP_SECRET`
 - [ ] `AGENT_CAPTCHA_JWT_SECRET` — HS256 secret for agent haiku JWT (`openssl rand -hex 32`). Optional when skip-captcha is on.
