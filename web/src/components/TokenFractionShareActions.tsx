@@ -171,9 +171,7 @@ export function TokenFractionShareActions({
   );
 
   useEffect(() => {
-    const canAutoReward =
-      escrowCap > 0 ? (escrowRemaining ?? 0) > 0 : walletShares > 0 && !!info.poolAddress;
-    if (!canAutoReward) return;
+    if (escrowCap <= 0 || (escrowRemaining ?? 0) <= 0) return;
 
     const tick = () => {
       void rewardNewBuyers({ silent: true });
@@ -181,7 +179,7 @@ export function TokenFractionShareActions({
     tick();
     const id = window.setInterval(tick, 45_000);
     return () => window.clearInterval(id);
-  }, [escrowCap, escrowRemaining, info.poolAddress, rewardNewBuyers, walletShares]);
+  }, [escrowCap, escrowRemaining, rewardNewBuyers]);
 
   useEffect(() => {
     void import('../lib/tokenFractions').then(({ fetchPendingFractionTradingFees }) =>
@@ -446,33 +444,62 @@ export function TokenFractionShareActions({
 
       <div className="token-fraction-action">
         <p className="token-fraction-action-title">Reward on buy</p>
-        <p className="muted token-fraction-action-hint">
-          {escrowCap > 0
-            ? `Launch escrow: ${escrowRemaining ?? 0} of ${escrowCap} shares for first unique buyers — rewards run automatically when someone buys.`
-            : 'Send 1 share from your wallet to each new unique pool buyer who does not hold a share yet. Checks run automatically while this page is open; approve in your wallet when buyers are found.'}
-        </p>
-        {escrowCap === 0 ? (
-          <label className="token-fraction-field">
-            Max buyers per reward
-            <input
-              className="lp-input"
-              value={buyRewardMax}
-              onChange={(e) => setBuyRewardMax(e.target.value.replace(/[^\d]/g, ''))}
-              placeholder="10"
-              inputMode="numeric"
-            />
-          </label>
-        ) : null}
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          disabled={buyRewarding || (escrowCap > 0 ? (escrowRemaining ?? 0) <= 0 : walletShares <= 0)}
-          onClick={() => {
-            void rewardNewBuyers();
-          }}
-        >
-          {buyRewarding ? 'Rewarding…' : 'Reward new buyers now'}
-        </button>
+        {escrowCap > 0 ? (
+          <>
+            <p className="muted token-fraction-action-hint">
+              <strong>{escrowRemaining ?? 0}</strong> of <strong>{escrowCap}</strong> shares escrowed
+              at launch for first unique pool buyers. When someone buys who does not hold a share yet,
+              hood.markets automatically sends them 1 share from escrow — no wallet approval needed.
+            </p>
+            {(escrowRemaining ?? 0) > 0 ? (
+              <p className="muted token-fraction-action-hint">
+                Checks run in the background on the API and while this page is open.
+              </p>
+            ) : (
+              <p className="muted token-fraction-action-hint">Buyer reward escrow is exhausted.</p>
+            )}
+            {(escrowRemaining ?? 0) > 0 ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={buyRewarding}
+                onClick={() => {
+                  void rewardNewBuyers();
+                }}
+              >
+                {buyRewarding ? 'Checking…' : 'Check for new buyers now'}
+              </button>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <p className="muted token-fraction-action-hint">
+              This token has no buyer-reward escrow (launched before escrow was enabled). Send shares
+              manually from your wallet, or launch a new token on the latest factory for automatic
+              escrow rewards.
+            </p>
+            <label className="token-fraction-field">
+              Max buyers per send
+              <input
+                className="lp-input"
+                value={buyRewardMax}
+                onChange={(e) => setBuyRewardMax(e.target.value.replace(/[^\d]/g, ''))}
+                placeholder="10"
+                inputMode="numeric"
+              />
+            </label>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={buyRewarding || walletShares <= 0}
+              onClick={() => {
+                void rewardNewBuyers();
+              }}
+            >
+              {buyRewarding ? 'Sending…' : 'Send shares to new buyers'}
+            </button>
+          </>
+        )}
         {buyRewardMsg ? <p className="muted token-fraction-pending">{buyRewardMsg}</p> : null}
         {buyRewardError ? <p className="error">{buyRewardError}</p> : null}
       </div>

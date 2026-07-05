@@ -29,6 +29,7 @@ import { registerMyDeploymentsClaimRoutes } from './routes/myDeploymentsClaim.js
 import { registerMyDeploymentsCollectPoolRoutes } from './routes/myDeploymentsCollectPool.js';
 import { registerDeploymentFeeActionRoutes } from './routes/deploymentFeeActions.js';
 import { registerFractionBuyerRewardRoutes } from './routes/fractionBuyerRewards.js';
+import { startBuyerRewardPoller } from './lib/buyerRewardPoller.js';
 import { registerFractionMetadataRoutes } from './routes/fractionMetadata.js';
 import { registerAgentClaimCalldataRoutes } from './routes/agentClaimCalldata.js';
 import { registerAgentClaimRoutes } from './routes/agentClaim.js';
@@ -230,6 +231,7 @@ async function main() {
     const port = config.port;
     app.listen(port, () => {
       logger.info(`🚀 Liquid Social Launcher running on port ${port}`);
+      startBuyerRewardPoller();
       logger.info(`Health: http://localhost:${port}/`);
       logger.info(`Neynar webhook: http://localhost:${port}/webhooks/neynar`);
       logger.info(`X webhook: http://localhost:${port}/webhooks/x`);

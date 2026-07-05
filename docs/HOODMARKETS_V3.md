@@ -28,11 +28,13 @@ Every token launched through **HoodMarkets V3 v0.5.0+** automatically:
 | **Share marketplace** | `listShares` / `buyShares` / `cancelListing` — on-chain escrow; buyer pays listed price; **5% platform fee** + 95% to seller |
 | **Pool** | Remaining **90%** seeds the Uniswap V3 pool |
 
-## Buyer reward pool (v0.6 contract — optional, not used in UI yet)
+## Buyer reward pool (v0.6+ — enabled by default on new launches)
 
-The v0.6 factory supports escrowing X shares for automated first-buyer rewards (`buyerRewardShareCount`). **hood.markets launches with X = 0 today** — all 1,000 shares go to the fee recipient, who distributes manually (airdrop, OTC, scripts, etc.). API endpoints exist for a future automation pass; default product flow is wallet-controlled transfers.
+The factory escrows **10 shares** at launch (`HOODMARKETS_DEFAULT_BUYER_REWARD_SHARES`, default `10`) for automated first-buyer rewards. The fee recipient receives the remaining **990** shares. The API background poller and `POST /api/deployments/:token/process-buyer-rewards` call `issueBuyerShare` — gasless for holders, no wallet popup.
 
-**v0.5.0 tokens** and **v0.6 with X=0** behave the same for holders: fee recipient starts with all shares.
+Set `HOODMARKETS_DEFAULT_BUYER_REWARD_SHARES=0` to disable escrow on new launches (legacy wallet-send flow in the UI).
+
+**Tokens launched before this default** have `buyerRewardShareCount = 0` — all 1,000 shares went to the fee recipient; rewards must be sent manually from the wallet.
 
 There is **no SDK toggle** and **no optional vault config** — legacy `vaultConfig` values revert with `LegacyVaultDisabled`. Integrators call `deployToken` exactly as before; fractions are created inside the factory.
 

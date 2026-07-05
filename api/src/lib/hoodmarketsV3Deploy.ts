@@ -92,6 +92,14 @@ export function clampBuyerRewardShareCount(value: unknown): number {
   return Math.floor(n);
 }
 
+/** Shares escrowed at launch for automatic first-buyer rewards (env: `HOODMARKETS_DEFAULT_BUYER_REWARD_SHARES`, default 10). */
+export function defaultBuyerRewardShareCount(): number {
+  const raw = process.env.HOODMARKETS_DEFAULT_BUYER_REWARD_SHARES?.trim();
+  if (raw === '0') return 0;
+  const n = raw ? Number.parseInt(raw, 10) : 10;
+  return clampBuyerRewardShareCount(Number.isFinite(n) ? n : 10);
+}
+
 export function buildHoodMarketsV3DeploymentConfig(input: {
   name: string;
   symbol: string;
@@ -144,7 +152,10 @@ export function buildHoodMarketsV3DeploymentConfig(input: {
       interfaceRewardRecipient: '0x0000000000000000000000000000000000000000' as Address,
     },
     fractionConfig: {
-      buyerRewardShareCount: clampBuyerRewardShareCount(input.buyerRewardShareCount),
+      buyerRewardShareCount:
+        input.buyerRewardShareCount !== undefined
+          ? clampBuyerRewardShareCount(input.buyerRewardShareCount)
+          : defaultBuyerRewardShareCount(),
     },
   };
 }
