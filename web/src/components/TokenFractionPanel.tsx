@@ -31,7 +31,7 @@ export function TokenFractionPanel({
   feeRecipientAddress?: string | null;
 }) {
   const { wallets } = useWallets();
-  const { authenticated } = usePrivy();
+  const { authenticated, login } = usePrivy();
   const wallet = wallets[0];
   const walletAddress = wallet?.address;
   const [info, setInfo] = useState<TokenFractionInfo | null>(null);
@@ -170,55 +170,28 @@ export function TokenFractionPanel({
         </p>
       ) : null}
 
-      <div className="token-fraction-layout">
-        {(isFeeRecipientWallet || (walletShares != null && walletShares > 0)) ? (
-          <div className="token-fraction-manage token-fraction-layout-manage">
-            <p className="token-fraction-manage-title">
-              {isFeeRecipientWallet ? 'You received the launch shares' : 'You hold shares'}
-            </p>
-            {!authenticated || !wallet ? (
-              <p className="muted token-fraction-note">
-                Connect your wallet to send shares, redeem vault tokens, or claim fees.
-              </p>
-            ) : walletShares != null && walletShares > 0 ? (
-              <TokenFractionShareActions
-                info={info}
-                wallet={wallet}
-                walletShares={walletShares}
-                deployBlockNumber={deployBlockNumber}
-                shareTokenHuman={shareTokenHuman}
-                onRefresh={() => refreshFractionState(info.collectionAddress)}
-              />
-            ) : (
-            <p className="muted token-fraction-note">Your connected wallet does not hold any shares.</p>
-          )}
-          </div>
-        ) : (
-          <div className="token-fraction-manage token-fraction-layout-manage token-fraction-layout-manage--empty">
-            <p className="muted token-fraction-note">
-              Connect the fee recipient wallet or a share holder to send, redeem, or claim.
-            </p>
-          </div>
-        )}
+      <p className="muted token-space-note token-fraction-public-note">
+        Vault shares are public on-chain. Anyone can view holders; connect a wallet that holds shares
+        to send, sell, redeem, or claim fees.
+      </p>
 
-        <div className="token-fraction-layout-aside">
-          <div className="token-fraction-stats">
-            <div className="token-fraction-stat">
-              <span className="token-fraction-stat-k">Outstanding</span>
-              <span className="token-fraction-stat-v">{info.outstandingShares.toLocaleString()}</span>
-            </div>
-            <div className="token-fraction-stat">
-              <span className="token-fraction-stat-k">Redeemed</span>
-              <span className="token-fraction-stat-v">{info.redeemedShares.toLocaleString()}</span>
-            </div>
-            <div className="token-fraction-stat">
-              <span className="token-fraction-stat-k">Holders</span>
-              <span className="token-fraction-stat-v">{info.holderCount.toLocaleString()}</span>
-            </div>
-            <div className="token-fraction-stat">
-              <span className="token-fraction-stat-k">Per share</span>
-              <span className="token-fraction-stat-v">{shareTokenHuman}</span>
-            </div>
+      <div className="token-fraction-layout">
+        <div className="token-fraction-stats token-fraction-stats--wide">
+          <div className="token-fraction-stat">
+            <span className="token-fraction-stat-k">Outstanding</span>
+            <span className="token-fraction-stat-v">{info.outstandingShares.toLocaleString()}</span>
+          </div>
+          <div className="token-fraction-stat">
+            <span className="token-fraction-stat-k">Redeemed</span>
+            <span className="token-fraction-stat-v">{info.redeemedShares.toLocaleString()}</span>
+          </div>
+          <div className="token-fraction-stat">
+            <span className="token-fraction-stat-k">Holders</span>
+            <span className="token-fraction-stat-v">{info.holderCount.toLocaleString()}</span>
+          </div>
+          <div className="token-fraction-stat">
+            <span className="token-fraction-stat-k">Per share</span>
+            <span className="token-fraction-stat-v">{shareTokenHuman}</span>
           </div>
         </div>
 
@@ -243,6 +216,37 @@ export function TokenFractionPanel({
             </a>
           </div>
         </div>
+
+        {(isFeeRecipientWallet || (walletShares != null && walletShares > 0)) &&
+        authenticated &&
+        wallet &&
+        walletShares != null &&
+        walletShares > 0 ? (
+          <div className="token-fraction-manage token-fraction-layout-actions">
+            <p className="token-fraction-manage-title">
+              {isFeeRecipientWallet ? 'You received the launch shares' : 'You hold shares'}
+            </p>
+            <TokenFractionShareActions
+              info={info}
+              wallet={wallet}
+              walletShares={walletShares}
+              deployBlockNumber={deployBlockNumber}
+              shareTokenHuman={shareTokenHuman}
+              onRefresh={() => refreshFractionState(info.collectionAddress)}
+            />
+          </div>
+        ) : authenticated && wallet && (isFeeRecipientWallet || walletShares === 0) ? (
+          <p className="muted token-fraction-viewer-note">
+            Your connected wallet does not hold shares for this token.
+          </p>
+        ) : !authenticated ? (
+          <p className="muted token-fraction-viewer-note">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={login}>
+              Sign in
+            </button>{' '}
+            to send, redeem, or claim from a wallet that holds shares.
+          </p>
+        ) : null}
 
         <div className="token-fraction-layout-table">
           {info.holders.length > 0 ? (
@@ -281,7 +285,7 @@ export function TokenFractionPanel({
           )}
         </div>
 
-        <p className="muted token-fraction-foot token-fraction-layout-foot">
+        <p className="muted token-fraction-foot">
           Shares are ERC-1155 tokens — transferable like NFTs. All 1,000 mint to the fee recipient at
           launch. Send any number to other wallets; those holders can airdrop, sell, or claim fees
           pro-rata. On-chain: <code>claimTradingFees()</code> for swap fees (95% creator pool) and{' '}
