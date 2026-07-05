@@ -8,7 +8,7 @@ const AGENT_SKILL = 'https://github.com/anondevv69/hoodmarkets/tree/main/skills/
 const API_BASE = 'https://api.hood.markets';
 
 const CONTRACTS = [
-  { name: 'HoodMarketsV3 factory (v0.6.0)', address: '0x7E2905ddF3Dca96117A9e9d50F2924C1E7FE7Be1' },
+  { name: 'HoodMarketsV3 factory (v0.7.0)', address: '0x45A3820A9A563e78A4cF7F355F7Be10fA6B706B3' },
   { name: 'HoodMarketsV3 vault', address: '0xdad973Ec5f0B56D64326dB78de9d90Aa9acDB842' },
   { name: 'HoodMarketsV3 LP locker', address: '0x48BCd46147a74A186913d41aE0e7210C03910fA5' },
   { name: 'HoodMarketsV3 fraction deployer', address: '0x722AfdFa376844497783A1EAb3B3490Ff8eb8bB2' },

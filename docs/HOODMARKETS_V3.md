@@ -36,27 +36,27 @@ There is **no SDK toggle** and **no optional vault config** — legacy `vaultCon
 
 Lookup: `fractionCollectionForToken(tokenAddress)` on the factory, or `fractionCollection` in the `TokenCreated` event.
 
-**Deployed on mainnet 4663 (2026-07-04 v0.6.0).** Railway `HOODMARKETS_V3_*` env vars point at the v0.6 factory.
+**Deployed on mainnet 4663 (2026-07-05 v0.7.0).** Railway `HOODMARKETS_V3_*` env vars point at the v0.7 factory.
 
-### v0.7 fraction contract (redeploy required)
-
-New `HoodMarketsV3TokenFraction` bytecode adds:
+### v0.7 fraction contract
 
 - **`claimTradingFees()`** — one permissionless tx pulls LP fees and pays **every** share holder pro-rata (not caller-only).
 - **`listShares` / `buyShares` / `cancelListing`** — on-chain marketplace; seller escrows shares, buyer pays ETH in one tx.
 
-**Existing v0.6 tokens keep old behavior.** Redeploy V3 stack (see below), update Railway `HOODMARKETS_V3_*`, redeploy API + web. New launches only.
+**Existing v0.6 tokens keep old behavior** (per-holder fee claim, no marketplace). New launches only on v0.7.
 
 ## Deployed addresses (mainnet 4663)
 
 | Contract | Address |
 |----------|---------|
-| HoodMarketsV3 factory (v0.6.0) | `0x7E2905ddF3Dca96117A9e9d50F2924C1E7FE7Be1` |
-| HoodMarketsV3Vault | `0xdad973Ec5f0B56D64326dB78de9d90Aa9acDB842` |
-| HoodMarketsV3LpLocker | `0x48BCd46147a74A186913d41aE0e7210C03910fA5` |
-| HoodMarketsV3FractionDeployer | `0x722AfdFa376844497783A1EAb3B3490Ff8eb8bB2` |
+| HoodMarketsV3 factory (v0.7.0) | `0x45A3820A9A563e78A4cF7F355F7Be10fA6B706B3` |
+| HoodMarketsV3Vault | `0xa7ffCe441838625C28F604F982FF6c3e69175E24` |
+| HoodMarketsV3LpLocker | `0x68DC33B6385e427881D5C2Fad071536212DACB32` |
+| HoodMarketsV3FractionDeployer | `0xb747edC5713624284e09dAa309C40c5B58d5aE45` |
 | Platform fee recipient (5%) | `0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98` |
 | Contract owner | `0xFA45A3b8d1662E3432D1B5bE3F37e4923D1b796C` |
+
+**Previous factory (v0.6.0):** `0x7E2905ddF3Dca96117A9e9d50F2924C1E7FE7Be1`
 
 **Previous factory (v0.5.0):** `0x4c18e43F8B8b63f42a944b98b8af29f576c7Ffa8`
 
@@ -90,10 +90,10 @@ forge script script/robinhood/10_DeployHoodMarketsV3.s.sol:DeployHoodMarketsV3 \
 Add to `api.hood.markets` (alongside existing V4 vars):
 
 ```env
-HOODMARKETS_V3_FACTORY=0x7E2905ddF3Dca96117A9e9d50F2924C1E7FE7Be1
-HOODMARKETS_V3_VAULT=0xdad973Ec5f0B56D64326dB78de9d90Aa9acDB842
-HOODMARKETS_V3_LP_LOCKER=0x48BCd46147a74A186913d41aE0e7210C03910fA5
-HOODMARKETS_V3_FRACTION_DEPLOYER=0x722AfdFa376844497783A1EAb3B3490Ff8eb8bB2
+HOODMARKETS_V3_FACTORY=0x45A3820A9A563e78A4cF7F355F7Be10fA6B706B3
+HOODMARKETS_V3_VAULT=0xa7ffCe441838625C28F604F982FF6c3e69175E24
+HOODMARKETS_V3_LP_LOCKER=0x68DC33B6385e427881D5C2Fad071536212DACB32
+HOODMARKETS_V3_FRACTION_DEPLOYER=0xb747edC5713624284e09dAa309C40c5B58d5aE45
 HOODMARKETS_V3_PLATFORM_FEE_RECIPIENT=0xbfD1be7a12A9FeF04D281C2D8D0D9EE15b576d98
 HOODMARKETS_DEFAULT_LAUNCH_MODE=simple
 ```
