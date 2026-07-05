@@ -5,6 +5,7 @@ import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IHoodMarketsV3} from "./interfaces/IHoodMarketsV3.sol";
 import {IHoodMarketsV3TokenFraction} from "./interfaces/IHoodMarketsV3TokenFraction.sol";
 
@@ -107,6 +108,17 @@ contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, IHoodMarketsV3Tok
         rewardToken1 = rewardToken1_;
         pool = pool_;
         _feeRewardsConfigured = true;
+    }
+
+    /// @dev Per-launch metadata for explorers/wallets (ERC-1155 `uri`).
+    function uri(uint256 /* tokenId */) public view override returns (string memory) {
+        return string(
+            abi.encodePacked(
+                "https://api.hood.markets/api/fraction-metadata/",
+                Strings.toHexString(launchToken),
+                ".json"
+            )
+        );
     }
 
     /// @inheritdoc IHoodMarketsV3TokenFraction
