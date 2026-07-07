@@ -1506,6 +1506,15 @@ label {
   color: var(--text);
 }
 
+.launch-limits-note {
+  margin: 0.65rem 0 0;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .token-avatar-wrap {
   position: relative;
   flex-shrink: 0;
@@ -1669,6 +1678,24 @@ label {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+}
+
+.petition-page--embedded {
+  gap: 1rem;
+}
+
+.petition-page-head--embedded {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.petition-page-head--embedded .page-sub {
+  margin: 0;
+  flex: 1 1 16rem;
+  font-size: 0.85rem;
 }
 
 .petition-page-head {
