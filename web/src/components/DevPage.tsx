@@ -15,6 +15,7 @@ const CAPABILITIES = [
   ['Claim swap fees', 'claimTradingFees() — pro-rata to all share holders'],
   ['Share marketplace', 'listShares / buyShares — 5% platform on sale price only'],
   ['Agent automation', 'api.hood.markets — deploy, claim, catalog'],
+  ['Community launch', '24h pre-sale on Robinhood → HoodMarketsV3 + share airdrop (api.hood.markets)'],
 ] as const;
 
 const CONTRACTS = [
@@ -85,12 +86,24 @@ const GITHUB_LINKS = [
   },
 ] as const;
 
+const COMMUNITY_LAUNCH_ENDPOINTS = [
+  ['GET', '/api/community-launch/config', 'Robinhood 4663 rail, unit price, escrow, supporter slots'],
+  ['GET', '/api/community-launch/list', 'Open community launches catalog'],
+  ['GET', '/api/community-launch/status?id=', 'Full state + backers + finalResult'],
+  ['POST', '/api/community-launch/create', 'Open 24h Holder NFT share pre-sale'],
+  ['GET', '/api/community-launch/prepare-deposit', 'Quote deposit + wallet nextStep'],
+  ['POST', '/api/community-launch/confirm', 'Record deposit tx hash'],
+  ['POST', '/api/community-launch/refund', 'Refund while open or expired'],
+  ['POST', '/api/community-launch/cancel', 'Creator cancel empty round'],
+] as const;
+
 const SIDEBAR: { id: DevSection; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'fees', label: 'Platform fees' },
   { id: 'contracts', label: 'Contracts' },
   { id: 'sdk', label: 'SDK' },
   { id: 'agents', label: 'Agents' },
+  { id: 'community-launch', label: 'Community Launch' },
   { id: 'github', label: 'GitHub & resources' },
   { id: 'faq', label: 'FAQ' },
 ];
@@ -157,6 +170,9 @@ export function DevPage() {
           </a>
           <a className="docs-hero-btn" href="/">
             Browse tokens
+          </a>
+          <a className="docs-hero-btn" href="/community-launch">
+            Community Launch
           </a>
         </div>
         <div className="docs-stat-grid">
@@ -399,6 +415,53 @@ Content-Type: application/json
               <a className="docs-link" href="/agent.md" target="_blank" rel="noreferrer">
                 agent.md
               </a>
+            </p>
+          </section>
+
+          <section id="community-launch" className="docs-section lp-card">
+            <p className="docs-section-eyebrow">Robinhood Chain</p>
+            <h2 className="docs-section-title">Community Launch API</h2>
+            <p className="docs-lead">
+              hood.markets-only 24h pre-sale for 1,000 Holder NFT share units on chain 4663. Backers
+              send ETH to our launcher escrow. When sold out, api.hood.markets deploys via HoodMarketsV3
+              and airdrops shares pro-rata. Self-hosted — not Token Marketplace or any external petition API.
+            </p>
+            <div className="docs-links-row">
+              <a className="docs-pill" href="/community-launch">
+                Community Launch UI
+              </a>
+              <a className="docs-pill" href="/community-launch-api.json" target="_blank" rel="noreferrer">
+                community-launch-api.json
+              </a>
+            </div>
+            <div className="docs-table-wrap">
+              <table className="docs-table">
+                <thead>
+                  <tr>
+                    <th>Method</th>
+                    <th>Path</th>
+                    <th>Purpose</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {COMMUNITY_LAUNCH_ENDPOINTS.map(([method, path, purpose]) => (
+                    <tr key={path}>
+                      <td>
+                        <span className={`docs-method docs-method--${method.toLowerCase()}`}>
+                          {method}
+                        </span>
+                      </td>
+                      <td className="docs-mono">{path}</td>
+                      <td>{purpose}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="docs-foot">
+              Base URL: <code className="docs-inline">https://api.hood.markets/api/community-launch</code>
+              {' · '}
+              Optional on-chain escrow: <code className="docs-inline">HoodMarketsPetitionEscrow.sol</code>
             </p>
           </section>
 

@@ -45,6 +45,10 @@ import {
   thirdPartyFeeRecipientCooldownErrorOrNull,
 } from '../lib/globalTickerCooldown.js';
 import {
+  formatCommunityLaunchLockMessage,
+  getCommunityLaunchLockConflict,
+} from '../lib/communityLaunchLock.js';
+import {
   deployRateLimitRollingHours,
   maxSelfFeeDeploysPerRollingWindow,
   selfFeeDeployLimitErrorOrNull,
@@ -473,6 +477,10 @@ export function registerWebDeployRoutes(
       symbol.length >= 1 ? await getGlobalTickerCooldownConflict(symbol) : null;
     const nameConflict =
       name.length >= 2 ? await getGlobalNameCooldownConflict(name) : null;
+    const communityLaunchConflict =
+      symbol.length >= 1 || name.length >= 2
+        ? await getCommunityLaunchLockConflict(symbol, name)
+        : null;
     const tickerReserved = symbol.length >= 1 && isReservedTicker(symbol);
     const nameReserved = name.length >= 2 && isReservedTokenName(name);
 
@@ -480,6 +488,10 @@ export function registerWebDeployRoutes(
       cooldownHours: globalTickerCooldownHours(),
       tickerConflict,
       nameConflict,
+      communityLaunchConflict,
+      communityLaunchMessage: communityLaunchConflict
+        ? formatCommunityLaunchLockMessage(communityLaunchConflict)
+        : null,
       tickerReserved,
       nameReserved,
       reservedTickerMessage: tickerReserved ? reservedTickerUserMessage(symbol) : null,
@@ -556,6 +568,15 @@ export function registerWebDeployRoutes(
       }
       if (isReservedTokenName(name)) {
         res.status(400).json({ error: reservedNameUserMessage() });
+        return;
+      }
+
+      const communityLaunchConflict = await getCommunityLaunchLockConflict(symbol, name);
+      if (communityLaunchConflict) {
+        res.status(409).json({
+          error: formatCommunityLaunchLockMessage(communityLaunchConflict),
+          communityLaunch: communityLaunchConflict,
+        });
         return;
       }
 

@@ -1101,6 +1101,147 @@ label {
   padding-left: 0;
 }
 
+/* —— Petitions (Robinhood Chain pre-sale) —— */
+
+.petition-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.petition-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.petition-page-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.petition-section-title {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.petition-lead {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.petition-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.petition-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--border-soft);
+  background: rgba(0, 0, 0, 0.12);
+  color: inherit;
+}
+
+.petition-card:hover {
+  border-color: var(--accent-dim);
+}
+
+.petition-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.petition-card-meta {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.petition-progress {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.petition-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.petition-progress-label {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--muted-faint);
+}
+
+.petition-form {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.petition-detail-card {
+  margin-top: 0.75rem;
+  padding: 1.25rem;
+}
+
+.petition-detail-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+}
+
+.petition-detail-name {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.petition-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.petition-stats dt {
+  margin: 0;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-faint);
+}
+
+.petition-stats dd {
+  margin: 0.2rem 0 0;
+  font-size: 0.88rem;
+}
+
+.petition-back-block {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
 /* —— Token page redesign (QuantumFlux layout) —— */
 
 .tp-header {

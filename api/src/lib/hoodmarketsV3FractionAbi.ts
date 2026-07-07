@@ -94,4 +94,24 @@ export const HOODMARKETS_V3_FRACTION_ABI = [
     inputs: [{ name: 'listingId', type: 'uint256' }],
     outputs: [],
   },
+  {
+    type: 'function',
+    name: 'airdropShares',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'recipients', type: 'address[]' },
+      { name: 'amounts', type: 'uint256[]' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'balanceOf',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'account', type: 'address' },
+      { name: 'id', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
 ] as const;

@@ -5,6 +5,9 @@ export function SiteFooter() {
     <footer className="site-footer">
       <p className="site-footer-brand">hood.markets · Robinhood Chain</p>
       <nav className="site-footer-tabs" aria-label="Documentation">
+        <a className="site-footer-tab" href="/community-launch">
+          Community Launch
+        </a>
         <a className="site-footer-tab" href={devPageUrl()}>
           Docs
         </a>

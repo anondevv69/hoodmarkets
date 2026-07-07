@@ -58,6 +58,7 @@ export function LaunchTab() {
   const [liveNameConflict, setLiveNameConflict] = useState<DeployCooldownConflict | null>(null);
   const [liveNameReserved, setLiveNameReserved] = useState<string | null>(null);
   const [liveTickerReserved, setLiveTickerReserved] = useState<string | null>(null);
+  const [liveCommunityLaunchMessage, setLiveCommunityLaunchMessage] = useState<string | null>(null);
   const [checkingCooldown, setCheckingCooldown] = useState(false);
   const [result, setResult] = useState<DeployResult | null>(null);
   const [launchedMeta, setLaunchedMeta] = useState<{
@@ -121,6 +122,7 @@ export function LaunchTab() {
       setLiveNameConflict(null);
       setLiveNameReserved(null);
       setLiveTickerReserved(null);
+      setLiveCommunityLaunchMessage(null);
       return;
     }
 
@@ -136,6 +138,7 @@ export function LaunchTab() {
         setLiveNameConflict(out.nameConflict);
         setLiveNameReserved(out.nameReserved ? out.reservedNameMessage : null);
         setLiveTickerReserved(out.tickerReserved ? out.reservedTickerMessage : null);
+        setLiveCommunityLaunchMessage(out.communityLaunchMessage);
       })
       .catch(() => {
         if (!cancelled) {
@@ -143,6 +146,7 @@ export function LaunchTab() {
           setLiveNameConflict(null);
           setLiveNameReserved(null);
           setLiveTickerReserved(null);
+          setLiveCommunityLaunchMessage(null);
         }
       })
       .finally(() => {
@@ -198,6 +202,7 @@ export function LaunchTab() {
   const cannotLaunch =
     !!blockingConflict ||
     !!blockingReserved ||
+    !!liveCommunityLaunchMessage ||
     (feeTarget === 'other' && !looksLikeFeeRecipientInput(feeRecipient));
 
   const previewSymbol = (symbol.trim() || 'TICK').toUpperCase();
@@ -469,11 +474,17 @@ export function LaunchTab() {
 
               {liveNameReserved ? <ReservedBrandNotice message={liveNameReserved} /> : null}
               {liveTickerReserved ? <ReservedBrandNotice message={liveTickerReserved} /> : null}
+              {liveCommunityLaunchMessage ? (
+                <div className="reserved-card lp-fade-in" role="alert">
+                  <p className="reserved-title">Community Launch in progress</p>
+                  <p className="reserved-sub">{liveCommunityLaunchMessage}</p>
+                </div>
+              ) : null}
 
-              {liveNameConflict && !liveTickerConflict && !liveNameReserved ? (
+              {liveNameConflict && !liveTickerConflict && !liveNameReserved && !liveCommunityLaunchMessage ? (
                 <ExistingTokenConflict conflict={liveNameConflict} />
               ) : null}
-              {liveTickerConflict && !liveTickerReserved ? (
+              {liveTickerConflict && !liveTickerReserved && !liveCommunityLaunchMessage ? (
                 <ExistingTokenConflict conflict={liveTickerConflict} />
               ) : null}
 

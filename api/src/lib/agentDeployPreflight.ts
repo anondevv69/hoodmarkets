@@ -7,6 +7,11 @@ import {
   normalizeCatalogTickerSymbol,
 } from './deploymentCatalog.js';
 import {
+  formatCommunityLaunchLockMessage,
+  formatCommunityLaunchLockReplyHint,
+  getCommunityLaunchLockConflict,
+} from './communityLaunchLock.js';
+import {
   formatDeployCooldownConflictMessage,
   formatDeployCooldownReplyHint,
   getGlobalNameCooldownConflict,
@@ -41,6 +46,7 @@ export type AgentPreflightIssueCode =
   | 'name_reserved'
   | 'ticker_cooldown'
   | 'name_cooldown'
+  | 'community_launch_active'
   | 'fee_recipient_cooldown'
   | 'duplicate_deployer_name_symbol'
   | 'launch_mode_unavailable'
@@ -144,6 +150,19 @@ export async function runAgentDeployPreflight(
       message: msg,
       replyHint: 'That token name is reserved on hood.markets — choose a different name.',
     });
+  }
+
+  if (symbol.length >= 1 || name.length >= 2) {
+    const clConflict = await getCommunityLaunchLockConflict(symbol, name);
+    if (clConflict) {
+      blocks.push({
+        code: 'community_launch_active',
+        severity: 'block',
+        message: formatCommunityLaunchLockMessage(clConflict),
+        replyHint: formatCommunityLaunchLockReplyHint(clConflict),
+        conflict: clConflict,
+      });
+    }
   }
 
   if (symbol.length >= 1 && (await isTickerGloballyReserved(symbol))) {
