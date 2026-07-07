@@ -4,10 +4,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
-import { useAccount, useDisconnect, useSignMessage } from 'wagmi';
+import { useAccount, useAccountEffect, useDisconnect, useSignMessage } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
 import {
   clearStoredSession,
@@ -40,6 +41,11 @@ type WebAuthContextValue = {
 
 const WebAuthContext = createContext<WebAuthContextValue | null>(null);
 
+/** Brief pause so the wallet can finish connect UI before the sign prompt. */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function WebAuthProvider({ children }: { children: ReactNode }) {
   const { address, isConnected, status } = useAccount();
   const { disconnect } = useDisconnect();
@@ -49,11 +55,17 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
   const [authMethod, setAuthMethod] = useState<WebAuthMethod>(null);
   const [ready, setReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [signing, setSigning] = useState(false);
+  const signInFlightRef = useRef<string | null>(null);
+  const sessionRef = useRef<StoredWebSession | null>(null);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   useEffect(() => {
     const stored = readStoredSession();
     setSession(stored);
+    sessionRef.current = stored;
     if (stored?.walletKind === 'bankr-evm') {
       setAuthMethod('bankr');
     } else if (stored?.token) {
@@ -80,97 +92,93 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
       };
       writeStoredSession(stored);
       setSession(stored);
+      sessionRef.current = stored;
       setAuthMethod(walletKind === 'bankr-evm' ? 'bankr' : 'rainbow');
       setAuthError(null);
     },
     [],
   );
 
-  const signInConnectedWallet = useCallback(async () => {
-    if (!address || signing) return;
-    setSigning(true);
-    try {
-      await completeWalletLogin(address, (message) => signMessageAsync({ message }), 'injected');
-    } catch (e) {
-      setAuthError(e instanceof Error ? e.message : 'Wallet sign-in failed.');
-      disconnect();
-      clearStoredSession();
-      setSession(null);
-      setAuthMethod(null);
-    } finally {
-      setSigning(false);
-    }
-  }, [address, signing, completeWalletLogin, signMessageAsync, disconnect]);
+  const runSignInIfNeeded = useCallback(
+    async (walletAddress: string) => {
+      const key = walletAddress.toLowerCase();
+      if (sessionRef.current?.walletAddress?.toLowerCase() === key) return;
+      if (signInFlightRef.current === key) return;
 
-  useEffect(() => {
-    if (!ready || signing || authMethod === 'bankr') return;
-    if (!isConnected || !address) return;
-    if (session?.walletAddress?.toLowerCase() === address.toLowerCase()) return;
-
-    let cancelled = false;
-    setSigning(true);
-    void (async () => {
+      signInFlightRef.current = key;
+      setAuthError(null);
       try {
-        await completeWalletLogin(address, (message) => signMessageAsync({ message }), 'injected');
+        // Wallets often miss the sign prompt if fired in the same tick as connect.
+        await delay(400);
+        if (signInFlightRef.current !== key) return;
+        await completeWalletLogin(
+          walletAddress,
+          (message) => signMessageAsync({ message }),
+          'injected',
+        );
       } catch (e) {
-        if (!cancelled) {
+        if (signInFlightRef.current === key) {
           setAuthError(e instanceof Error ? e.message : 'Wallet sign-in failed.');
           disconnect();
           clearStoredSession();
           setSession(null);
+          sessionRef.current = null;
           setAuthMethod(null);
         }
       } finally {
-        if (!cancelled) setSigning(false);
+        if (signInFlightRef.current === key) {
+          signInFlightRef.current = null;
+        }
       }
-    })();
+    },
+    [completeWalletLogin, signMessageAsync, disconnect],
+  );
 
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    ready,
-    signing,
-    authMethod,
-    isConnected,
-    address,
-    session?.walletAddress,
-    completeWalletLogin,
-    signMessageAsync,
-    disconnect,
-  ]);
+  useAccountEffect({
+    onConnect({ address: connectedAddress }) {
+      if (!connectedAddress) return;
+      void runSignInIfNeeded(connectedAddress);
+    },
+  });
+
+  useEffect(() => {
+    if (!ready || authMethod === 'bankr') return;
+    if (!isConnected || !address) return;
+    if (session?.walletAddress?.toLowerCase() === address.toLowerCase()) return;
+    void runSignInIfNeeded(address);
+  }, [ready, authMethod, isConnected, address, session?.walletAddress, runSignInIfNeeded]);
 
   const connectWallet = useCallback(() => {
     setAuthError(null);
-    if (openConnectModal) {
-      openConnectModal();
-      return;
-    }
+
     if (status === 'connecting' || status === 'reconnecting') {
       setAuthError('Connecting wallet… check your extension.');
       return;
     }
+
     if (isConnected && address) {
-      if (signing) {
-        setAuthError('Approve the sign-in message in your wallet.');
+      if (session?.walletAddress?.toLowerCase() === address.toLowerCase()) {
+        setAuthError('Already signed in.');
         return;
       }
-      if (session?.walletAddress?.toLowerCase() !== address.toLowerCase()) {
-        void signInConnectedWallet();
-        return;
-      }
-      setAuthError('Already connected. Refresh if sign-in did not complete.');
+      void runSignInIfNeeded(address);
+      setAuthError('Approve the sign-in message in your wallet. Tap Connect again if you do not see it.');
       return;
     }
+
+    if (openConnectModal) {
+      openConnectModal();
+      return;
+    }
+
     setAuthError('Wallet connect is loading… try again in a moment.');
   }, [
     openConnectModal,
     status,
     isConnected,
     address,
-    signing,
     session?.walletAddress,
-    signInConnectedWallet,
+    runSignInIfNeeded,
   ]);
 
   const loginWithBankr = useCallback(
@@ -192,8 +200,10 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
+    signInFlightRef.current = null;
     clearStoredSession();
     setSession(null);
+    sessionRef.current = null;
     setAuthMethod(null);
     setAuthError(null);
     if (isConnected) disconnect();
