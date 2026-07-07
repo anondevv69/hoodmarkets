@@ -138,7 +138,6 @@ export function TokensTab({ onNavigateToLaunch }: { onNavigateToLaunch?: () => v
   const [sort, setSort] = useState<ExploreSort>('mcap');
   const [filter, setFilter] = useState<ExploreFilter>('all');
   const [page, setPage] = useState(1);
-  const [minLiquidity, setMinLiquidity] = useState(0);
   const [addressLookupState, setAddressLookupState] = useState<'idle' | 'loading' | 'miss'>('idle');
   const lastOpenedAddressRef = useRef<string | null>(null);
 
@@ -149,14 +148,13 @@ export function TokensTab({ onNavigateToLaunch }: { onNavigateToLaunch?: () => v
 
   useEffect(() => {
     setPage(1);
-  }, [sort, filter, debouncedQuery, minLiquidity]);
+  }, [sort, filter, debouncedQuery]);
 
   const { items, total, platformStats, loading, error } = useExploreTokens(true, {
     sort,
     filter,
     page,
     query: debouncedQuery,
-    minLiquidityUsd: minLiquidity > 0 ? minLiquidity : undefined,
   });
 
   const fullAddressQuery = useMemo(() => extractContractAddressFromSearch(query), [query]);
@@ -279,19 +277,6 @@ export function TokensTab({ onNavigateToLaunch }: { onNavigateToLaunch?: () => v
             </button>
           ))}
         </div>
-        <label className="explore-liquidity-filter muted">
-          Liquidity
-          <select
-            className="lp-input explore-liquidity-select"
-            value={String(minLiquidity)}
-            onChange={(e) => setMinLiquidity(Number.parseInt(e.target.value, 10) || 0)}
-          >
-            <option value="0">All liquidity</option>
-            <option value="1000">$1K+</option>
-            <option value="5000">$5K+</option>
-            <option value="10000">$10K+</option>
-          </select>
-        </label>
         <ExploreToolbarActions onLaunch={goLaunch} />
         {platformStats ? (
           <p className="explore-count muted">
