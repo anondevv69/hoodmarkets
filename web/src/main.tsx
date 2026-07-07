@@ -21,13 +21,13 @@ createRoot(document.getElementById('root')!).render(
         <RainbowKitProvider
           theme={{
             lightMode: lightTheme({
-              accentColor: '#1C180D',
-              accentColorForeground: '#CCFF00',
+              accentColor: '#CCFF00',
+              accentColorForeground: '#110E08',
               borderRadius: 'medium',
             }),
             darkMode: darkTheme({
               accentColor: '#CCFF00',
-              accentColorForeground: '#1C180D',
+              accentColorForeground: '#110E08',
               borderRadius: 'medium',
             }),
           }}
