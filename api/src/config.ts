@@ -163,6 +163,19 @@ export const config = {
     return raw === 'pro' ? ('pro' as const) : ('simple' as const);
   })(),
 
+  /** Web wallet vanity suffix (default `00d`). Env: `WEB_WALLET_DEPLOY_VANITY=false` to disable. */
+  webWalletDeployVanity: process.env.WEB_WALLET_DEPLOY_VANITY !== 'false',
+  webVanityAddressSuffix: (process.env.WEB_VANITY_ADDRESS_SUFFIX?.trim() || '00d').toLowerCase(),
+  /** Pre-mined salts kept per launch config. Env: `VANITY_SALT_BANK_SIZE` (default 20). */
+  vanitySaltBankSize: (() => {
+    const n = Number.parseInt(process.env.VANITY_SALT_BANK_SIZE?.trim() || '20', 10);
+    return Number.isFinite(n) && n > 0 ? n : 20;
+  })(),
+  vanitySaltMaxAttempts: (() => {
+    const n = Number.parseInt(process.env.VANITY_SALT_MAX_ATTEMPTS?.trim() || '250000', 10);
+    return Number.isFinite(n) && n > 0 ? n : 250_000;
+  })(),
+
   // Deployer wallet (pays gas + minimal deploy bond)
   deployerPrivateKey: normalizePrivateKey(requireEnv('DEPLOYER_PRIVATE_KEY')),
 

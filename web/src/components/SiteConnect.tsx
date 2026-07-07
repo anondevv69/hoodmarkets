@@ -2,7 +2,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useState } from 'react';
 import { shortenAddress } from '../chain';
 import { useWebAuth } from '../auth/WebAuthContext';
-import { navigateToAppTab } from '../lib/tokenRoute';
+import { navigateToMyProfile } from '../lib/deployerProfileRoute';
 
 export function SiteConnect() {
   const {
@@ -30,7 +30,7 @@ export function SiteConnect() {
           type="button"
           className="site-connect-addr site-connect-profile-btn"
           title={`${walletAddress} — view profile`}
-          onClick={() => navigateToAppTab('profile')}
+          onClick={() => navigateToMyProfile(walletAddress)}
         >
           {authMethod === 'bankr' ? 'Bankr · ' : ''}
           {shortenAddress(walletAddress)}

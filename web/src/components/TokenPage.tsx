@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { fetchDeploymentByAddress, type TokenDetail } from '../api';
 import { shortenAddress, tokenUrl } from '../chain';
 import { fetchTokenMetricsFromDexscreener, type DexTokenMetrics } from '../lib/dexscreenerVolume';
@@ -16,22 +16,6 @@ import { TokenSocialLinks } from './TokenSocialLinks';
 import { TokenSpaceComments } from './TokenSpaceComments';
 import { TokenFractionPanel } from './TokenFractionPanel';
 
-function TokenHeaderIcon({
-  onClick,
-  ariaLabel,
-  children,
-}: {
-  onClick: () => void;
-  ariaLabel: string;
-  children: ReactNode;
-}) {
-  return (
-    <button type="button" className="tp-btn-icon" onClick={onClick} aria-label={ariaLabel}>
-      {children}
-    </button>
-  );
-}
-
 function CopyIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -45,11 +29,11 @@ function CopyIcon() {
   );
 }
 
-function ShareIcon() {
+function ExternalLinkIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M8.5 10.5 15 7l-6.5-3.5v3M15 7v10M7 14.5v2.5a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-2"
+        d="M14 5h5v5M10 14 19 5M15 5h4v4M5 10v9a1 1 0 0 0 1 1h9"
         stroke="currentColor"
         strokeWidth="1.75"
         strokeLinecap="round"
@@ -163,80 +147,59 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
     setTimeout(() => setCopied(false), 1200);
   };
 
-  const onShare = () => {
-    const url = window.location.href;
-    const title = `${token.tokenName} ($${sym}) · hood.markets`;
-    if (navigator.share) {
-      void navigator.share({ url, title }).catch(() => {
-        void navigator.clipboard?.writeText(url);
-      });
-    } else {
-      void navigator.clipboard?.writeText(url);
-    }
-  };
-
   return (
     <div className="token-page lp-fade-in">
-      <header className="tp-header">
-        <div className="tp-token-id">
-          <TokenAvatar symbol={sym} imageUrl={token.tokenImageUrl} size={48} priority />
-          <div className="tp-token-title-block">
-            <div className="tp-token-title-row">
-              <div className="tp-token-identity">
-                <h1 className="tp-token-name">{token.tokenName}</h1>
-                <span className="tp-token-sym">${sym}</span>
-                <TokenSocialLinks
-                  websiteUrl={token.tokenWebsiteUrl}
-                  xUrl={token.tokenXUrl}
-                  variant="inline"
-                />
+      <section className="tp-token-card">
+        <div className="tp-token-card-top">
+          <div className="tp-token-card-id">
+            <TokenAvatar symbol={sym} imageUrl={token.tokenImageUrl} size={52} priority />
+            <div className="tp-token-card-title">
+              <div className="tp-token-card-name-row">
+                <h1 className="tp-token-card-name">{token.tokenName}</h1>
+                <span className="tp-token-card-ticker">${sym}</span>
               </div>
-              <div className="tp-header-actions">
-                <TokenHeaderIcon onClick={onShare} ariaLabel="Share token page">
-                  <ShareIcon />
-                </TokenHeaderIcon>
-              </div>
-            </div>
-            <div className="tp-token-meta">
-              <button
-                type="button"
-                className="tp-addr-chip"
-                onClick={onCopyAddress}
-                aria-label={copied ? 'Address copied' : 'Copy token address'}
-                title={copied ? 'Copied' : 'Copy address'}
-              >
-                <a
-                  className="tp-addr-chip-text lp-mono"
-                  href={tokenUrl(token.tokenAddress)}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                >
+              <div className="tp-token-card-meta">
+                <span className="tp-token-card-addr lp-mono">
                   {shortenAddress(token.tokenAddress)}
-                </a>
-                <span className="tp-addr-chip-icon" aria-hidden>
-                  {copied ? <CheckIcon /> : <CopyIcon />}
                 </span>
-              </button>
-              <span className="tp-live-pulse">
+                <button
+                  type="button"
+                  className="tp-token-card-copy"
+                  onClick={onCopyAddress}
+                  aria-label={copied ? 'Address copied' : 'Copy token address'}
+                  title={copied ? 'Copied' : 'Copy address'}
+                >
+                  {copied ? <CheckIcon /> : <CopyIcon />}
+                </button>
                 <span className="tp-dot-live" aria-hidden />
-                {age}
-              </span>
+                <span className="tp-token-card-age">{age}</span>
+              </div>
             </div>
           </div>
+          <a
+            className="tp-btn-icon tp-token-card-ext"
+            href={tokenUrl(token.tokenAddress)}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="View on Blockscout"
+          >
+            <ExternalLinkIcon />
+          </a>
         </div>
-      </header>
 
-      {(descriptionUser || descriptionDeployNote) && (
-        <div className="tp-description-block">
-          {descriptionUser ? <p className="token-description">{descriptionUser}</p> : null}
-          {descriptionDeployNote ? (
-            <p className="token-description token-page-deploy-note">{descriptionDeployNote}</p>
-          ) : null}
-        </div>
-      )}
+        {descriptionUser ? <p className="tp-token-card-desc">{descriptionUser}</p> : null}
+        {descriptionDeployNote ? (
+          <p className="tp-token-card-desc tp-token-card-desc--note">{descriptionDeployNote}</p>
+        ) : null}
 
-      <TokenHeroMetrics metrics={metrics} loading={metricsLoading} />
+        <TokenSocialLinks
+          websiteUrl={token.tokenWebsiteUrl}
+          xUrl={token.tokenXUrl}
+          variant="card"
+        />
+
+        <TokenHeroMetrics metrics={metrics} loading={metricsLoading} variant="card" />
+      </section>
 
       <div className="token-page-grid">
         <div className="token-page-main">

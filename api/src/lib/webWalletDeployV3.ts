@@ -22,6 +22,8 @@ import {
   type SerializedV3DeploymentConfig,
 } from './v3DeploymentConfigJson.js';
 import { assertWalletDeploySenderMatches } from './webWalletDeploy.js';
+import { claimVanitySaltForLaunch } from './vanitySaltBank.js';
+import { resolveWebVanityAddressSuffix } from './vanitySalt.js';
 
 export type WebWalletDeployV3PrepareInput = {
   name: string;
@@ -84,11 +86,28 @@ export async function buildWebWalletDeployPrepareV3(
     buyerRewardShareCount: input.buyerRewardShareCount,
   });
 
+  const vanitySuffix = resolveWebVanityAddressSuffix();
+  let vanitySource: 'bank' | 'mined' | 'none' = 'none';
+  let predictedTokenAddress: string | undefined;
+  if (vanitySuffix) {
+    const claimed = await claimVanitySaltForLaunch({
+      factory,
+      deploymentConfig,
+      suffix: vanitySuffix,
+    });
+    deploymentConfig.tokenConfig.salt = claimed.salt;
+    vanitySource = claimed.source;
+    predictedTokenAddress = claimed.tokenAddress;
+  }
+
   logger.info('Web wallet deploy prepare ready', {
     name: input.name,
     symbol: input.symbol,
     tokenAdmin,
     msgValueWei: input.devBuyAmount.toString(),
+    vanitySuffix: vanitySuffix ?? undefined,
+    vanitySource,
+    predictedTokenAddress,
   });
 
   return {

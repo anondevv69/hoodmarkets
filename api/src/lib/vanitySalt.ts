@@ -24,6 +24,21 @@ export function resolveVanityAddressSuffix(): string | null {
   return normalizeVanitySuffix(raw);
 }
 
+/** Web wallet launches — default suffix `00d` (fast 3-char). Set `WEB_WALLET_DEPLOY_VANITY=false` to disable. */
+export function resolveWebVanityAddressSuffix(): string | null {
+  const disabled =
+    process.env.WEB_WALLET_DEPLOY_VANITY === 'false' ||
+    process.env.WEB_WALLET_DEPLOY_VANITY === '0' ||
+    process.env.WEB_WALLET_DEPLOY_VANITY === 'off';
+  if (disabled) return null;
+
+  const raw = process.env.WEB_VANITY_ADDRESS_SUFFIX?.trim();
+  if (raw && raw !== 'false' && raw !== 'off' && raw !== 'none') {
+    return normalizeVanitySuffix(raw);
+  }
+  return '00d';
+}
+
 export function vanitySaltMiningOptions(): { maxAttempts: number; concurrency: number } {
   const maxAttempts = (() => {
     const env = process.env.VANITY_SALT_MAX_ATTEMPTS?.trim();

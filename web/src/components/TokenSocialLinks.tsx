@@ -1,7 +1,7 @@
 interface TokenSocialLinksProps {
   websiteUrl?: string;
   xUrl?: string;
-  variant?: 'default' | 'inline';
+  variant?: 'default' | 'inline' | 'card';
 }
 
 function xHandleFromUrl(url: string): string {
@@ -54,6 +54,25 @@ export function TokenSocialLinks({ websiteUrl, xUrl, variant = 'default' }: Toke
   const website = websiteUrl?.trim();
   const x = xUrl?.trim();
   if (!website && !x) return null;
+
+  if (variant === 'card') {
+    return (
+      <div className="tp-token-card-socials">
+        {website ? (
+          <a className="tp-token-card-social" href={website} target="_blank" rel="noreferrer">
+            <GlobeIcon />
+            Website
+          </a>
+        ) : null}
+        {x ? (
+          <a className="tp-token-card-social" href={x} target="_blank" rel="noreferrer">
+            <XIcon />
+            Twitter
+          </a>
+        ) : null}
+      </div>
+    );
+  }
 
   if (variant === 'inline') {
     return (

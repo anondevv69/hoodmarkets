@@ -9,6 +9,7 @@ import {
 } from '../lib/robinhoodTrades';
 
 const POLL_MS = 20_000;
+const COMPACT_MAX_ROWS = 10;
 
 function swapToRow(s: {
   id: string;
@@ -70,12 +71,14 @@ export function LiveTradesTable({
 
   const sym = tokenSymbol.replace(/^\$/, '');
   const [hideSmall, setHideSmall] = useState(false);
-  const visible = rows.filter((s) => {
-    if (!hideSmall) return true;
-    if (s.usdVolume != null) return s.usdVolume >= 1;
-    return s.ethAmount >= 0.0003;
-  });
   const compact = variant === 'compact';
+  const visible = rows
+    .filter((s) => {
+      if (!hideSmall) return true;
+      if (s.usdVolume != null) return s.usdVolume >= 1;
+      return s.ethAmount >= 0.0003;
+    })
+    .slice(0, compact ? COMPACT_MAX_ROWS : undefined);
 
   if (hideWhenEmpty && (loading || visible.length === 0)) {
     return null;

@@ -26,9 +26,11 @@ function HeroStat({
 export function TokenHeroMetrics({
   metrics,
   loading,
+  variant = 'default',
 }: {
   metrics?: DexTokenMetrics;
   loading?: boolean;
+  variant?: 'default' | 'card';
 }) {
   const mc = metrics?.marketCapUsd ?? metrics?.fdvUsd;
   const change = metrics?.change24hPct;
@@ -44,10 +46,15 @@ export function TokenHeroMetrics({
 
   if (!hasAny) return null;
 
+  const embedded = variant === 'card';
+
   return (
-    <div className="tp-zone tp-hero-zone" aria-busy={showSkeleton}>
-      <div className="tp-hero-label">Market cap</div>
-      <div className="tp-hero-value">
+    <div
+      className={embedded ? 'tp-token-card-metrics' : 'tp-zone tp-hero-zone'}
+      aria-busy={showSkeleton}
+    >
+      <div className={embedded ? 'tp-token-card-mcap-label' : 'tp-hero-label'}>Market cap</div>
+      <div className={embedded ? 'tp-token-card-mcap-row' : 'tp-hero-value'}>
         <span className={showSkeleton ? 'tp-hero-value-skeleton' : undefined}>
           {showSkeleton ? '\u00a0' : formatUsdVol(mc)}
         </span>
@@ -58,7 +65,7 @@ export function TokenHeroMetrics({
           </span>
         ) : null}
       </div>
-      <div className="tp-stat-row">
+      <div className={embedded ? 'tp-token-card-stats' : 'tp-stat-row'}>
         <HeroStat
           label="Liquidity"
           value={formatUsdVol(metrics?.liquidityUsd)}

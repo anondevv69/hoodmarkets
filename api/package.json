@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "npm run build:api",
-    "build:api": "node --max-old-space-size=8192 ./node_modules/typescript/bin/tsc -p tsconfig.json && mkdir -p dist/liquid && cp src/liquid/liquidFactoryAbi.json dist/liquid/",
+    "build:api": "node --max-old-space-size=8192 ./node_modules/typescript/bin/tsc -p tsconfig.json && mkdir -p dist/liquid dist/lib/artifacts && cp src/liquid/liquidFactoryAbi.json dist/liquid/ && cp src/lib/artifacts/HoodMarketsV3Token.json dist/lib/artifacts/",
     "build:backend": "npm run build:api",
     "start": "node dist/index.js",
     "dev:backend": "tsx src/index.ts",
