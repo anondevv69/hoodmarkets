@@ -30,20 +30,39 @@ GET /api/feed/deployments?sinceId=0&limit=50
       "tokenName": "yerrr",
       "tokenSymbol": "YERRR",
       "tokenAddress": "0x88eac49b6D87c0546a4ad8b7b0E77be93A3e4517",
-      "tokenImageUrl": "https://…",
-      "feeRecipientAddress": "0xC5f5…454A",
-      "deployerLabel": "Embedded wallet (Privy)",
+      "poolId": "v3:595…",
+      "factoryAddress": "0x9BDd…0Df5",
       "transactionHash": "0x…",
       "blockNumber": "3350123",
-      "sourceUrl": "",
+      "sourceUrl": "https://x.com/someuser/status/123",
       "clientKind": "web",
       "feeToSelf": true,
+      "metadata": {
+        "description": "yerrrr",
+        "imageUrl": "https://…",
+        "bannerUrl": "https://…",
+        "websiteUrl": "https://example.com",
+        "xUrl": "https://x.com/someuser",
+        "xUsername": "someuser"
+      },
+      "deployer": {
+        "label": "Embedded wallet (Privy)",
+        "xUsername": "someuser",
+        "xLaunchCount": 3,
+        "walletAddress": "0xC5f5…454A"
+      },
+      "feeRecipient": {
+        "address": "0xC5f5…454A",
+        "label": ""
+      },
       "links": {
         "tokenPage": "https://hood.markets/?token=0x88ea…",
         "dexscreener": "https://dexscreener.com/robinhood/0x88ea…",
         "explorerToken": "https://robinhoodchain.blockscout.com/token/0x88ea…",
         "explorerTx": "https://robinhoodchain.blockscout.com/tx/0x…",
-        "uniswap": "https://app.uniswap.org/swap?chain=robinhood&outputCurrency=0x88ea…"
+        "uniswap": "https://app.uniswap.org/swap?chain=robinhood&outputCurrency=0x88ea…",
+        "website": "https://example.com",
+        "x": "https://x.com/someuser"
       }
     }
   ],
@@ -60,6 +79,23 @@ GET /api/feed/deployments?sinceId=0&limit=50
 4. Wait `pollAfterMs` (15 seconds), then poll again with `sinceId=<nextSinceId>`.
 
 Events are ordered **oldest-first** within each batch so you process launches in chronological order.
+
+### Metadata fields
+
+Each event includes a `metadata` object with token page content from launch time:
+
+| Field | Description |
+|-------|-------------|
+| `description` | Token description / tagline |
+| `imageUrl` | Token avatar image |
+| `bannerUrl` | Token page banner (if set) |
+| `websiteUrl` | Project website |
+| `xUrl` | X/Twitter profile or post URL |
+| `xUsername` | Resolved `@handle` when known |
+
+`deployer` includes `label`, `xUsername`, `xLaunchCount`, and `walletAddress` (when resolvable).
+`feeRecipient` includes the on-chain fee wallet and optional label.
+`sourceUrl` is the original launch post (X tweet, etc.) when available.
 
 ### Example (Node.js)
 
@@ -90,9 +126,14 @@ poll();
 ```js
 async function notifyNewLaunch(bot, chatId, event) {
   const sym = event.tokenSymbol.replace(/^\$/, '');
+  const desc = event.metadata?.description?.trim();
+  const xLine = event.metadata?.xUsername
+    ? `\n<a href="${event.links.x ?? `https://x.com/${event.metadata.xUsername}`}">@${event.metadata.xUsername}</a>`
+    : '';
   const text =
     `🚀 <b>${event.tokenName}</b> ($${sym})\n` +
-    `<code>${event.tokenAddress}</code>\n` +
+    (desc ? `${desc}\n` : '') +
+    `<code>${event.tokenAddress}</code>${xLine}\n` +
     `<a href="${event.links.tokenPage}">hood.markets</a> · ` +
     `<a href="${event.links.dexscreener}">DexScreener</a>`;
   await bot.sendMessage(chatId, text, { parse_mode: 'HTML', disable_web_page_preview: false });
