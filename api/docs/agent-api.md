@@ -57,7 +57,10 @@ No Bankr `/wallet/submit`. Post `replyHint` when `ok: true`.
 ```
 GET /api/agent/briefing?wallet=0x…
 GET /api/deployments
+GET /api/feed/deployments?sinceId=0   # poll for new launches (bots)
 ```
+
+Public feed docs: [public-feed-api.md](./public-feed-api.md)
 
 ---
 

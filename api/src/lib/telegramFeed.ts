@@ -1,7 +1,7 @@
 import { config } from '../config.js';
 import { logger } from '../logger.js';
 import { BASE_DEAD_FEE_RECIPIENT } from './deadFeeWallet.js';
-import { launcherAppLaunchesTokenUrl } from './launcherAppUrl.js';
+import { hoodmarketsTokenUrl } from './launcherAppUrl.js';
 import { telegramTradeLinks } from './tradingLinks.js';
 
 function escapeHtml(s: string): string {
@@ -44,9 +44,9 @@ function buildMessageHtml(payload: TelegramDeploymentFeedPayload): string {
   const feeAddr = payload.feeRecipientAddress;
   const feeLbl = payload.feeRecipientLabel?.trim();
 
-  const liquid = `https://app.liquidprotocol.org/tokens/${tokenAddr}`;
-  const basescanTx = `https://basescan.org/tx/${payload.transactionHash}`;
-  const launches = launcherAppLaunchesTokenUrl(tokenAddr);
+  const liquid = hoodmarketsTokenUrl(tokenAddr);
+  const explorerTx = `https://robinhoodchain.blockscout.com/tx/${payload.transactionHash}`;
+  const launches = hoodmarketsTokenUrl(tokenAddr);
   const trade = telegramTradeLinks(tokenAddr);
 
   const feeBlock = feeLbl
@@ -66,12 +66,10 @@ function buildMessageHtml(payload: TelegramDeploymentFeedPayload): string {
     `<b>Deployer</b> ${deployer}\n` +
     (sourceLine || '') +
     `<b>Fee recipient</b>\n${feeBlock}\n\n` +
-    `<a href="${liquid}">Liquid</a> · <a href="${launches}">Launches</a> · <a href="${basescanTx}">Tx</a>\n\n` +
+    `<a href="${liquid}">hood.markets</a> · <a href="${launches}">Token page</a> · <a href="${explorerTx}">Tx</a>\n\n` +
     `<b>Trading</b>\n` +
     `<a href="${trade.dexscreener}">DexScreener</a> · ` +
-    `<a href="${trade.gmgn}">GMGN</a> · ` +
-    `<a href="${trade.sigma}">Sigma</a> · ` +
-    `<a href="${trade.basebot}">Basebot</a>`
+    `<a href="${trade.uniswap}">Uniswap</a>`
   );
 }
 

@@ -1263,6 +1263,63 @@ export async function listDeploymentCatalog(
 }
 
 /**
+ * Incremental deployment feed for bots and monitors.
+ * Returns rows with id > sinceId, oldest-first (ascending id).
+ */
+export async function listDeploymentFeedSince(
+  sinceId = 0,
+  limit = 50,
+): Promise<DeploymentCatalogRow[]> {
+  if (!db) return [];
+
+  const cursor = Math.max(0, Math.floor(sinceId));
+  const lim = Math.min(Math.max(1, limit), 100);
+
+  return new Promise((resolve) => {
+    db!.all(
+      `SELECT dc.id, dc.created_at AS createdAt, dc.platform, dc.deployer_id AS deployerId, dc.deployer_label AS deployerLabel,
+              dc.fee_recipient_address AS feeRecipientAddress,
+              COALESCE(dc.chain, 'robinhood') AS chain,
+              COALESCE(dc.factory_address, '') AS factoryAddress,
+              dc.token_name AS tokenName, dc.token_symbol AS tokenSymbol,
+              COALESCE(dc.token_image_url, '') AS tokenImageUrl,
+              COALESCE(dc.token_banner_url, '') AS tokenBannerUrl,
+              COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
+              COALESCE(dc.token_x_url, '') AS tokenXUrl,
+              COALESCE(dc.token_description, '') AS tokenDescription,
+              dc.token_address AS tokenAddress, dc.pool_id AS poolId, dc.transaction_hash AS transactionHash,
+              dc.block_number AS blockNumber,
+              COALESCE(dc.source_url, '') AS sourceUrl,
+              COALESCE(dc.fee_recipient_label, '') AS feeRecipientLabel,
+              COALESCE(dc.client_kind, 'web') AS clientKind,
+              COALESCE(dc.agent_metadata, '') AS agentMetadata,
+              COALESCE(dc.fee_claimed_at, '') AS feeClaimedAt,
+              COALESCE(dc.fee_claim_tx_hash, '') AS feeClaimTxHash,
+              (dc.fee_to_self = 1) AS feeToSelf,
+              (SELECT COUNT(*) FROM deployment_catalog d2
+               WHERE d2.deployer_id = dc.deployer_id AND d2.platform = dc.platform) AS deployerDeploymentCount,
+              (SELECT COUNT(DISTINCT d3.fee_recipient_address) FROM deployment_catalog d3
+               WHERE d3.deployer_id = dc.deployer_id AND d3.platform = dc.platform) AS deployerDistinctRecipientCount,
+              (SELECT COUNT(*) FROM deployment_catalog d4
+               WHERE d4.fee_recipient_address = dc.fee_recipient_address) AS feeRecipientDeploymentCount
+       FROM deployment_catalog AS dc
+       WHERE dc.id > ?${visibleCatalogSql()}
+       ORDER BY dc.id ASC
+       LIMIT ?`,
+      [cursor, visibleCatalogParam(), lim],
+      (err, rows: DeploymentCatalogRow[]) => {
+        if (err) {
+          logger.warn('deploymentCatalog feed failed:', err.message);
+          resolve([]);
+          return;
+        }
+        resolve(hydrateDeploymentCatalogRows(rows ?? []));
+      },
+    );
+  });
+}
+
+/**
  * Public catalog rows where trading fees go to this wallet (on-chain fee recipient).
  * Used for wallet profile pages — does not include tokens where this wallet only deployed but sent fees elsewhere.
  */

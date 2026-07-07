@@ -22,6 +22,7 @@ import { initPetitionDb, closePetitionDb } from './lib/petitionDb.js';
 import { registerWebDeployRoutes } from './routes/deployWeb.js';
 import { registerResolveSourceRoutes } from './routes/resolveSource.js';
 import { registerDeploymentCatalogRoutes } from './routes/deploymentCatalog.js';
+import { registerDeploymentFeedRoutes } from './routes/deploymentFeed.js';
 import { registerTokenSwapRoutes } from './routes/tokenSwap.js';
 import { registerTokenTradesRoutes } from './routes/tokenTrades.js';
 import { registerMyDeploymentsRoutes } from './routes/myDeployments.js';
@@ -231,6 +232,7 @@ async function main() {
     registerAgentClaimForRecipientRoutes(app);
     registerResolveSourceRoutes(app, neynar);
     registerDeploymentCatalogRoutes(app);
+    registerDeploymentFeedRoutes(app);
     registerExploreRoutes(app);
     registerDeploymentFeeActionRoutes(app);
     registerFractionBuyerRewardRoutes(app);
@@ -262,6 +264,7 @@ async function main() {
       logger.info(`Neynar webhook: http://localhost:${port}/webhooks/neynar`);
       logger.info(`X webhook: http://localhost:${port}/webhooks/x`);
       logger.info(`Deployment catalog: GET http://localhost:${port}/api/deployments`);
+      logger.info(`Deployment feed: GET http://localhost:${port}/api/feed/deployments`);
       logger.info(`Community Launch API: GET http://localhost:${port}/api/community-launch/config`);
       if (config.privy.enabled && config.webDeployCorsOrigins.length > 0) {
         logger.info(`Web deploy API: POST http://localhost:${port}/api/deploy`);
