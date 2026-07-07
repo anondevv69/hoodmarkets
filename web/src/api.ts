@@ -245,6 +245,29 @@ export async function fetchExploreStats(): Promise<ExplorePlatformStats> {
   return data.stats;
 }
 
+export interface TokenMarketStats {
+  volume24hUsd: number;
+  mcapUsd: number;
+  liquidityUsd: number;
+  change24hPct: number | null;
+  txnsH24: number;
+  priceUsd: number | null;
+  dexscreenerUrl: string | null;
+  lastTradeAt: string | null;
+  updatedAt: string;
+}
+
+export async function fetchTokenMarketStats(
+  tokenAddress: string,
+): Promise<TokenMarketStats | null> {
+  const res = await fetch(
+    `${API_BASE}/api/tokens/${encodeURIComponent(tokenAddress)}/market-stats`,
+  );
+  if (res.status === 404) return null;
+  const data = await parseJson<{ stats: TokenMarketStats }>(res);
+  return data.stats ?? null;
+}
+
 export async function fetchDeploymentByAddress(tokenAddress: string): Promise<TokenDetail> {
   const addr = tokenAddress.trim();
   const res = await fetch(`${API_BASE}/api/deployments/${addr}`);

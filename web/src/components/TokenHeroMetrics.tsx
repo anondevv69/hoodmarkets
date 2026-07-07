@@ -27,16 +27,20 @@ export function TokenHeroMetrics({
   metrics,
   loading,
   variant = 'default',
+  forceShow = false,
 }: {
   metrics?: DexTokenMetrics;
   loading?: boolean;
   variant?: 'default' | 'card';
+  /** Show labels with — while loading or when Dex has no pair yet. */
+  forceShow?: boolean;
 }) {
   const mc = metrics?.marketCapUsd ?? metrics?.fdvUsd;
   const change = metrics?.change24hPct;
 
   const showSkeleton = loading && !metrics;
   const hasAny =
+    forceShow ||
     showSkeleton ||
     mc != null ||
     metrics?.liquidityUsd != null ||

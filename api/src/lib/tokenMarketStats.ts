@@ -352,3 +352,56 @@ export async function getExplorePlatformStats(): Promise<{
     statsUpdatedAt: agg[0]?.statsUpdatedAt ?? null,
   };
 }
+
+export async function getTokenMarketStatsByAddress(
+  tokenAddress: string,
+): Promise<TokenMarketStatsRow | null> {
+  if (!db) return null;
+  let addr: string;
+  try {
+    addr = getAddress(tokenAddress);
+  } catch {
+    return null;
+  }
+  const rows = await all<{
+    tokenAddress: string;
+    volume24hUsd: number;
+    mcapUsd: number;
+    liquidityUsd: number;
+    change24hPct: number | null;
+    txnsH24: number;
+    priceUsd: number | null;
+    dexscreenerUrl: string | null;
+    lastTradeAt: string | null;
+    updatedAt: string;
+  }>(
+    `SELECT token_address AS tokenAddress,
+            volume_24h_usd AS volume24hUsd,
+            mcap_usd AS mcapUsd,
+            liquidity_usd AS liquidityUsd,
+            change_24h_pct AS change24hPct,
+            txns_h24 AS txnsH24,
+            price_usd AS priceUsd,
+            dexscreener_url AS dexscreenerUrl,
+            last_trade_at AS lastTradeAt,
+            updated_at AS updatedAt
+     FROM token_market_stats
+     WHERE lower(token_address) = lower(?)
+     LIMIT 1`,
+    [addr],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    tokenAddress: row.tokenAddress,
+    volume24hUsd: Number(row.volume24hUsd ?? 0),
+    mcapUsd: Number(row.mcapUsd ?? 0),
+    liquidityUsd: Number(row.liquidityUsd ?? 0),
+    change24hPct: row.change24hPct,
+    txnsH24: Number(row.txnsH24 ?? 0),
+    priceUsd: row.priceUsd,
+    dexscreenerUrl: row.dexscreenerUrl,
+    lastTradeAt: row.lastTradeAt,
+    updatedAt: row.updatedAt,
+  };
+}
