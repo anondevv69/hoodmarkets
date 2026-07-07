@@ -21,6 +21,9 @@ export type TelegramDeploymentFeedPayload = {
   feeRecipientLabel?: string;
   transactionHash: string;
   sourceUrl?: string;
+  tokenDescription?: string;
+  tokenWebsiteUrl?: string;
+  tokenXUrl?: string;
   /**
    * True when trading fees go to the deployer’s own wallet (self / Privy wallet), not burn and not routed to someone else.
    * Used for the “Deployer & fee match” forum topic when configured.
@@ -59,12 +62,23 @@ function buildMessageHtml(payload: TelegramDeploymentFeedPayload): string {
       ? `<b>Source</b> <a href="${encodeURI(rawSource)}">link</a>\n`
       : '';
 
+  const desc = payload.tokenDescription?.trim();
+  const descLine = desc ? `<i>${escapeHtml(desc.slice(0, 280))}</i>\n` : '';
+  const website = payload.tokenWebsiteUrl?.trim();
+  const xUrl = payload.tokenXUrl?.trim();
+  const socialLine =
+    website || xUrl
+      ? `\n${website ? `<a href="${encodeURI(website)}">Website</a>` : ''}${website && xUrl ? ' · ' : ''}${xUrl ? `<a href="${encodeURI(xUrl)}">X</a>` : ''}\n`
+      : '';
+
   return (
     `🚀 <b>Token deployed</b>\n\n` +
     `<b>${name}</b> ($${sym})\n` +
+    descLine +
     `<b>Platform</b> ${plat}\n` +
     `<b>Deployer</b> ${deployer}\n` +
     (sourceLine || '') +
+    socialLine +
     `<b>Fee recipient</b>\n${feeBlock}\n\n` +
     `<a href="${liquid}">hood.markets</a> · <a href="${launches}">Token page</a> · <a href="${explorerTx}">Tx</a>\n\n` +
     `<b>Trading</b>\n` +

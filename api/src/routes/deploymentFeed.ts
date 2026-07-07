@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from 'express';
 import { listDeploymentFeedSince } from '../lib/deploymentCatalog.js';
+import { enrichDeploymentForPublicApi } from '../lib/deploymentPartyEnrichment.js';
 import { buildDeploymentFeedEvent } from '../lib/deploymentFeedEvent.js';
 import { webDeployCorsHeadersRead } from '../lib/webDeployCors.js';
 
@@ -36,7 +37,10 @@ export function registerDeploymentFeedRoutes(app: Express): void {
 
     try {
       const rows = await listDeploymentFeedSince(sinceId, limit);
-      const events = rows.map(buildDeploymentFeedEvent);
+      const enriched = await Promise.all(rows.map((row) => enrichDeploymentForPublicApi(row)));
+      const events = enriched
+        .filter((row): row is NonNullable<typeof row> => row != null)
+        .map(buildDeploymentFeedEvent);
       const nextSinceId = events.length > 0 ? events[events.length - 1]!.id : sinceId;
 
       res.json({

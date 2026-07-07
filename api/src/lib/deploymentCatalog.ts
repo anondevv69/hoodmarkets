@@ -1032,6 +1032,9 @@ export async function recordDeploymentCatalog(
           feeRecipientLabel: feeRecipientLabel || undefined,
           transactionHash: input.transactionHash,
           sourceUrl: sourceUrl || undefined,
+          tokenDescription: tokenDescription || undefined,
+          tokenWebsiteUrl: tokenWebsiteUrl || undefined,
+          tokenXUrl: tokenXUrl || undefined,
           feeToSelf: input.feeToSelf,
           clientKind: input.clientKind,
         }).catch((e: unknown) =>
