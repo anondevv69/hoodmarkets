@@ -12,9 +12,12 @@ import {
 } from '../api';
 import {
   closeCommunityLaunchPage,
+  migrateCommunityLaunchPath,
   openCommunityLaunchPage,
+  readCommunityLaunchCreateFromUrl,
   readCommunityLaunchIdFromUrl,
   redirectLegacyPetitionPath,
+  setLaunchSubMode,
 } from '../lib/communityLaunchRoute';
 import { openTokenPage } from '../lib/tokenRoute';
 import { shortenAddress } from '../chain';
@@ -117,11 +120,12 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
       </p>
       <label className="field-label">
         Token name
-        <input value={tokenName} onChange={(e) => setTokenName(e.target.value)} required minLength={2} />
+        <input className="lp-input" value={tokenName} onChange={(e) => setTokenName(e.target.value)} required minLength={2} />
       </label>
       <label className="field-label">
         Ticker
         <input
+          className="lp-input"
           value={tokenSymbol}
           onChange={(e) => setTokenSymbol(e.target.value)}
           required
@@ -132,6 +136,7 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
       <label className="field-label">
         Raise goal (ETH) — becomes initial LP buy
         <input
+          className="lp-input"
           value={targetRaiseEth}
           onChange={(e) => setTargetRaiseEth(e.target.value)}
           required
@@ -141,11 +146,12 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
       </label>
       <label className="field-label">
         Description
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+        <textarea className="lp-input" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
       </label>
       <label className="field-label">
         Supporter slots (optional)
         <input
+          className="lp-input"
           type="number"
           min={2}
           max={500}
@@ -345,27 +351,25 @@ function PetitionDetail({ id }: { id: string }) {
   );
 }
 
-export function CommunityLaunchPage() {
+export function CommunityLaunchPanel({ embedded = false }: { embedded?: boolean }) {
   redirectLegacyPetitionPath();
   const [petitions, setPetitions] = useState<CommunityLaunchSummary[]>([]);
   const [configOk, setConfigOk] = useState<boolean | null>(null);
-  const [view, setView] = useState<'list' | 'create' | 'detail'>(() =>
-    readCommunityLaunchIdFromUrl() ? 'detail' : 'list',
-  );
+  const [view, setView] = useState<'list' | 'create' | 'detail'>(() => {
+    const id = readCommunityLaunchIdFromUrl();
+    if (id) return 'detail';
+    if (readCommunityLaunchCreateFromUrl()) return 'create';
+    return 'list';
+  });
   const [detailId, setDetailId] = useState<string | null>(readCommunityLaunchIdFromUrl());
 
   useEffect(() => {
+    migrateCommunityLaunchPath();
     const sync = () => {
       redirectLegacyPetitionPath();
       const id = readCommunityLaunchIdFromUrl();
       setDetailId(id);
-      setView(
-        id
-          ? 'detail'
-          : window.location.search.includes('create')
-            ? 'create'
-            : 'list',
-      );
+      setView(id ? 'detail' : readCommunityLaunchCreateFromUrl() ? 'create' : 'list');
     };
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
@@ -393,65 +397,72 @@ export function CommunityLaunchPage() {
   }
 
   return (
-    <div className="petition-page">
-      <div className="petition-page-head">
-        <div>
-          <h1 className="lp-display page-title">Community Launch</h1>
-          <p className="page-sub">
-            Raise ETH together on Robinhood Chain — goal met → deploy with that ETH as initial LP →
-            pro-rata Holder NFT shares for every backer.
-          </p>
+    <div className={`petition-page${embedded ? ' petition-page--embedded' : ''}`}>
+      {!embedded ? (
+        <div className="petition-page-head">
+          <div>
+            <h1 className="lp-display page-title">Community Launch</h1>
+            <p className="page-sub">
+              Raise ETH together on Robinhood Chain — goal met → deploy with that ETH as initial LP →
+              pro-rata Holder NFT shares for every backer.
+            </p>
+          </div>
+          <div className="petition-page-actions">
+            <button type="button" className="btn btn-ghost" onClick={closeCommunityLaunchPage}>
+              ← Explore
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => openCommunityLaunchPage(undefined, { create: true })}
+            >
+              Start community launch
+            </button>
+          </div>
         </div>
-        <div className="petition-page-actions">
-          <button type="button" className="btn btn-ghost" onClick={closeCommunityLaunchPage}>
-            ← Explore
-          </button>
+      ) : view === 'list' ? (
+        <div className="petition-page-head petition-page-head--embedded">
+          <p className="page-sub">
+            Raise ETH together — when the goal is met, hood.markets deploys with that ETH as the
+            initial LP and airdrops Holder NFT shares pro-rata to backers.
+          </p>
           <button
             type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              setView('create');
-              openCommunityLaunchPage();
-              const url = new URL(window.location.href);
-              url.searchParams.set('create', '1');
-              window.history.replaceState({}, '', url.toString());
-            }}
+            className="btn btn-primary btn-sm"
+            onClick={() => openCommunityLaunchPage(undefined, { create: true })}
           >
             Start community launch
           </button>
         </div>
-      </div>
+      ) : null}
 
       {view === 'create' ? (
         <CreatePetitionForm
           onCreated={(id) => {
             openCommunityLaunchPage(id);
-            setDetailId(id);
-            setView('detail');
           }}
         />
       ) : null}
 
-      <section className="petition-catalog">
-        <h2 className="petition-section-title">Open community launches</h2>
-        {petitions.length === 0 ? (
-          <p className="muted">No open launches yet. Start the first one on hood.markets.</p>
-        ) : (
-          <div className="petition-grid">
-            {petitions.map((p) => (
-              <PetitionCard
-                key={p.id}
-                petition={p}
-                onOpen={(id) => {
-                  openCommunityLaunchPage(id);
-                  setDetailId(id);
-                  setView('detail');
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+      {view === 'list' ? (
+        <section className="petition-catalog">
+          <h2 className="petition-section-title">Open community launches</h2>
+          {petitions.length === 0 ? (
+            <p className="muted">No open launches yet. Start the first one on hood.markets.</p>
+          ) : (
+            <div className="petition-grid">
+              {petitions.map((p) => (
+                <PetitionCard key={p.id} petition={p} onOpen={(id) => openCommunityLaunchPage(id)} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
     </div>
   );
+}
+
+/** @deprecated Use CommunityLaunchPanel inside LaunchTab */
+export function CommunityLaunchPage() {
+  return <CommunityLaunchPanel />;
 }

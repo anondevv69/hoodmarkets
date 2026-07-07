@@ -4,7 +4,6 @@ import { ProfileTab } from './components/ProfileTab';
 import { DeployerProfilePage } from './components/DeployerProfilePage';
 import { WalletProfilePage } from './components/WalletProfilePage';
 import { DevPage } from './components/DevPage';
-import { CommunityLaunchPage } from './components/CommunityLaunchPage';
 import { SiteConnect } from './components/SiteConnect';
 import { ThemeToggle } from './components/ThemeToggle';
 import { TokenPage } from './components/TokenPage';
@@ -12,14 +11,14 @@ import { TokensTab } from './components/TokensTab';
 import { useExploreTokens } from './hooks/useExploreTokens';
 import { useEnsureRobinhoodChain } from './hooks/useEnsureRobinhoodChain';
 import { isDevPage, openDevPage } from './lib/devRoute';
-import { isCommunityLaunchPage } from './lib/communityLaunchRoute';
+import { migrateCommunityLaunchPath } from './lib/communityLaunchRoute';
 import { closeDeployerProfile, readDeployerProfileFromUrl } from './lib/deployerProfileRoute';
 import { closeTokenPage, navigateToAppTab, openExplorePage, readTokenFromUrl } from './lib/tokenRoute';
 
 type Tab = 'tokens' | 'launch' | 'profile';
 
 function readTabFromUrl(): Tab {
-  if (isDevPage() || isCommunityLaunchPage() || readTokenFromUrl() || readDeployerProfileFromUrl()) return 'tokens';
+  if (isDevPage() || readTokenFromUrl() || readDeployerProfileFromUrl()) return 'tokens';
   const t = new URLSearchParams(window.location.search).get('tab');
   if (t === 'launch' || t === 'profile' || t === 'tokens') return t;
   return 'tokens';
@@ -72,21 +71,21 @@ export default function App() {
   const [tokenAddress, setTokenAddress] = useState<string | null>(readTokenFromUrl);
   const [deployerProfile, setDeployerProfile] = useState(readDeployerProfileFromUrl);
   const [devPage, setDevPage] = useState(isDevPage);
-  const [communityLaunchPage, setCommunityLaunchPage] = useState(isCommunityLaunchPage);
 
   useEffect(() => {
+    migrateCommunityLaunchPath();
     const sync = () => {
+      migrateCommunityLaunchPath();
       setTokenAddress(readTokenFromUrl());
       setDeployerProfile(readDeployerProfileFromUrl());
       setDevPage(isDevPage());
-      setCommunityLaunchPage(isCommunityLaunchPage());
       setTab(readTabFromUrl());
     };
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
   }, []);
 
-  const showExploreChrome = !tokenAddress && !deployerProfile && !devPage && !communityLaunchPage;
+  const showExploreChrome = !tokenAddress && !deployerProfile && !devPage;
   const {
     catalog,
     metricsByAddress,
@@ -97,9 +96,9 @@ export default function App() {
     ensureCatalogSize,
   } = useExploreTokens(showExploreChrome);
 
-  const isExploreActive = tab === 'tokens' && !tokenAddress && !deployerProfile && !devPage && !communityLaunchPage;
-  const isLaunchActive = (tab === 'launch' || communityLaunchPage) && !tokenAddress && !deployerProfile && !devPage;
-  const isProfileActive = tab === 'profile' && !tokenAddress && !deployerProfile && !devPage && !communityLaunchPage;
+  const isExploreActive = tab === 'tokens' && !tokenAddress && !deployerProfile && !devPage;
+  const isLaunchActive = tab === 'launch' && !tokenAddress && !deployerProfile && !devPage;
+  const isProfileActive = tab === 'profile' && !tokenAddress && !deployerProfile && !devPage;
   const isDocsActive = devPage;
 
   const navigateTab = useCallback((next: Tab) => {
@@ -194,8 +193,6 @@ export default function App() {
           <div className={tokenAddress || devPage ? 'token-page-panel' : 'content-panel'}>
             {devPage ? (
               <DevPage />
-            ) : communityLaunchPage ? (
-              <CommunityLaunchPage />
             ) : tokenAddress ? (
               <TokenPage tokenAddress={tokenAddress} />
             ) : deployerProfile?.platform === 'x' ? (

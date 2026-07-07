@@ -27,7 +27,14 @@ import {
   CommunityLaunchRedirectNotice,
   redirectToCommunityLaunch,
 } from './CommunityLaunchRedirectNotice';
-import { openCommunityLaunchPage } from '../lib/communityLaunchRoute';
+import {
+  migrateCommunityLaunchPath,
+  openCommunityLaunchPage,
+  readLaunchSubMode,
+  setLaunchSubMode,
+  type LaunchSubMode,
+} from '../lib/communityLaunchRoute';
+import { CommunityLaunchPanel } from './CommunityLaunchPage';
 import { TokenAvatar } from './TokenAvatar';
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -75,6 +82,14 @@ export function LaunchTab() {
   } | null>(null);
   const [walletCompleteTxHash, setWalletCompleteTxHash] = useState<string | null>(null);
   const [hasPendingFinalize, setHasPendingFinalize] = useState(() => !!loadPendingWalletDeploy());
+  const [launchMode, setLaunchMode] = useState<LaunchSubMode>(readLaunchSubMode);
+
+  useEffect(() => {
+    migrateCommunityLaunchPath();
+    const sync = () => setLaunchMode(readLaunchSubMode());
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
 
   const debouncedSymbol = useDebounced(symbol.trim().toUpperCase(), 400);
   const debouncedName = useDebounced(name.trim(), 400);
@@ -445,21 +460,25 @@ export function LaunchTab() {
         <div className="launch-type-picker">
           <button
             type="button"
-            className="launch-type-btn active"
+            className={`launch-type-btn${launchMode === 'standard' ? ' active' : ''}`}
+            onClick={() => setLaunchSubMode('standard')}
           >
             Standard Launch
           </button>
           <button
             type="button"
-            className="launch-type-btn launch-type-community"
-            onClick={() => openCommunityLaunchPage()}
+            className={`launch-type-btn launch-type-community${launchMode === 'community' ? ' active' : ''}`}
+            onClick={() => setLaunchSubMode('community')}
           >
             Community Launch
             <span className="launch-type-badge">petition</span>
           </button>
         </div>
 
-        <div className="notice">{limitsNote}</div>
+        {launchMode === 'community' ? (
+          <CommunityLaunchPanel embedded />
+        ) : (
+          <>
         {rateLimitNotice ? (
           <div className="rate-limit-warning" role="alert">
             {rateLimitNotice}
@@ -766,8 +785,11 @@ export function LaunchTab() {
             ) : null}
           </div>
         ) : null}
+          </>
+        )}
       </div>
 
+      {launchMode === 'standard' ? (
       <aside className="launch-preview-col">
         <p className="section-label">Live preview</p>
         <div className="lp-card preview-card">
@@ -786,8 +808,10 @@ export function LaunchTab() {
         <div className="lp-card preview-tip">
           <strong>Tip:</strong> if $TEST was launched in the last {cooldownHours}h, you&apos;ll see the
           existing <strong>Test</strong> token and contract before you deploy.
+          <p className="launch-limits-note">{limitsNote}</p>
         </div>
       </aside>
+      ) : null}
     </div>
   );
 }
