@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { fetchDeploymentByAddress } from '../api';
+import { useWebAuth } from '../auth/WebAuthContext';
 import { shortenAddress } from '../chain';
 import { formatUsdVol, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import type { ExploreToken } from '../lib/exploreTokens';
@@ -7,7 +8,7 @@ import { toExploreTokens } from '../lib/exploreTokens';
 import { extractContractAddressFromSearch, looksLikeAddressSearch } from '../lib/exploreSearch';
 import { EXPLORE_PAGE_SIZE } from '../hooks/useExploreTokens';
 import { formatLaunchTimeEastern, parseCatalogCreatedAt } from '../lib/launchTime';
-import { openTokenPage } from '../lib/tokenRoute';
+import { navigateToAppTab, openTokenPage } from '../lib/tokenRoute';
 import { resolveExploreTokenImageUrl } from '../lib/resolveTokenImage';
 import { CopyButton } from './CopyButton';
 import { TokenAvatar } from './TokenAvatar';
@@ -140,6 +141,35 @@ function ExploreRow({
   );
 }
 
+function ExploreToolbarActions() {
+  const { ready, authenticated, connectWallet } = useWebAuth();
+
+  if (!ready) return null;
+
+  return (
+    <div className="explore-toolbar-actions">
+      {!authenticated ? (
+        <button type="button" className="btn btn-ghost btn-sm" onClick={connectWallet}>
+          Sign in
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="btn btn-primary btn-sm"
+        onClick={() => {
+          if (authenticated) {
+            navigateToAppTab('launch');
+          } else {
+            void connectWallet();
+          }
+        }}
+      >
+        Launch
+      </button>
+    </div>
+  );
+}
+
 export function TokensTab({
   catalog,
   metricsByAddress,
@@ -268,6 +298,7 @@ export function TokensTab({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by name or contract address"
           />
+          <ExploreToolbarActions />
         </div>
         <p className="muted">Opening token page…</p>
       </div>
@@ -307,6 +338,7 @@ export function TokensTab({
             Newest
           </button>
         </div>
+        <ExploreToolbarActions />
         {sortedTokens.length > 0 ? (
           <p className="explore-count muted">
             {sortedTokens.length} token{sortedTokens.length === 1 ? '' : 's'}

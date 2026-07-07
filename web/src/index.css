@@ -4389,6 +4389,14 @@ label {
   margin-bottom: 1rem;
 }
 
+.explore-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .explore-search {
   flex: 1 1 220px;
   max-width: 420px;
