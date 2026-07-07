@@ -505,6 +505,22 @@ export const config = {
     sponsorServerTransactions: process.env.PRIVY_SPONSOR_SERVER_TRANSACTIONS === 'true',
   },
 
+  /** Rainbow / Bankr wallet login for the web app (HS256 session JWT). */
+  webWallet: {
+    jwtSecret: (
+      process.env.WEB_WALLET_JWT_SECRET ||
+      process.env.AGENT_CAPTCHA_JWT_SECRET ||
+      ''
+    ).trim(),
+    sessionHours: Math.max(
+      1,
+      Number.parseInt(process.env.WEB_WALLET_SESSION_HOURS || '24', 10) || 24,
+    ),
+    get enabled(): boolean {
+      return !!this.jwtSecret;
+    },
+  },
+
   /**
    * Default ETH size for delegated *buy* swaps from chat (server → 0x → Privy).
    * Env: DELEGATED_SWAP_BUY_ETH (e.g. `0.01`).

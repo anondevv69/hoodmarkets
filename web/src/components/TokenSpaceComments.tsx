@@ -1,4 +1,5 @@
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useWebAuth } from '../auth/WebAuthContext';
+import { useActiveWallet } from '../hooks/useActiveWallet';
 import { useCallback, useEffect, useState } from 'react';
 import {
   fetchTokenSpaceHolderStatus,
@@ -22,9 +23,9 @@ function formatPostTime(iso: string): string {
 }
 
 export function TokenSpaceComments({ tokenAddress }: { tokenAddress: string }) {
-  const { authenticated, login, getAccessToken } = usePrivy();
-  const { wallets } = useWallets();
-  const walletAddress = wallets[0]?.address;
+  const { authenticated, connectWallet, getAccessToken } = useWebAuth();
+  const wallet = useActiveWallet();
+  const walletAddress = wallet?.address;
 
   const [posts, setPosts] = useState<TokenSpacePost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +85,7 @@ export function TokenSpaceComments({ tokenAddress }: { tokenAddress: string }) {
     try {
       const token = await getAccessToken();
       if (!token) {
-        login();
+        connectWallet();
         return;
       }
       await postTokenSpaceComment(token, tokenAddress, walletAddress, body.trim());
@@ -163,7 +164,7 @@ export function TokenSpaceComments({ tokenAddress }: { tokenAddress: string }) {
         )
       ) : (
         <p className="muted token-space-signin-foot">
-          <button type="button" className="btn btn-ghost btn-sm" onClick={login}>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={connectWallet}>
             Sign in
           </button>{' '}
           to post as a holder.

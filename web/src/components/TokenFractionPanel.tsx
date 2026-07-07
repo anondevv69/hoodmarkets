@@ -1,4 +1,5 @@
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useWebAuth } from '../auth/WebAuthContext';
+import { useActiveWallet } from '../hooks/useActiveWallet';
 import { useEffect, useState } from 'react';
 import { tokenUrl, shortenAddress } from '../chain';
 import { openWalletProfile } from '../lib/deployerProfileRoute';
@@ -31,10 +32,9 @@ export function TokenFractionPanel({
   deployBlockNumber?: string | null;
   feeRecipientAddress?: string | null;
 }) {
-  const { wallets } = useWallets();
-  const { authenticated, login } = usePrivy();
-  const wallet = wallets[0];
+  const wallet = useActiveWallet();
   const walletAddress = wallet?.address;
+  const { authenticated, connectWallet } = useWebAuth();
   const [info, setInfo] = useState<TokenFractionInfo | null>(null);
   const [walletShares, setWalletShares] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -286,7 +286,7 @@ export function TokenFractionPanel({
 
         {!authenticated ? (
           <p className="muted token-fraction-viewer-note token-fraction-signin-foot">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={login}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={connectWallet}>
               Sign in
             </button>{' '}
             to buy shares or cancel your listings, send, redeem, or claim from a wallet that holds

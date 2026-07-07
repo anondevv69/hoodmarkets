@@ -1,4 +1,4 @@
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useWebLogin, useActiveWallet } from '../hooks/useActiveWallet';
 import { useCallback, useEffect, useState } from 'react';
 import { createPublicClient, custom, erc20Abi, formatUnits } from 'viem';
 import { robinhood, txUrl } from '../chain';
@@ -43,9 +43,8 @@ export function TokenSwap({
   factoryAddress?: string | null;
   variant?: 'card' | 'sidebar';
 }) {
-  const { authenticated, login } = usePrivy();
-  const { wallets } = useWallets();
-  const wallet = wallets[0];
+  const { authenticated, login } = useWebLogin();
+  const wallet = useActiveWallet();
   const [mode, setMode] = useState<SwapMode>('buy');
   const [amountEth, setAmountEth] = useState(suggestedBuyEth?.trim() || '0.005');
   const [amountTokens, setAmountTokens] = useState('');

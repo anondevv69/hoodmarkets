@@ -14,7 +14,7 @@ import {
 } from '../lib/deploymentCatalog.js';
 import { getBankrWalletForPrivyUser } from '../lib/hoodSocialDb.js';
 import { fetchPrivyUserRecordById, extractTwitterUsernameFromPrivyUser } from '../lib/privy.js';
-import { verifyPrivyBearerToken } from '../lib/privyAccessToken.js';
+import { verifyWebSessionBearer } from '../lib/webSessionAuth.js';
 import { normalizeXUsername } from '../lib/requesterXUsername.js';
 import { webDeployCorsHeadersRead } from '../lib/webDeployCors.js';
 
@@ -163,15 +163,20 @@ export function registerDeployerProfileRoutes(app: Express): void {
     const h = webDeployCorsHeadersRead(req.headers.origin);
     for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
 
-    if (!config.privy.enabled) {
-      res.status(503).json({ error: 'Privy is not configured on the server.' });
+    if (!config.webWallet.enabled && !config.privy.enabled) {
+      res.status(503).json({ error: 'Web login is not configured on the server.' });
       return;
     }
 
     try {
-      const { userId } = await verifyPrivyBearerToken(req.headers.authorization);
+      const session = await verifyWebSessionBearer(req.headers.authorization);
+      const userId = session.userId;
       const rawWallet =
-        typeof req.query.walletAddress === 'string' ? req.query.walletAddress.trim() : '';
+        typeof req.query.walletAddress === 'string'
+          ? req.query.walletAddress.trim()
+          : session.kind === 'wallet'
+            ? session.walletAddress
+            : '';
       let resolvedWallet = '';
       if (/^0x[0-9a-fA-F]{40}$/.test(rawWallet)) {
         try {
@@ -181,9 +186,13 @@ export function registerDeployerProfileRoutes(app: Express): void {
         }
       }
 
-      const userRecord = await fetchPrivyUserRecordById(userId);
-      const xUsername = extractTwitterUsernameFromPrivyUser(userRecord);
-      const bankrWallet = await getBankrWalletForPrivyUser(userId);
+      const userRecord =
+        session.kind === 'privy' ? await fetchPrivyUserRecordById(userId) : null;
+      const xUsername = userRecord ? extractTwitterUsernameFromPrivyUser(userRecord) : null;
+      const bankrWallet =
+        session.kind === 'wallet' && session.walletKind === 'bankr-evm'
+          ? session.walletAddress
+          : await getBankrWalletForPrivyUser(userId);
 
       const [accountDeployments, xDeployments, bankrDeployments] = await Promise.all([
         listDeploymentCatalogForUser(userId, resolvedWallet, 100, 0),

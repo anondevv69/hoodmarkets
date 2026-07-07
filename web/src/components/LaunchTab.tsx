@@ -1,4 +1,5 @@
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useWebAuth } from '../auth/WebAuthContext';
+import { useActiveWallet } from '../hooks/useActiveWallet';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   checkDeployCooldown,
@@ -17,7 +18,6 @@ import {
 import { txUrl } from '../chain';
 import { readImageFileAsDataUrl, resolveLaunchImagePayload } from '../lib/imageUpload';
 import { looksLikeFeeRecipientInput } from '../lib/feeRecipientInput';
-import { pickPrivyEmbeddedWallet } from '../lib/privyWallet';
 import { openTokenPage } from '../lib/tokenRoute';
 import { LaunchSuccessLinks } from './TokenCard';
 import { tradingLinksFromApi } from '../lib/tradingLinks';
@@ -39,9 +39,8 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 export function LaunchTab() {
-  const { ready, authenticated, login, getAccessToken } = usePrivy();
-  const { wallets } = useWallets();
-  const wallet = useMemo(() => pickPrivyEmbeddedWallet(wallets), [wallets]);
+  const { ready, authenticated, connectWallet, getAccessToken } = useWebAuth();
+  const wallet = useActiveWallet();
   const [name, setName] = useState('');
   const [symbol, setSymbol] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -253,7 +252,7 @@ export function LaunchTab() {
     }
 
     if (!authenticated) {
-      login();
+      connectWallet();
       return;
     }
 
@@ -263,7 +262,7 @@ export function LaunchTab() {
 
     if (needsWallet && !wallet?.address) {
       setError(
-        `Connect your hood.markets embedded wallet to pay the pool seed (~${defaultBuyEth} ETH) plus gas.`,
+        `Connect your wallet to pay the pool seed (~${defaultBuyEth} ETH) plus gas.`,
       );
       return;
     }
@@ -451,7 +450,7 @@ export function LaunchTab() {
         {!authenticated ? (
           <div className="empty">
             <p>Sign in to launch a token on Robinhood Chain.</p>
-            <button type="button" className="btn btn-primary" onClick={login} style={{ marginTop: '1rem' }}>
+            <button type="button" className="btn btn-primary" onClick={connectWallet} style={{ marginTop: '1rem' }}>
               Sign in
             </button>
           </div>
@@ -583,7 +582,7 @@ export function LaunchTab() {
               <div className="lp-card form-section">
                 <p className="section-label">Pool seed</p>
                 <p className="muted" style={{ fontSize: '0.82rem', margin: '0 0 0.75rem' }}>
-                  You pay ~{config.initialBuyDefaultEth} ETH plus gas from your hood.markets wallet to
+                  You pay ~{config.initialBuyDefaultEth} ETH plus gas from your connected wallet to
                   deploy and seed the pool. hood.markets does not cover website deployment costs.
                   {feeTarget === 'other'
                     ? ' Trading fees still go to the recipient you choose below.'
@@ -639,7 +638,7 @@ export function LaunchTab() {
                     Me
                   </span>
                   <span className="launch-mode-desc muted">
-                    Trading fees go to your hood.markets wallet.
+                    Trading fees go to your connected wallet.
                   </span>
                 </label>
                 <label

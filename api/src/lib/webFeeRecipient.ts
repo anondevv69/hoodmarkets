@@ -1,3 +1,4 @@
+import { getAddress } from 'viem';
 import { config } from '../config.js';
 import { logger } from '../logger.js';
 import type { NeynarClient } from '../neynar.js';
@@ -148,6 +149,7 @@ export async function resolveWebFeeRecipient(
   neynar: NeynarClient,
   input:
     | { kind: 'no_dev' }
+    | { kind: 'wallet_self'; walletAddress: `0x${string}`; walletKind?: string }
     | { kind: 'self'; privyUserId: string; privyUser?: unknown }
     | {
         kind: 'other';
@@ -164,6 +166,19 @@ export async function resolveWebFeeRecipient(
       walletAddress: BASE_DEAD_FEE_RECIPIENT,
       feeSummaryLine: `No Dev — ${MEME_TOKEN_DESCRIPTION_TAGLINE}`,
       feeRecipientLabel: 'No Dev (meme)',
+    };
+  }
+
+  if (input.kind === 'wallet_self') {
+    const addr = getAddress(input.walletAddress);
+    const label =
+      input.walletKind === 'bankr-evm'
+        ? 'Bankr wallet'
+        : `Wallet ${addr.slice(0, 6)}…${addr.slice(-4)}`;
+    return {
+      walletAddress: addr,
+      feeSummaryLine: `Trading fees: ${label} ${addr.slice(0, 6)}…${addr.slice(-4)}`,
+      feeRecipientLabel: label,
     };
   }
 

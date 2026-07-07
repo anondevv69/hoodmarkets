@@ -11,7 +11,7 @@ import {
   verifyLinkBankrWalletSignature,
 } from '../lib/linkBankrWallet.js';
 import { fetchPrivyUserRecordById } from '../lib/privy.js';
-import { verifyPrivyBearerToken } from '../lib/privyAccessToken.js';
+import { verifyWebSessionBearer } from '../lib/webSessionAuth.js';
 import { webDeployCorsHeadersRead } from '../lib/webDeployCors.js';
 
 function setCors(req: Request, res: Response): void {
@@ -32,12 +32,12 @@ export function registerUserProfileRoutes(app: Express): void {
 
   app.get('/api/my-profile/bankr', async (req: Request, res: Response) => {
     setCors(req, res);
-    if (!config.privy.enabled) {
-      res.status(503).json({ error: 'Privy is not configured on the server.' });
+    if (!config.webWallet.enabled && !config.privy.enabled) {
+      res.status(503).json({ error: 'Web login is not configured on the server.' });
       return;
     }
     try {
-      const { userId } = await verifyPrivyBearerToken(req.headers.authorization);
+      const { userId } = await verifyWebSessionBearer(req.headers.authorization);
       const bankrWallet = await getBankrWalletForPrivyUser(userId);
       res.json({ linked: !!bankrWallet, bankrWallet });
     } catch (e: unknown) {
@@ -53,12 +53,12 @@ export function registerUserProfileRoutes(app: Express): void {
 
   app.post('/api/my-profile/link-bankr/challenge', async (req: Request, res: Response) => {
     setCors(req, res);
-    if (!config.privy.enabled) {
-      res.status(503).json({ error: 'Privy is not configured on the server.' });
+    if (!config.webWallet.enabled && !config.privy.enabled) {
+      res.status(503).json({ error: 'Web login is not configured on the server.' });
       return;
     }
     try {
-      const { userId } = await verifyPrivyBearerToken(req.headers.authorization);
+      const { userId } = await verifyWebSessionBearer(req.headers.authorization);
       const walletAddress =
         typeof req.body?.walletAddress === 'string' ? req.body.walletAddress.trim() : '';
       if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
@@ -76,12 +76,12 @@ export function registerUserProfileRoutes(app: Express): void {
 
   app.post('/api/my-profile/link-bankr', async (req: Request, res: Response) => {
     setCors(req, res);
-    if (!config.privy.enabled) {
-      res.status(503).json({ error: 'Privy is not configured on the server.' });
+    if (!config.webWallet.enabled && !config.privy.enabled) {
+      res.status(503).json({ error: 'Web login is not configured on the server.' });
       return;
     }
     try {
-      const { userId } = await verifyPrivyBearerToken(req.headers.authorization);
+      const { userId } = await verifyWebSessionBearer(req.headers.authorization);
       const walletAddress =
         typeof req.body?.walletAddress === 'string' ? req.body.walletAddress.trim() : '';
       const signature =
@@ -119,12 +119,12 @@ export function registerUserProfileRoutes(app: Express): void {
 
   app.delete('/api/my-profile/link-bankr', async (req: Request, res: Response) => {
     setCors(req, res);
-    if (!config.privy.enabled) {
-      res.status(503).json({ error: 'Privy is not configured on the server.' });
+    if (!config.webWallet.enabled && !config.privy.enabled) {
+      res.status(503).json({ error: 'Web login is not configured on the server.' });
       return;
     }
     try {
-      const { userId } = await verifyPrivyBearerToken(req.headers.authorization);
+      const { userId } = await verifyWebSessionBearer(req.headers.authorization);
       await unlinkBankrWalletForPrivyUser(userId);
       res.json({ ok: true });
     } catch (e: unknown) {

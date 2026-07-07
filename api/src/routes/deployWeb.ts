@@ -6,7 +6,7 @@ import { config } from '../config.js';
 import { logger } from '../logger.js';
 import type { LiquidDeployer } from '../deployer.js';
 import type { NeynarClient } from '../neynar.js';
-import { verifyPrivyBearerToken } from '../lib/privyAccessToken.js';
+import { verifyWebSessionBearer } from '../lib/webSessionAuth.js';
 import { parseRecipientPaste } from '../lib/recipientPaste.js';
 import { resolveWebFeeRecipient } from '../lib/webFeeRecipient.js';
 import {
@@ -257,6 +257,44 @@ function hasBearerToken(authHeader: string | undefined): boolean {
   return !!authHeader?.startsWith('Bearer ') && authHeader.slice('Bearer '.length).trim().length > 0;
 }
 
+type WebFeeInput =
+  | { kind: 'no_dev' }
+  | { kind: 'wallet_self'; walletAddress: Address; walletKind?: string }
+  | { kind: 'self'; privyUserId: string; privyUser?: unknown }
+  | {
+      kind: 'other';
+      address?: string;
+      farcasterUsername?: string;
+      xUsername?: string;
+      githubUsername?: string;
+      telegramUsername?: string;
+      discordUserId?: string;
+    };
+
+function buildSelfFeeInput(
+  feeTarget: string,
+  userId: string,
+  walletAuth: { address: Address; walletKind: string } | null,
+  privyUserRecord: unknown,
+): WebFeeInput {
+  if (walletAuth) {
+    return {
+      kind: 'wallet_self',
+      walletAddress: walletAuth.address,
+      walletKind: walletAuth.walletKind,
+    };
+  }
+  return {
+    kind: 'self',
+    privyUserId: userId,
+    privyUser: privyUserRecord ?? undefined,
+  };
+}
+
+function isSelfFeeKind(fee: WebFeeInput): boolean {
+  return fee.kind === 'self' || fee.kind === 'wallet_self';
+}
+
 type WebDeployPreviewResult = {
   rateLimitForcedPlatformFee: boolean;
   notice: string | null;
@@ -288,14 +326,16 @@ async function previewWebDeployRateLimit(
   const bearer = hasBearerToken(req.headers.authorization);
   const allowAnonNoDev = feeTarget === 'no_dev' && !bearer;
 
-  if (!allowAnonNoDev && !isAgentWalletDeploy && !config.privy.enabled) {
-    throw new Error('Web deploy requires Privy (PRIVY_APP_ID / PRIVY_APP_SECRET).');
+  if (!allowAnonNoDev && !isAgentWalletDeploy && !config.webWallet.enabled && !config.privy.enabled) {
+    throw new Error('Web deploy requires wallet login (WEB_WALLET_JWT_SECRET) or Privy.');
   }
 
   let userId: string;
   let anonymousNoDev = false;
   let agentWalletDeploy = false;
   let agentVerifiedFee: Address | null = null;
+  let walletAuth: { address: Address; walletKind: string } | null = null;
+  let usePrivySelfFee = false;
 
   if (isAgentWalletDeploy) {
     const agentAuth = await resolveAgentWalletAuth(req.headers as any, body);
@@ -312,29 +352,23 @@ async function previewWebDeployRateLimit(
     userId = `web-anon:${aid}`;
     anonymousNoDev = true;
   } else {
-    const { userId: uid } = await verifyPrivyBearerToken(req.headers.authorization);
-    userId = uid;
+    const session = await verifyWebSessionBearer(req.headers.authorization);
+    userId = session.userId;
+    if (session.kind === 'wallet') {
+      walletAuth = { address: session.walletAddress, walletKind: session.walletKind };
+    } else {
+      usePrivySelfFee = true;
+    }
   }
 
-  let fee:
-    | { kind: 'no_dev' }
-    | { kind: 'self'; privyUserId: string; privyUser?: unknown }
-    | {
-        kind: 'other';
-        address?: string;
-        farcasterUsername?: string;
-        xUsername?: string;
-        githubUsername?: string;
-        telegramUsername?: string;
-        discordUserId?: string;
-      };
+  let fee: WebFeeInput;
 
   if (isAgentWalletDeploy && agentVerifiedFee) {
     fee = { kind: 'other', address: agentVerifiedFee };
   } else if (feeTarget === 'no_dev') {
     fee = { kind: 'no_dev' };
   } else if (feeTarget === 'self') {
-    fee = { kind: 'self', privyUserId: userId };
+    fee = buildSelfFeeInput(feeTarget, userId, walletAuth, null);
   } else {
     fee = {
       kind: 'other',
@@ -357,13 +391,13 @@ async function previewWebDeployRateLimit(
     return { rateLimitForcedPlatformFee: false, notice: null };
   }
 
-  if (config.webOnlyMode && (fee.kind === 'self' || agentWalletDeploy)) {
+  if (config.webOnlyMode && (isSelfFeeKind(fee) || agentWalletDeploy)) {
     const limited = await applyWebDeployRateLimit({
       walletAddress: resolved.walletAddress,
       feeRecipientLabel: resolved.feeRecipientLabel,
       feeToSelf: true,
       deployerId: userId,
-      privyUserId: !anonymousNoDev && !agentWalletDeploy ? userId : null,
+      privyUserId: usePrivySelfFee && !anonymousNoDev && !agentWalletDeploy ? userId : null,
     });
     return {
       rateLimitForcedPlatformFee: limited.rateLimitForcedPlatformFee,
@@ -371,9 +405,9 @@ async function previewWebDeployRateLimit(
     };
   }
 
-  if (config.strictDeployRateLimits && fee.kind === 'self') {
+  if (config.strictDeployRateLimits && isSelfFeeKind(fee)) {
     const limitErr = await selfFeeDeployLimitErrorOrNull({
-      privyUserId: !anonymousNoDev && !agentWalletDeploy ? userId : null,
+      privyUserId: usePrivySelfFee && !anonymousNoDev && !agentWalletDeploy ? userId : null,
       platform: 'web',
       deployerId: userId,
     });
@@ -385,17 +419,17 @@ async function previewWebDeployRateLimit(
   const limited = await applyDeployRateLimitBurn({
     walletAddress: resolved.walletAddress,
     feeRecipientLabel: resolved.feeRecipientLabel,
-    feeToSelf: fee.kind === 'self',
+    feeToSelf: isSelfFeeKind(fee),
     platform: 'web',
     deployerId: userId,
-    privyUserId: !anonymousNoDev && !agentWalletDeploy ? userId : null,
+    privyUserId: usePrivySelfFee && !anonymousNoDev && !agentWalletDeploy ? userId : null,
   });
 
   const burnForced = limited.rateLimitForcedBurn;
   let notice: string | null = null;
   if (burnForced && fee.kind === 'other') {
     const limitKey = {
-      privyUserId: !anonymousNoDev && !agentWalletDeploy ? userId : null,
+      privyUserId: usePrivySelfFee && !anonymousNoDev && !agentWalletDeploy ? userId : null,
       platform: 'web' as const,
       deployerId: userId,
     };
@@ -654,8 +688,8 @@ export function registerWebDeployRoutes(
       const bearer = hasBearerToken(req.headers.authorization);
       const allowAnonNoDev = feeTarget === 'no_dev' && !bearer;
 
-      if (!allowAnonNoDev && !isAgentWalletDeploy && !config.privy.enabled) {
-        res.status(503).json({ error: 'Web deploy requires Privy (PRIVY_APP_ID / PRIVY_APP_SECRET).' });
+      if (!allowAnonNoDev && !isAgentWalletDeploy && !config.webWallet.enabled && !config.privy.enabled) {
+        res.status(503).json({ error: 'Web login is not configured on the server.' });
         return;
       }
 
@@ -663,6 +697,8 @@ export function registerWebDeployRoutes(
       let anonymousNoDev = false;
       let agentWalletDeploy = false;
       let agentVerifiedFee: Address | null = null;
+      let walletAuth: { address: Address; walletKind: string } | null = null;
+      let usePrivySelfFee = false;
       let agentMetadataJson: string | undefined;
       let agentProviderForLabel = '';
       let agentChannel: string | null = null;
@@ -707,8 +743,13 @@ export function registerWebDeployRoutes(
         userId = `web-anon:${aid}`;
         anonymousNoDev = true;
       } else {
-        const { userId: uid } = await verifyPrivyBearerToken(req.headers.authorization);
-        userId = uid;
+        const session = await verifyWebSessionBearer(req.headers.authorization);
+        userId = session.userId;
+        if (session.kind === 'wallet') {
+          walletAuth = { address: session.walletAddress, walletKind: session.walletKind };
+        } else {
+          usePrivySelfFee = true;
+        }
       }
 
       const runSelfFeeQueued =
@@ -751,7 +792,7 @@ export function registerWebDeployRoutes(
 
       const executeDeploy = async (): Promise<void> => {
       let privyUserRecord: unknown = null;
-      if (!anonymousNoDev && !agentWalletDeploy) {
+      if (usePrivySelfFee && !anonymousNoDev && !agentWalletDeploy) {
         try {
           privyUserRecord = await fetchPrivyUserRecordById(userId);
         } catch (e: unknown) {
@@ -761,29 +802,14 @@ export function registerWebDeployRoutes(
         }
       }
 
-      let fee:
-        | { kind: 'no_dev' }
-        | { kind: 'self'; privyUserId: string; privyUser?: unknown }
-        | {
-            kind: 'other';
-            address?: string;
-            farcasterUsername?: string;
-            xUsername?: string;
-            githubUsername?: string;
-            telegramUsername?: string;
-            discordUserId?: string;
-          };
+      let fee: WebFeeInput;
 
       if (isAgentWalletDeploy && agentVerifiedFee) {
         fee = { kind: 'other', address: agentVerifiedFee };
       } else if (feeTarget === 'no_dev') {
         fee = { kind: 'no_dev' };
       } else if (feeTarget === 'self') {
-        fee = {
-          kind: 'self',
-          privyUserId: userId,
-          privyUser: privyUserRecord ?? undefined,
-        };
+        fee = buildSelfFeeInput(feeTarget, userId, walletAuth, privyUserRecord);
       } else {
         fee = {
           kind: 'other',
@@ -815,13 +841,13 @@ export function registerWebDeployRoutes(
           });
           return;
         }
-      } else if (config.webOnlyMode && (fee.kind === 'self' || agentWalletDeploy)) {
+      } else if (config.webOnlyMode && (isSelfFeeKind(fee) || agentWalletDeploy)) {
         const limited = await applyWebDeployRateLimit({
           walletAddress: resolved.walletAddress,
           feeRecipientLabel: resolved.feeRecipientLabel,
           feeToSelf: true,
           deployerId: userId,
-          privyUserId: !anonymousNoDev && !agentWalletDeploy ? userId : null,
+          privyUserId: usePrivySelfFee && !anonymousNoDev && !agentWalletDeploy ? userId : null,
         });
         rateLimitForcedPlatformFee = limited.rateLimitForcedPlatformFee;
         resolved = {
@@ -830,9 +856,9 @@ export function registerWebDeployRoutes(
           ...(limited.feeRecipientLabel ? { feeRecipientLabel: limited.feeRecipientLabel } : {}),
         };
       } else {
-        if (config.strictDeployRateLimits && fee.kind === 'self') {
+        if (config.strictDeployRateLimits && isSelfFeeKind(fee)) {
           const limitErr = await selfFeeDeployLimitErrorOrNull({
-            privyUserId: !anonymousNoDev && !agentWalletDeploy ? userId : null,
+            privyUserId: usePrivySelfFee && !anonymousNoDev && !agentWalletDeploy ? userId : null,
             platform: 'web',
             deployerId: userId,
           });
@@ -846,7 +872,7 @@ export function registerWebDeployRoutes(
           const limited = await applyDeployRateLimitBurn({
             walletAddress: resolved.walletAddress,
             feeRecipientLabel: resolved.feeRecipientLabel,
-            feeToSelf: fee.kind === 'self',
+            feeToSelf: isSelfFeeKind(fee),
             platform: 'web',
             deployerId: userId,
             privyUserId:
@@ -903,7 +929,7 @@ export function registerWebDeployRoutes(
               resolved.walletAddress,
               {
                 feeToSelf:
-                  (fee.kind === 'self' || (agentWalletDeploy && config.webOnlyMode)) &&
+                  (isSelfFeeKind(fee) || (agentWalletDeploy && config.webOnlyMode)) &&
                   !rateLimitForcedBurn &&
                   !rateLimitForcedPlatformFee,
                 rateLimitForcedBurn,
@@ -1111,14 +1137,14 @@ export function registerWebDeployRoutes(
               : agentProviderForLabel
                 ? `Web (agent wallet · ${agentProviderForLabel}${agentAuthKind === 'x_confirm' ? ' · X' : ' · captcha'})`
                 : `Web (agent wallet${agentAuthKind === 'x_confirm' ? ' · X' : ' · agent-captcha'})`
-          : fee.kind === 'self' && !rateLimitForcedBurn && !rateLimitForcedPlatformFee
+          : isSelfFeeKind(fee) && !rateLimitForcedBurn && !rateLimitForcedPlatformFee
             ? resolved.feeRecipientLabel.slice(0, 256)
             : initiatorAttribution === 'signed-in user'
               ? 'Web (signed in)'
               : initiatorAttribution.slice(0, 256);
 
       const feeToSelfEffective =
-        (fee.kind === 'self' && !rateLimitForcedBurn && !rateLimitForcedPlatformFee) ||
+        (isSelfFeeKind(fee) && !rateLimitForcedBurn && !rateLimitForcedPlatformFee) ||
         (agentWalletDeploy &&
           config.webOnlyMode &&
           !rateLimitForcedBurn &&
@@ -1205,7 +1231,7 @@ export function registerWebDeployRoutes(
             transactionHash: onchain.transactionHash,
             blockNumber: onchain.blockNumber,
             feeToSelf: feeToSelfEffective,
-            privyUserId: userId,
+            privyUserId: usePrivySelfFee ? userId : undefined,
             clientKind: webClientKind,
             tokenImageUrl: catalogImage,
             tokenWebsiteUrl: websiteUrl,
@@ -1265,7 +1291,7 @@ export function registerWebDeployRoutes(
           transactionHash: onchain.transactionHash,
           blockNumber: onchain.blockNumber,
           feeToSelf: feeToSelfEffective,
-          privyUserId: userId,
+          privyUserId: usePrivySelfFee ? userId : undefined,
           clientKind: webClientKind,
           tokenImageUrl: catalogImage,
           tokenWebsiteUrl: websiteUrl,
@@ -1305,7 +1331,7 @@ export function registerWebDeployRoutes(
         feeToSelf: feeToSelfEffective,
         launchMode,
         ...(rateLimitForcedPlatformFee ? { feesToPlatformOnly: true } : {}),
-        ...(!anonymousNoDev && !agentWalletDeploy ? { privyUserId: userId } : {}),
+        ...(usePrivySelfFee && !anonymousNoDev && !agentWalletDeploy ? { privyUserId: userId } : {}),
         clientKind: webClientKind,
         ...(agentWalletDeploy && agentMetadataJson ? { agentMetadataJson } : {}),
         tokenDescription: userDescription || undefined,
