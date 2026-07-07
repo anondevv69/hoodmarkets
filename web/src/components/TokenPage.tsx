@@ -249,17 +249,12 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
             />
           </section>
 
-          <section className="tp-zone tp-trades-zone" aria-labelledby="live-trades-heading">
-            <p id="live-trades-heading" className="tp-zone-label">
-              Trades
-            </p>
-            <LiveTradesTable
-              tokenAddress={token.tokenAddress}
-              tokenSymbol={sym}
-              metrics={metrics}
-              variant="compact"
-            />
-          </section>
+          <LiveTradesTable
+            tokenAddress={token.tokenAddress}
+            tokenSymbol={sym}
+            variant="compact"
+            hideWhenEmpty
+          />
         </div>
 
         <TokenPageSidebar token={token} sym={sym} />

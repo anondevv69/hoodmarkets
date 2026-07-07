@@ -2604,6 +2604,15 @@ label {
   color: var(--muted-faint);
 }
 
+.live-trades-tx-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.live-trades-tx-link:hover {
+  color: var(--accent);
+}
+
 .live-trades-filter--compact {
   padding: 0.35rem 1.125rem 0;
   font-size: 0.72rem;

@@ -1,166 +1,206 @@
 import { useCallback, useEffect, useState } from 'react';
 import { shortenAddress, txUrl } from '../chain';
 import { formatUsdVol } from '../lib/dexscreenerVolume';
+import { fetchGeckoTokenTrades, type TokenTradeRow } from '../lib/geckoTerminalTrades';
 import {
-  fetchEthUsdPrice,
   fetchLatestRobinhoodSwaps,
   filterSwapsForToken,
   formatRelativeTime,
-  formatTokenAmount,
-  type RobinhoodSwap,
 } from '../lib/robinhoodTrades';
-import { DexScreenerTradesEmbed } from './TokenListingStatus';
-import type { DexTokenMetrics } from '../lib/dexscreenerVolume';
+
+const POLL_MS = 20_000;
+
+function swapToRow(s: {
+  id: string;
+  txHash: string;
+  sender: string;
+  side: string;
+  ethAmount: number;
+  tokenAmount: string;
+  timestamp: string;
+}): TokenTradeRow {
+  const raw = Number.parseFloat(s.tokenAmount) / 1e18;
+  return {
+    id: s.id,
+    txHash: s.txHash,
+    wallet: s.sender,
+    isBuy: s.side === 'BUY',
+    ethAmount: s.ethAmount,
+    tokenAmount: Number.isFinite(raw) ? raw : 0,
+    timestamp: s.timestamp,
+  };
+}
 
 export function LiveTradesTable({
   tokenAddress,
   tokenSymbol,
-  metrics,
   variant = 'default',
+  hideWhenEmpty = false,
 }: {
   tokenAddress: string;
   tokenSymbol: string;
-  metrics?: DexTokenMetrics;
   variant?: 'default' | 'compact';
+  /** Hide the whole block when there are no trades (token page). */
+  hideWhenEmpty?: boolean;
 }) {
-  const [swaps, setSwaps] = useState<RobinhoodSwap[]>([]);
-  const [ethUsd, setEthUsd] = useState<number | undefined>();
+  const [rows, setRows] = useState<TokenTradeRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     try {
-      const [latest, ethPrice] = await Promise.all([
-        fetchLatestRobinhoodSwaps(100),
-        fetchEthUsdPrice(),
-      ]);
-      setSwaps(filterSwapsForToken(latest, tokenAddress));
-      setEthUsd(ethPrice);
+      let trades = await fetchGeckoTokenTrades(tokenAddress);
+      if (trades.length === 0) {
+        const latest = await fetchLatestRobinhoodSwaps(100);
+        trades = filterSwapsForToken(latest, tokenAddress).map(swapToRow);
+      }
+      setRows(trades);
     } catch {
-      setSwaps([]);
+      setRows([]);
     } finally {
       setLoading(false);
     }
   }, [tokenAddress]);
 
   useEffect(() => {
+    setLoading(true);
     void refresh();
-    const id = window.setInterval(() => void refresh(), 12_000);
+    const id = window.setInterval(() => void refresh(), POLL_MS);
     return () => window.clearInterval(id);
   }, [refresh]);
 
   const sym = tokenSymbol.replace(/^\$/, '');
   const [hideSmall, setHideSmall] = useState(false);
-  const rows = swaps.filter((s) => {
-    if (!hideSmall || ethUsd == null) return true;
-    const usd = s.ethAmount * ethUsd;
-    return usd >= 1;
+  const visible = rows.filter((s) => {
+    if (!hideSmall) return true;
+    if (s.usdVolume != null) return s.usdVolume >= 1;
+    return s.ethAmount >= 0.0003;
   });
   const compact = variant === 'compact';
-  const showNativeTable = !loading && rows.length > 0;
 
-  return (
-    <section
-      className={`live-trades${compact ? ' live-trades--compact' : ''}`}
-      aria-labelledby="live-trades-heading"
-    >
-      {!compact ? (
+  if (hideWhenEmpty && (loading || visible.length === 0)) {
+    return null;
+  }
+
+  const tableBody = loading ? (
+    <p className="muted live-trades-status">Loading trades…</p>
+  ) : visible.length === 0 ? (
+    <p className="muted live-trades-status">No trades yet</p>
+  ) : (
+    <>
+      {compact ? (
+        <label className="live-trades-filter live-trades-filter--compact">
+          <input
+            type="checkbox"
+            checked={hideSmall}
+            onChange={(e) => setHideSmall(e.target.checked)}
+          />
+          Hide small
+        </label>
+      ) : (
         <div className="token-dex-section-head">
           <div>
             <h3 id="live-trades-heading" className="section-label">
-              Live Trades
+              Recent trades
             </h3>
-            <p className="muted token-dex-section-sub">Recent buys and sells on Robinhood</p>
+            <p className="muted token-dex-section-sub">Buys and sells on Robinhood Chain</p>
           </div>
-          {showNativeTable ? (
-            <label className="live-trades-filter">
-              <input
-                type="checkbox"
-                checked={hideSmall}
-                onChange={(e) => setHideSmall(e.target.checked)}
-              />
-              Hide &lt;$1
-            </label>
-          ) : null}
+          <label className="live-trades-filter">
+            <input
+              type="checkbox"
+              checked={hideSmall}
+              onChange={(e) => setHideSmall(e.target.checked)}
+            />
+            Hide small
+          </label>
         </div>
-      ) : null}
-
-      {loading ? (
-        <p className="muted live-trades-status">Loading trades…</p>
-      ) : showNativeTable ? (
-        <>
-          {compact ? (
-            <label className="live-trades-filter live-trades-filter--compact">
-              <input
-                type="checkbox"
-                checked={hideSmall}
-                onChange={(e) => setHideSmall(e.target.checked)}
-              />
-              Hide &lt;$1
-            </label>
-          ) : null}
-          <div className="live-trades-scroll">
-            <table className={`live-trades-table${compact ? ' live-trades-table--compact' : ''}`}>
-              <thead>
-                <tr>
-                  {!compact ? <th>Date</th> : null}
-                  <th>Account</th>
-                  <th>Type</th>
-                  <th className={compact ? 'num' : undefined}>USD</th>
-                  <th className={compact ? 'num' : undefined}>{compact ? 'WETH' : 'ETH'}</th>
-                  <th className={compact ? 'num' : undefined}>{sym}</th>
-                  {!compact ? <th>TX</th> : null}
-                  {compact ? <th className="num">Time</th> : null}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((s) => {
-                  const usd = ethUsd != null ? s.ethAmount * ethUsd : undefined;
-                  const isBuy = s.side === 'BUY';
-                  return (
-                    <tr key={s.id} className={isBuy ? 'live-trades-buy' : 'live-trades-sell'}>
-                      {!compact ? <td>{formatRelativeTime(s.timestamp)}</td> : null}
-                      <td className={`lp-mono${compact ? ' addr-cell' : ''}`}>
-                        {shortenAddress(s.sender)}
-                      </td>
-                      <td>
-                        {compact ? (
-                          <span className={`tp-pill ${isBuy ? 'buy' : 'sell'}`}>
-                            {isBuy ? 'Buy' : 'Sell'}
-                          </span>
-                        ) : isBuy ? (
-                          'Buy'
-                        ) : (
-                          'Sell'
-                        )}
-                      </td>
-                      <td className={`lp-mono${compact ? ' num' : ''}`}>{formatUsdVol(usd)}</td>
-                      <td className={`lp-mono${compact ? ' num' : ''}`}>
-                        {s.ethAmount.toFixed(compact ? 7 : 4)}
-                      </td>
-                      <td className={`lp-mono${compact ? ' num' : ''}`}>
-                        {isBuy ? '+' : '-'}
-                        {formatTokenAmount(s.tokenAmount)}
-                      </td>
-                      {!compact ? (
-                        <td>
-                          <a href={txUrl(s.txHash)} target="_blank" rel="noreferrer">
-                            ↗
-                          </a>
-                        </td>
-                      ) : null}
-                      {compact ? (
-                        <td className="num time-cell">{formatRelativeTime(s.timestamp)}</td>
-                      ) : null}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
-      ) : (
-        <DexScreenerTradesEmbed tokenAddress={tokenAddress} metrics={metrics} forceShow />
       )}
+      <div className="live-trades-scroll">
+        <table className={`live-trades-table${compact ? ' live-trades-table--compact' : ''}`}>
+          <thead>
+            <tr>
+              {!compact ? <th>Date</th> : null}
+              <th>Wallet</th>
+              <th>Side</th>
+              <th className={compact ? 'num' : undefined}>USD</th>
+              <th className={compact ? 'num' : undefined}>ETH</th>
+              <th className={compact ? 'num' : undefined}>{sym}</th>
+              {!compact ? <th>TX</th> : null}
+              {compact ? <th className="num">Time</th> : null}
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((s) => (
+              <tr key={s.id} className={s.isBuy ? 'live-trades-buy' : 'live-trades-sell'}>
+                {!compact ? <td>{formatRelativeTime(s.timestamp)}</td> : null}
+                <td className={`lp-mono${compact ? ' addr-cell' : ''}`}>
+                  {shortenAddress(s.wallet)}
+                </td>
+                <td>
+                  {compact ? (
+                    <span className={`tp-pill ${s.isBuy ? 'buy' : 'sell'}`}>
+                      {s.isBuy ? 'Buy' : 'Sell'}
+                    </span>
+                  ) : s.isBuy ? (
+                    'Buy'
+                  ) : (
+                    'Sell'
+                  )}
+                </td>
+                <td className={`lp-mono${compact ? ' num' : ''}`}>{formatUsdVol(s.usdVolume)}</td>
+                <td className={`lp-mono${compact ? ' num' : ''}`}>
+                  {s.ethAmount.toFixed(compact ? 6 : 4)}
+                </td>
+                <td className={`lp-mono${compact ? ' num' : ''}`}>
+                  {s.isBuy ? '+' : '-'}
+                  {s.tokenAmount >= 1
+                    ? s.tokenAmount.toFixed(2)
+                    : s.tokenAmount.toPrecision(3)}
+                </td>
+                {!compact ? (
+                  <td>
+                    <a href={txUrl(s.txHash)} target="_blank" rel="noreferrer" title="Blockscout">
+                      ↗
+                    </a>
+                  </td>
+                ) : null}
+                {compact ? (
+                  <td className="num time-cell">
+                    <a
+                      href={txUrl(s.txHash)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="live-trades-tx-link"
+                      title="View on Blockscout"
+                    >
+                      {formatRelativeTime(s.timestamp)}
+                    </a>
+                  </td>
+                ) : null}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+
+  if (compact) {
+    return (
+      <section className="tp-zone tp-trades-zone" aria-labelledby="live-trades-heading">
+        <p id="live-trades-heading" className="tp-zone-label">
+          Trades
+        </p>
+        <div className={`live-trades live-trades--compact`}>{tableBody}</div>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className="live-trades"
+      aria-labelledby="live-trades-heading"
+    >
+      {tableBody}
     </section>
   );
 }
