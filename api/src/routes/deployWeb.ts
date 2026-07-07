@@ -980,12 +980,16 @@ export function registerWebDeployRoutes(
 
       let deployerWallet: Address | undefined;
       if (!anonymousNoDev && !agentWalletDeploy && deployerPaysPoolSeed) {
-        const embedded = await getEmbeddedEthAddressForPrivyUserId(userId);
-        if (embedded) {
-          try {
-            deployerWallet = getAddress(embedded);
-          } catch {
-            deployerWallet = undefined;
+        if (walletAuth) {
+          deployerWallet = walletAuth.address;
+        } else {
+          const embedded = await getEmbeddedEthAddressForPrivyUserId(userId);
+          if (embedded) {
+            try {
+              deployerWallet = getAddress(embedded);
+            } catch {
+              deployerWallet = undefined;
+            }
           }
         }
       }
@@ -1008,7 +1012,7 @@ export function registerWebDeployRoutes(
       if (deployerPaysPoolSeed && !useWalletDeploy) {
         res.status(400).json({
           error:
-            'Connect your hood.markets embedded wallet with enough ETH for the pool seed plus gas. hood.markets does not pay deployment costs on the website.',
+            'Connect a wallet with enough ETH for the pool seed plus gas. hood.markets does not pay deployment costs on the website.',
         });
         return;
       }
@@ -1080,7 +1084,7 @@ export function registerWebDeployRoutes(
       if (deployerPaysPoolSeed && !useWalletDeploy) {
         res.status(400).json({
           error:
-            'Connect your hood.markets embedded wallet with enough ETH for the pool seed plus gas. hood.markets does not pay deployment costs on the website.',
+            'Connect a wallet with enough ETH for the pool seed plus gas. hood.markets does not pay deployment costs on the website.',
         });
         return;
       }
