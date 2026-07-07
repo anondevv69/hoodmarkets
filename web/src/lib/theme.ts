@@ -2,9 +2,9 @@ export type SiteTheme = 'dark' | 'light';
 
 const STORAGE_KEY = 'hoodmarkets_theme_v1';
 
-/** Neon brand surface — default (“dark” in product copy). */
+/** Dark surface — Robinhood.com warm black canvas (default). */
 export const THEME_DARK: SiteTheme = 'dark';
-/** White surface with neon accents. */
+/** White canvas with warm black ink — inverse of dark. */
 export const THEME_LIGHT: SiteTheme = 'light';
 
 export function readStoredTheme(): SiteTheme {
@@ -21,7 +21,7 @@ export function applyTheme(theme: SiteTheme): void {
   document.documentElement.dataset.theme = theme;
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
-    meta.setAttribute('content', theme === THEME_LIGHT ? '#FFFFFF' : '#CCFF00');
+    meta.setAttribute('content', theme === THEME_LIGHT ? '#FFFFFF' : '#110E08');
   }
   try {
     localStorage.setItem(STORAGE_KEY, theme);
