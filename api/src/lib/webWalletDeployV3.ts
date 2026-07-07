@@ -6,6 +6,7 @@ import {
   type Hash,
   type PublicClient,
 } from 'viem';
+import { logger } from '../logger.js';
 import { config } from '../config.js';
 import { robinhood } from './robinhoodChain.js';
 import {
@@ -81,6 +82,13 @@ export async function buildWebWalletDeployPrepareV3(
       ? config.platformFeeRecipient || undefined
       : undefined,
     buyerRewardShareCount: input.buyerRewardShareCount,
+  });
+
+  logger.info('Web wallet deploy prepare ready', {
+    name: input.name,
+    symbol: input.symbol,
+    tokenAdmin,
+    msgValueWei: input.devBuyAmount.toString(),
   });
 
   return {

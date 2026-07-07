@@ -46,9 +46,16 @@ export async function buildWebDeployArtifacts(
   let image = params.imageUrl ?? '';
 
   if (image && imageUploadService.isConfigured()) {
-    const uploadedUrl = await imageUploadService.uploadTokenImage(image, params.name);
-    if (uploadedUrl) {
-      image = uploadedUrl;
+    const lower = image.trim().toLowerCase();
+    const alreadyHosted =
+      image.startsWith('http') &&
+      !image.startsWith('data:') &&
+      (lower.includes('ipfs') || lower.includes('pinata'));
+    if (!alreadyHosted) {
+      const uploadedUrl = await imageUploadService.uploadTokenImage(image, params.name);
+      if (uploadedUrl) {
+        image = uploadedUrl;
+      }
     }
   }
   image = resolveTokenImageUrl(image) ?? image;
