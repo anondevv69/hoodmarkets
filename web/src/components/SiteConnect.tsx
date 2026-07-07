@@ -7,6 +7,7 @@ export function SiteConnect() {
   const {
     ready,
     authenticated,
+    signingIn,
     walletAddress,
     authMethod,
     connectWallet,
@@ -67,8 +68,9 @@ export function SiteConnect() {
           clearAuthError();
           connectWallet();
         }}
+        disabled={signingIn}
       >
-        Connect wallet
+        {signingIn ? 'Signing in…' : 'Connect wallet'}
       </button>
       <button
         type="button"

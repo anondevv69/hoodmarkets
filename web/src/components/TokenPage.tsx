@@ -246,6 +246,8 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
         <TokenHeroMetrics metrics={metrics} loading={metricsLoading} variant="card" />
       </section>
 
+      <TokenBrandingPanel tokenAddress={token.tokenAddress} onImported={refreshBrandingDisplay} />
+
       <div className="token-page-grid">
         <div className="token-page-main">
           <section className="tp-zone tp-chart-zone">
@@ -275,10 +277,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
           deployBlockNumber={token.blockNumber}
           feeRecipientAddress={token.feeRecipientAddress}
         />
-      </div>
-
-      <div className="token-page-full-bleed">
-        <TokenBrandingPanel tokenAddress={token.tokenAddress} onImported={refreshBrandingDisplay} />
       </div>
 
       <div className="token-page-full-bleed">
