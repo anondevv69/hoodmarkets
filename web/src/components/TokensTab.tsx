@@ -370,19 +370,6 @@ export function TokensTab({ onNavigateToLaunch }: { onNavigateToLaunch?: () => v
           ) : null}
         </div>
       )}
-
-      {platformStats ? (
-        <div className="explore-platform-stats">
-          <div>
-            <span className="explore-platform-stats-label">24h volume</span>
-            <strong>{formatUsdVol(platformStats.volume24hUsd)}</strong>
-          </div>
-          <div>
-            <span className="explore-platform-stats-label">Tokens launched</span>
-            <strong>{platformStats.tokensLaunched}</strong>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
