@@ -1865,11 +1865,12 @@ label {
 /* —— Token page redesign (QuantumFlux layout) —— */
 
 .tp-token-card {
-  background: var(--surface-2);
-  border: 0.5px solid var(--border);
-  border-radius: 12px;
-  padding: 1.25rem;
-  margin-bottom: 0.75rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0.5rem 0 1rem;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .tp-token-card-top {
@@ -2803,14 +2804,18 @@ label {
 
 .live-trades--compact .live-trades-table {
   font-size: 0.6875rem;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .live-trades--compact .live-trades-table th {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 2;
   padding: 0.28rem 0.45rem;
   font-size: 0.5625rem;
+  background: var(--bg);
+  box-shadow: 0 1px 0 var(--border-soft);
 }
 
 .live-trades--compact .live-trades-table td {
