@@ -1,37 +1,32 @@
-import { PrivyProvider } from '@privy-io/react-auth';
+import '@rainbow-me/rainbowkit/styles.css';
+import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { WagmiProvider } from 'wagmi';
 import App from './App';
-import { robinhood } from './chain';
+import { WebAuthProvider } from './auth/WebAuthContext';
+import { wagmiConfig } from './wagmi';
 import './index.css';
 
-const appId = import.meta.env.VITE_PRIVY_APP_ID as string | undefined;
-if (!appId) {
-  console.warn('VITE_PRIVY_APP_ID is not set — Privy login will not work.');
-}
+const queryClient = new QueryClient();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <PrivyProvider
-      appId={appId || 'missing-privy-app-id'}
-      config={{
-        defaultChain: robinhood,
-        supportedChains: [robinhood],
-        appearance: {
-          theme: 'dark',
-          accentColor: '#00c805',
-          walletList: ['metamask', 'detected_ethereum_wallets', 'wallet_connect'],
-          walletChainType: 'ethereum-only',
-        },
-        loginMethods: ['wallet', 'twitter', 'discord', 'github'],
-        embeddedWallets: {
-          ethereum: {
-            createOnLogin: 'users-without-wallets',
-          },
-        },
-      }}
-    >
-      <App />
-    </PrivyProvider>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider
+          theme={darkTheme({
+            accentColor: '#00c805',
+            borderRadius: 'medium',
+          })}
+          modalSize="compact"
+        >
+          <WebAuthProvider>
+            <App />
+          </WebAuthProvider>
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   </StrictMode>,
 );

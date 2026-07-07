@@ -4,7 +4,7 @@ import { getDeploymentByTokenAddress } from '../lib/deploymentCatalog.js';
 import { insertTokenSpacePost, listTokenSpacePosts } from '../lib/hoodSocialDb.js';
 import { readTokenHolderStatus } from '../lib/robinhoodHolder.js';
 import { fetchPrivyUserRecordById } from '../lib/privy.js';
-import { verifyPrivyBearerToken } from '../lib/privyAccessToken.js';
+import { verifyWebSessionBearer } from '../lib/webSessionAuth.js';
 import { privyUserOwnsWallet } from '../lib/privyWallets.js';
 import { webDeployCorsHeadersRead } from '../lib/webDeployCors.js';
 import { config } from '../config.js';
@@ -114,11 +114,18 @@ export function registerTokenSpaceRoutes(app: Express): void {
         return;
       }
 
-      const { userId } = await verifyPrivyBearerToken(req.headers.authorization);
-      const userRecord = await fetchPrivyUserRecordById(userId);
-      if (!privyUserOwnsWallet(userRecord, walletAddress)) {
-        res.status(403).json({ error: 'Wallet is not linked to your signed-in account.' });
-        return;
+      const session = await verifyWebSessionBearer(req.headers.authorization);
+      if (session.kind === 'wallet') {
+        if (session.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+          res.status(403).json({ error: 'Wallet does not match your signed-in session.' });
+          return;
+        }
+      } else {
+        const userRecord = await fetchPrivyUserRecordById(session.userId);
+        if (!privyUserOwnsWallet(userRecord, walletAddress)) {
+          res.status(403).json({ error: 'Wallet is not linked to your signed-in account.' });
+          return;
+        }
       }
 
       const holder = await readTokenHolderStatus(token, walletAddress);

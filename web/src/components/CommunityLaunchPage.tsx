@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useWebAuth } from '../auth/WebAuthContext';
+import { useActiveWallet } from '../hooks/useActiveWallet';
 import {
   createCommunityLaunch,
   fetchCommunityLaunchConfig,
@@ -63,8 +64,8 @@ function PetitionCard({
 }
 
 function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) {
-  const { user } = usePrivy();
-  const { wallets } = useWallets();
+  const { walletAddress } = useWebAuth();
+  const wallet = useActiveWallet();
   const [tokenName, setTokenName] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [description, setDescription] = useState('');
@@ -73,7 +74,7 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const wallet = wallets[0]?.address ?? user?.wallet?.address;
+  const creatorWallet = wallet?.address ?? walletAddress ?? undefined;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +85,7 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
         tokenName: tokenName.trim(),
         tokenSymbol: tokenSymbol.trim().replace(/^\$/, ''),
         description: description.trim() || undefined,
-        starterWallet: wallet,
+        starterWallet: creatorWallet,
         targetRaiseEth: targetRaiseEth.trim(),
         supporterSlots: supporterSlots ? Number.parseInt(supporterSlots, 10) : undefined,
       });
@@ -163,8 +164,8 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
 }
 
 function PetitionDetail({ id }: { id: string }) {
-  const { user, login } = usePrivy();
-  const { wallets } = useWallets();
+  const { connectWallet } = useWebAuth();
+  const wallet = useActiveWallet();
   const [petition, setPetition] = useState<CommunityLaunchSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [contributionEth, setContributionEth] = useState('');
@@ -172,7 +173,7 @@ function PetitionDetail({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const wallet = wallets[0]?.address ?? user?.wallet?.address;
+  const walletAddress = wallet?.address;
 
   const reload = async () => {
     setLoading(true);
@@ -196,8 +197,8 @@ function PetitionDetail({ id }: { id: string }) {
   }, [id]);
 
   const onDeposit = async () => {
-    if (!wallet) {
-      login();
+    if (!wallet || !walletAddress) {
+      connectWallet();
       return;
     }
     const amount = contributionEth.trim();
@@ -211,17 +212,17 @@ function PetitionDetail({ id }: { id: string }) {
     try {
       const prep = await prepareCommunityLaunchDeposit({
         id,
-        wallet,
+        wallet: walletAddress,
         contributionEth: amount,
       });
-      const w = wallets[0];
-      if (!w) throw new Error('No wallet connected');
-      const provider = await w.getEthereumProvider();
+      const provider = (await wallet.getEthereumProvider()) as {
+        request: (args: { method: string; params: unknown[] }) => Promise<string>;
+      };
       const txHash = await provider.request({
         method: 'eth_sendTransaction',
         params: [
           {
-            from: wallet,
+            from: walletAddress,
             to: prep.nextStep.to,
             value: `0x${BigInt(prep.nextStep.value).toString(16)}`,
             data: prep.nextStep.data,
@@ -230,7 +231,7 @@ function PetitionDetail({ id }: { id: string }) {
       });
       await confirmCommunityLaunchDeposit({
         id,
-        wallet,
+        wallet: walletAddress,
         contributionEth: amount,
         signature: String(txHash),
       });

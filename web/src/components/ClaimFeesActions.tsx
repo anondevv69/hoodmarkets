@@ -1,4 +1,5 @@
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useWebAuth } from '../auth/WebAuthContext';
+import { useActiveWallet } from '../hooks/useActiveWallet';
 import { useCallback, useEffect, useState } from 'react';
 import { fetchTokenFeeStatus, type TokenFeeStatus } from '../api';
 import { txUrl } from '../chain';
@@ -27,9 +28,8 @@ export function ClaimFeesActions({
   publicCollect?: boolean;
   variant?: 'card' | 'sidebar';
 }) {
-  const { authenticated, login } = usePrivy();
-  const { wallets } = useWallets();
-  const wallet = wallets[0];
+  const { authenticated, connectWallet } = useWebAuth();
+  const wallet = useActiveWallet();
   const walletAddress = wallet?.address?.toLowerCase();
   const platformFees = isHoodmarketsPlatformFeeRecipient(feeRecipientLabel);
   const isFeeOwner =
@@ -76,7 +76,7 @@ export function ClaimFeesActions({
 
   async function requireWallet() {
     if (!wallet) {
-      if (login) login();
+      if (connectWallet) connectWallet();
       throw new Error('Connect a wallet to continue.');
     }
     const provider = await wallet.getEthereumProvider();

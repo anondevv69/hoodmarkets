@@ -2,6 +2,7 @@ import type { Express, Request, Response } from 'express';
 import { getAddress } from 'viem';
 import { config } from '../config.js';
 import { verifyPrivyBearerToken } from '../lib/privyAccessToken.js';
+import { verifyWebSessionBearer } from '../lib/webSessionAuth.js';
 import {
   getDeploymentByDeployerAndTokenAddress,
   listDeploymentCatalogForUser,
@@ -22,13 +23,14 @@ export function registerMyDeploymentsRoutes(app: Express): void {
     const h = webDeployCorsHeadersRead(req.headers.origin);
     for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
 
-    if (!config.privy.enabled) {
-      res.status(503).json({ error: 'Privy is not configured on the server.' });
+    if (!config.webWallet.enabled && !config.privy.enabled) {
+      res.status(503).json({ error: 'Web login is not configured on the server.' });
       return;
     }
 
     try {
-      const { userId } = await verifyPrivyBearerToken(req.headers.authorization);
+      const session = await verifyWebSessionBearer(req.headers.authorization);
+      const userId = session.userId;
       const rawLimit = req.query.limit;
       const rawOffset = req.query.offset;
       const limit =
@@ -45,7 +47,12 @@ export function registerMyDeploymentsRoutes(app: Express): void {
 
       // Optional wallet address sent by the frontend — used to surface tokens
       // deployed FOR this user (fee recipient) even when someone else was the deployer.
-      const rawWallet = typeof req.query.walletAddress === 'string' ? req.query.walletAddress.trim() : '';
+      const rawWallet =
+        typeof req.query.walletAddress === 'string'
+          ? req.query.walletAddress.trim()
+          : session.kind === 'wallet'
+            ? session.walletAddress
+            : '';
       let resolvedWallet = '';
       if (/^0x[0-9a-fA-F]{40}$/.test(rawWallet)) {
         try { resolvedWallet = getAddress(rawWallet).toLowerCase(); } catch { /* ignore */ }

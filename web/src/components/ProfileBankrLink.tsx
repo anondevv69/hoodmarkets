@@ -1,4 +1,5 @@
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useWebAuth } from '../auth/WebAuthContext';
+import { useActiveWallet } from '../hooks/useActiveWallet';
 import { useCallback, useEffect, useState } from 'react';
 import { createWalletClient, custom, type Address } from 'viem';
 import { robinhood } from '../chain';
@@ -21,9 +22,8 @@ export function ProfileBankrLink({
   > | null;
   onUpdated: () => Promise<void>;
 }) {
-  const { getAccessToken } = usePrivy();
-  const { wallets } = useWallets();
-  const wallet = wallets[0];
+  const { getAccessToken } = useWebAuth();
+  const wallet = useActiveWallet();
 
   const [linking, setLinking] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
