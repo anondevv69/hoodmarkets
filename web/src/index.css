@@ -5,22 +5,68 @@
 }
 
 :root {
-  color-scheme: dark;
-  --bg: #0a0f0c;
-  --surface: #101511;
-  --surface-2: #151b16;
-  --border: #202a23;
-  --border-soft: #182019;
-  --text: #eaf5ee;
-  --muted: #8ea295;
-  --muted-faint: #566159;
-  --accent: #00e676;
-  --accent-dim: #00c766;
-  --accent-glow: rgba(0, 230, 118, 0.12);
-  --danger: #ff5c5c;
+  /* Robinhood-inspired brand primitives */
+  --robin-neon: #ccff00;
+  --robin-black: #1c180d;
+  --white: #ffffff;
+  --gray: #3a3a3a;
+  --heather-1: #8a8783;
+  --heather-2: #b4b1ab;
+  --heather-3: #d4d0c9;
+
   font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
+}
+
+/* Default: neon brand surface (“dark mode” in product copy) */
+:root,
+[data-theme='dark'] {
+  color-scheme: light;
+  --bg: var(--robin-neon);
+  --surface: var(--white);
+  --surface-2: #f6f6f2;
+  --border: rgba(28, 24, 13, 0.14);
+  --border-soft: rgba(28, 24, 13, 0.08);
+  --text: var(--robin-black);
+  --muted: var(--gray);
+  --muted-faint: #6b6860;
+  --accent: var(--robin-black);
+  --accent-dim: #2e2818;
+  --accent-fg: var(--robin-neon);
+  --accent-glow: rgba(28, 24, 13, 0.08);
+  --accent-border: rgba(28, 24, 13, 0.22);
+  --danger: #b42318;
+  --header-bg: rgba(204, 255, 0, 0.94);
+  --link: var(--robin-black);
+  --ticker-bg: var(--robin-black);
+  --ticker-text: var(--white);
+  --ticker-up: var(--robin-neon);
+  color: var(--text);
+  background: var(--bg);
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: var(--white);
+  --surface: #f8f8f6;
+  --surface-2: #f0efeb;
+  --border: rgba(28, 24, 13, 0.12);
+  --border-soft: rgba(28, 24, 13, 0.06);
+  --text: var(--robin-black);
+  --muted: var(--gray);
+  --muted-faint: var(--heather-1);
+  --accent: var(--robin-neon);
+  --accent-dim: #b8e600;
+  --accent-fg: var(--robin-black);
+  --accent-glow: rgba(204, 255, 0, 0.22);
+  --accent-border: rgba(28, 24, 13, 0.18);
+  --danger: #b42318;
+  --header-bg: rgba(255, 255, 255, 0.94);
+  --link: var(--robin-black);
+  --ticker-bg: var(--surface-2);
+  --ticker-text: var(--robin-black);
+  --ticker-up: #1a7f37;
   color: var(--text);
   background: var(--bg);
 }
@@ -28,9 +74,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-image:
-    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(0, 230, 118, 0.07), transparent),
-    radial-gradient(ellipse 700px 500px at 100% 0%, rgba(124, 77, 255, 0.05), transparent);
+  background: var(--bg);
+  background-image: none;
 }
 
 #root {
@@ -68,7 +113,7 @@ textarea {
 }
 
 a {
-  color: var(--accent);
+  color: var(--link);
 }
 
 .app {
@@ -80,8 +125,37 @@ a {
   position: sticky;
   top: 0;
   z-index: 30;
-  background: rgba(10, 15, 12, 0.92);
+  background: var(--header-bg);
   backdrop-filter: blur(10px);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.theme-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.theme-toggle:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent-border);
 }
 
 .header-inner {
@@ -119,7 +193,7 @@ a {
   width: 100%;
   margin: 0;
   font-size: 0.75rem;
-  color: #f87171;
+  color: var(--danger);
 }
 
 .bankr-login-panel {
@@ -130,7 +204,7 @@ a {
   width: min(320px, calc(100vw - 2rem));
   padding: 1rem;
   border: 1px solid var(--border-soft);
-  background: var(--surface, #0f1411);
+  background: var(--surface, var(--white));
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -166,7 +240,8 @@ a {
 }
 
 .logo-markets {
-  color: var(--accent);
+  color: var(--text);
+  opacity: 0.72;
 }
 
 .site-nav {
@@ -197,7 +272,6 @@ a {
   height: 2px;
   background: var(--accent);
   border-radius: 2px;
-  box-shadow: 0 0 8px var(--accent);
 }
 
 .main-wrap {
@@ -318,11 +392,11 @@ a {
 
 .docs-hero-btn:hover {
   border-color: var(--accent-dim);
-  background: rgba(0, 230, 118, 0.06);
+  background: rgba(28, 24, 13, 0.06);
 }
 
 .docs-hero-btn--primary {
-  background: rgba(0, 230, 118, 0.1);
+  background: rgba(28, 24, 13, 0.1);
   border-color: var(--accent-dim);
   color: var(--accent);
 }
@@ -486,12 +560,12 @@ a {
   font-weight: 500;
   color: var(--text);
   text-decoration: none;
-  background: rgba(0, 230, 118, 0.06);
+  background: rgba(28, 24, 13, 0.06);
   border-color: var(--accent-dim);
 }
 
 .docs-pill:hover {
-  background: rgba(0, 230, 118, 0.1);
+  background: rgba(28, 24, 13, 0.1);
 }
 
 .docs-table-wrap {
@@ -530,7 +604,7 @@ a {
 }
 
 .docs-method--get {
-  background: rgba(0, 230, 118, 0.12);
+  background: rgba(28, 24, 13, 0.12);
   color: var(--accent);
 }
 
@@ -609,7 +683,7 @@ a {
 
 .docs-github-card:hover {
   border-color: var(--accent-dim);
-  background: rgba(0, 230, 118, 0.05);
+  background: rgba(28, 24, 13, 0.05);
 }
 
 .docs-github-card-title {
@@ -815,7 +889,8 @@ label {
 
 .btn-primary {
   background: var(--accent);
-  color: #04140a;
+  color: var(--accent-fg);
+  border: 1px solid transparent;
 }
 
 .btn-primary:disabled {
@@ -847,7 +922,7 @@ label {
 
 .notice {
   background: var(--accent-glow);
-  border: 1px solid rgba(0, 230, 118, 0.25);
+  border: 1px solid var(--accent-border);
   border-radius: 10px;
   padding: 0.75rem 1rem;
   font-size: 0.85rem;
@@ -996,7 +1071,7 @@ label {
   flex-shrink: 0;
   overflow: hidden;
   border-radius: 10px;
-  background: rgba(0, 230, 118, 0.06);
+  background: rgba(28, 24, 13, 0.06);
 }
 
 .token-avatar-wrap--loading {
@@ -1019,7 +1094,7 @@ label {
   height: 100%;
   border-radius: 10px;
   background: var(--accent-glow);
-  border: 1px solid rgba(0, 230, 118, 0.35);
+  border: 1px solid rgba(28, 24, 13, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1037,7 +1112,7 @@ label {
   object-fit: cover;
   display: block;
   border-radius: 10px;
-  border: 1px solid rgba(0, 230, 118, 0.35);
+  border: 1px solid rgba(28, 24, 13, 0.35);
   box-sizing: border-box;
 }
 
@@ -1436,19 +1511,19 @@ label {
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.55);
+  box-shadow: 0 0 0 0 rgba(28, 24, 13, 0.35);
   animation: tp-pulse 2s infinite;
 }
 
 @keyframes tp-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.5);
+    box-shadow: 0 0 0 0 rgba(28, 24, 13, 0.3);
   }
   70% {
-    box-shadow: 0 0 0 6px rgba(0, 230, 118, 0);
+    box-shadow: 0 0 0 6px rgba(28, 24, 13, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 230, 118, 0);
+    box-shadow: 0 0 0 0 rgba(28, 24, 13, 0);
   }
 }
 
@@ -2022,7 +2097,7 @@ label {
 }
 
 .tp-pill.buy {
-  background: rgba(0, 230, 118, 0.12);
+  background: rgba(28, 24, 13, 0.12);
   color: var(--accent);
 }
 
@@ -2207,14 +2282,14 @@ label {
   padding: 0.7rem;
   border-radius: 8px;
   background: transparent;
-  border: 1px solid rgba(0, 230, 118, 0.35);
+  border: 1px solid rgba(28, 24, 13, 0.35);
   color: var(--accent);
   font-weight: 700;
   font-size: 0.8125rem;
 }
 
 .tp-claim-btn:hover:not(:disabled) {
-  background: rgba(0, 230, 118, 0.08);
+  background: rgba(28, 24, 13, 0.08);
 }
 
 .tp-claim-btn--secondary {
@@ -3477,7 +3552,7 @@ label {
   padding: 0.85rem 1rem;
   border: 1px solid var(--border-soft);
   border-radius: 10px;
-  background: rgba(0, 230, 118, 0.04);
+  background: rgba(28, 24, 13, 0.04);
 }
 
 .launch-fraction-notice-title {
@@ -3806,7 +3881,7 @@ label {
 .launch-success {
   margin-top: 0.5rem;
   padding: 1rem;
-  border: 1px solid rgba(0, 230, 118, 0.3);
+  border: 1px solid rgba(28, 24, 13, 0.3);
   border-radius: 12px;
   background: var(--accent-glow);
   text-align: left;
@@ -4040,9 +4115,10 @@ label {
 
 .market-ticker {
   position: relative;
-  background: #060806;
-  border-top: 1px solid #141a16;
-  border-bottom: 1px solid #141a16;
+  background: var(--ticker-bg);
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--ticker-text);
   overflow: hidden;
   white-space: nowrap;
   padding: 9px 0;
@@ -4111,11 +4187,11 @@ label {
 }
 
 .market-ticker__symbol {
-  color: #d8e8dc;
+  color: var(--ticker-text);
 }
 
 .market-ticker__item:hover .market-ticker__symbol {
-  color: var(--accent);
+  color: var(--ticker-up);
 }
 
 .market-ticker__change {
@@ -4124,11 +4200,11 @@ label {
 }
 
 .market-ticker__change.up {
-  color: var(--accent);
+  color: var(--ticker-up);
 }
 
 .market-ticker__change.down {
-  color: #d45c5c;
+  color: var(--danger);
 }
 
 .market-ticker__meta {

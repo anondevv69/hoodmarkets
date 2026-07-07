@@ -6,6 +6,7 @@ import { WalletProfilePage } from './components/WalletProfilePage';
 import { DevPage } from './components/DevPage';
 import { CommunityLaunchPage } from './components/CommunityLaunchPage';
 import { SiteConnect } from './components/SiteConnect';
+import { ThemeToggle } from './components/ThemeToggle';
 import { SiteFooter } from './components/SiteFooter';
 import { TokenPage } from './components/TokenPage';
 import { TickerTape } from './components/TickerTape';
@@ -114,7 +115,10 @@ export default function App() {
               Profile
             </button>
           </nav>
-          <SiteConnect />
+          <div className="header-actions">
+            <ThemeToggle />
+            <SiteConnect />
+          </div>
         </div>
       </header>
 
