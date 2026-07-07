@@ -1787,6 +1787,37 @@ label {
   gap: 0.75rem;
 }
 
+.petition-field-help {
+  margin: -0.25rem 0 0;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border);
+}
+
+.petition-field-help p {
+  margin: 0;
+}
+
+.petition-field-help p + p {
+  margin-top: 0.55rem;
+}
+
+.petition-field-help strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.petition-slot-hint {
+  margin-top: 0.55rem !important;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border);
+  color: var(--accent, #4ade80);
+  font-weight: 500;
+}
+
 .petition-detail-card {
   margin-top: 0.75rem;
   padding: 1.25rem;
