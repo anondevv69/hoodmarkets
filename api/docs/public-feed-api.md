@@ -31,6 +31,13 @@ GET /api/feed/deployments?sinceId=0&limit=50
       "tokenSymbol": "YERRR",
       "tokenAddress": "0x88eac49b6D87c0546a4ad8b7b0E77be93A3e4517",
       "poolId": "v3:595…",
+      "factory": {
+        "name": "hoodmarkets",
+        "label": "hood.markets",
+        "address": "0x9BDd…0Df5",
+        "launchType": "simple",
+        "variant": "v3"
+      },
       "factoryAddress": "0x9BDd…0Df5",
       "transactionHash": "0x…",
       "blockNumber": "3350123",
@@ -95,6 +102,7 @@ Each event includes a `metadata` object with token page content from launch time
 
 `deployer` includes `label`, `xUsername`, `xLaunchCount`, and `walletAddress` (when resolvable).
 `feeRecipient` includes the on-chain fee wallet and optional label.
+`factory` identifies the launch protocol (`name: "hoodmarkets"`, `label: "hood.markets"`, plus `launchType` simple/pro and `variant` v3/v4).
 `sourceUrl` is the original launch post (X tweet, etc.) when available.
 
 ### Example (Node.js)

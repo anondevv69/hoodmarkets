@@ -1,4 +1,5 @@
 import type { DeploymentCatalogRow } from './deploymentCatalog.js';
+import { resolveDeploymentFactoryInfo, type DeploymentFactoryInfo } from './deploymentFactoryInfo.js';
 import { hoodmarketsTokenUrl } from './launcherAppUrl.js';
 import { resolveRequesterXUsername, type DeploymentPublicExtras } from './requesterXUsername.js';
 
@@ -34,6 +35,8 @@ export type DeploymentFeedEvent = {
   tokenSymbol: string;
   tokenAddress: string;
   poolId?: string;
+  factory: DeploymentFactoryInfo;
+  /** @deprecated use `factory.address` */
   factoryAddress?: string;
   transactionHash: string;
   blockNumber: string;
@@ -84,6 +87,7 @@ export function buildDeploymentFeedEvent(row: FeedRow): DeploymentFeedEvent {
   const xUsername = row.requesterXUsername ?? resolveRequesterXUsername(row);
   const websiteUrl = optionalUrl(row.tokenWebsiteUrl);
   const xUrl = resolveXUrl(row, xUsername);
+  const factory = resolveDeploymentFactoryInfo(row);
 
   return {
     id: row.id,
@@ -94,7 +98,8 @@ export function buildDeploymentFeedEvent(row: FeedRow): DeploymentFeedEvent {
     tokenSymbol: row.tokenSymbol.replace(/^\$/, ''),
     tokenAddress: row.tokenAddress,
     poolId: row.poolId?.trim() || undefined,
-    factoryAddress: row.factoryAddress?.trim() || undefined,
+    factory,
+    factoryAddress: factory.address,
     transactionHash: row.transactionHash,
     blockNumber: row.blockNumber,
     sourceUrl: optionalUrl(row.sourceUrl),
