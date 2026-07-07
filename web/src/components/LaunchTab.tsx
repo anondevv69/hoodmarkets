@@ -748,7 +748,7 @@ export function LaunchTab() {
               disabled={submitting || cannotLaunch || !hasImage}
             >
               {submitting
-                ? 'Launching…'
+                ? 'Preparing launch…'
                 : !hasImage
                   ? 'Add a logo to launch'
                   : feeTarget === 'other' && !looksLikeFeeRecipientInput(feeRecipient)
@@ -759,6 +759,11 @@ export function LaunchTab() {
                     ? 'Ticker or name unavailable'
                     : 'Launch token'}
             </button>
+            {submitting ? (
+              <p className="muted" style={{ textAlign: 'center', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                Building deploy on the server — confirm in your wallet when prompted.
+              </p>
+            ) : null}
             {checkingCooldown && !cannotLaunch ? (
               <p className="muted" style={{ textAlign: 'center', fontSize: '0.8rem' }}>
                 Checking availability…
