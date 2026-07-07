@@ -1,3 +1,5 @@
+import { API_BASE } from '../api';
+
 /**
  * Robinhood Chain trades via GeckoTerminal (same approach as hoodpad.fun for pool swaps).
  * Free public API — rate-limited; we cache pool lookups and poll modestly.
@@ -106,10 +108,9 @@ function mapGeckoTrade(raw: GeckoTrade): TokenTradeRow | null {
 /** Recent swaps for a token (top pool by liquidity), HoodPad-style. */
 export async function fetchGeckoTokenTrades(tokenAddress: string): Promise<TokenTradeRow[]> {
   const key = tokenAddress.trim();
-  const apiBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim() || 'https://api.hood.markets';
 
   try {
-    const res = await fetch(`${apiBase}/api/tokens/${encodeURIComponent(key)}/trades`);
+    const res = await fetch(`${API_BASE}/api/tokens/${encodeURIComponent(key)}/trades`);
     if (res.ok) {
       const data = (await res.json()) as { trades?: TokenTradeRow[] };
       if (Array.isArray(data.trades)) {

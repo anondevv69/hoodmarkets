@@ -133,6 +133,9 @@ export async function fetchGeckoTokenTrades(tokenAddress: string): Promise<Gecko
     .filter((t): t is GeckoTokenTradeRow => t != null)
     .slice(0, MAX_TRADES);
 
-  tradesByToken.set(key, { trades, at: Date.now() });
-  return trades;
+  // Avoid caching empty responses from transient Gecko failures (429, timeouts).
+  if (trades.length > 0) {
+    tradesByToken.set(key, { trades, at: Date.now() });
+  }
+  return trades.length > 0 ? trades : cached?.trades ?? [];
 }
