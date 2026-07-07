@@ -7,7 +7,6 @@ import { DevPage } from './components/DevPage';
 import { CommunityLaunchPage } from './components/CommunityLaunchPage';
 import { SiteConnect } from './components/SiteConnect';
 import { ThemeToggle } from './components/ThemeToggle';
-import { SiteFooter } from './components/SiteFooter';
 import { TokenPage } from './components/TokenPage';
 import { TokensTab } from './components/TokensTab';
 import { useExploreTokens } from './hooks/useExploreTokens';
@@ -158,7 +157,7 @@ export default function App() {
         {/* Top bar */}
         <header className="site-topbar">
           <div className="site-topbar-left">
-            {(tokenAddress || deployerProfile) && (
+            {tokenAddress || deployerProfile ? (
               <button
                 type="button"
                 className="btn btn-ghost btn-sm topbar-back"
@@ -166,6 +165,16 @@ export default function App() {
                 aria-label="Back"
               >
                 ← Back
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="topbar-logo lp-display"
+                aria-label="hood.markets — back to explore"
+                onClick={openExplorePage}
+              >
+                <img src="/favicon.svg" alt="" className="topbar-logo-icon" aria-hidden />
+                <span className="topbar-logo-text">hood.markets</span>
               </button>
             )}
           </div>
@@ -204,8 +213,6 @@ export default function App() {
               <ProfileTab />
             )}
           </div>
-
-          {!tokenAddress && !devPage && !communityLaunchPage && <SiteFooter />}
         </main>
       </div>
 
@@ -221,7 +228,7 @@ export default function App() {
         </button>
         <button
           type="button"
-          className={`mobile-nav-item mobile-nav-launch${isLaunchActive ? ' active' : ''}`}
+          className={`mobile-nav-item${isLaunchActive ? ' active' : ''}`}
           onClick={() => navigateToAppTab('launch')}
         >
           <LaunchIcon />

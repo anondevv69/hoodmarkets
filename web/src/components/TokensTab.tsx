@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { fetchDeploymentByAddress } from '../api';
-import { useWebAuth } from '../auth/WebAuthContext';
 import { shortenAddress } from '../chain';
 import { formatUsdVol, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import type { ExploreToken } from '../lib/exploreTokens';
@@ -142,27 +141,12 @@ function ExploreRow({
 }
 
 function ExploreToolbarActions() {
-  const { ready, authenticated, connectWallet } = useWebAuth();
-
-  if (!ready) return null;
-
   return (
     <div className="explore-toolbar-actions">
-      {!authenticated ? (
-        <button type="button" className="btn btn-ghost btn-sm" onClick={connectWallet}>
-          Sign in
-        </button>
-      ) : null}
       <button
         type="button"
         className="btn btn-primary btn-sm"
-        onClick={() => {
-          if (authenticated) {
-            navigateToAppTab('launch');
-          } else {
-            void connectWallet();
-          }
-        }}
+        onClick={() => navigateToAppTab('launch')}
       >
         Launch
       </button>

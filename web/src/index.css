@@ -301,6 +301,32 @@ a:hover {
   color: var(--text);
 }
 
+/* Mobile-only logo in top bar (sidebar hidden on small screens) */
+.topbar-logo {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text);
+  font-family: inherit;
+  padding: 0.2rem 0;
+}
+
+.topbar-logo-icon {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 6px;
+}
+
+.topbar-logo-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
 /* ── Content area ── */
 .app-content {
   flex: 1;
@@ -373,18 +399,17 @@ a:hover {
     padding: 0 4px;
   }
 
-  .mobile-nav-item:hover,
-  .mobile-nav-item.active {
+  .mobile-nav-item:hover {
     color: var(--text);
   }
 
-  .mobile-nav-launch {
+  .mobile-nav-item.active {
     color: var(--accent);
-    font-weight: 700;
+    font-weight: 600;
   }
 
-  .mobile-nav-launch.active {
-    color: var(--accent);
+  .topbar-logo {
+    display: flex;
   }
 
   .app-content {
