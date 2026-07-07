@@ -3,6 +3,7 @@ import {
   countExploreTokens,
   listExploreTokens,
   getExplorePlatformStats,
+  getTokenMarketStatsByAddress,
   type ExploreFilter,
   type ExploreSort,
 } from '../lib/tokenMarketStats.js';
@@ -39,6 +40,33 @@ export function registerExploreRoutes(app: Express): void {
   app.options('/api/explore/stats', (req, res) => {
     setCors(req, res);
     res.status(204).end();
+  });
+
+  app.options('/api/tokens/:token/market-stats', (req, res) => {
+    setCors(req, res);
+    res.status(204).end();
+  });
+
+  app.get('/api/tokens/:token/market-stats', async (req, res) => {
+    setCors(req, res);
+    const token = typeof req.params.token === 'string' ? req.params.token.trim() : '';
+    if (!/^0x[a-fA-F0-9]{40}$/.test(token)) {
+      res.status(400).json({ ok: false, error: 'Invalid token address.' });
+      return;
+    }
+    try {
+      const stats = await getTokenMarketStatsByAddress(token);
+      if (!stats) {
+        res.status(404).json({ ok: false, error: 'No cached market stats for this token yet.' });
+        return;
+      }
+      res.json({ ok: true, stats });
+    } catch (e: unknown) {
+      res.status(500).json({
+        ok: false,
+        error: e instanceof Error ? e.message : 'Failed to load market stats.',
+      });
+    }
   });
 
   app.get('/api/explore/stats', async (req, res) => {

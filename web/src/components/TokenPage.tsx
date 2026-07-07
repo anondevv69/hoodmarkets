@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { fetchDeploymentByAddress, fetchTokenDexBranding, type TokenDetail } from '../api';
+import { fetchDeploymentByAddress, fetchTokenDexBranding, fetchTokenMarketStats, type TokenDetail } from '../api';
 import { shortenAddress, tokenUrl } from '../chain';
 import { fetchTokenMetricsFromDexscreener, type DexTokenMetrics } from '../lib/dexscreenerVolume';
+import { mergeTokenMetrics } from '../lib/tokenMarketStats';
 import { fetchTokenDescriptionFromChain } from '../lib/tokenOnChainMetadata';
 import { closeTokenPage } from '../lib/tokenRoute';
 import { formatTickerAge } from '../lib/exploreTokens';
@@ -94,12 +95,13 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               const onChainDesc = await fetchTokenDescriptionFromChain(tokenAddress);
               if (!cancelled) setDescription(onChainDesc);
             }
-            const [m, branding] = await Promise.all([
+            const [m, branding, cachedStats] = await Promise.all([
               fetchTokenMetricsFromDexscreener([row.tokenAddress]),
               fetchTokenDexBranding(row.tokenAddress).catch(() => null),
+              fetchTokenMarketStats(row.tokenAddress).catch(() => null),
             ]);
             if (!cancelled) {
-              const metricsRow = m[row.tokenAddress];
+              const metricsRow = mergeTokenMetrics(m[row.tokenAddress], cachedStats);
               setMetrics(metricsRow);
               const paid = branding?.dex.enhancedInfoPaid ?? metricsRow?.enhancedInfoPaid;
               setDisplayImageUrl(
@@ -243,7 +245,12 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
           variant="card"
         />
 
-        <TokenHeroMetrics metrics={metrics} loading={metricsLoading} variant="card" />
+        <TokenHeroMetrics
+          metrics={metrics}
+          loading={metricsLoading}
+          variant="card"
+          forceShow
+        />
       </section>
 
       <TokenBrandingPanel tokenAddress={token.tokenAddress} onImported={refreshBrandingDisplay} />
