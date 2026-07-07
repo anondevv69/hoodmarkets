@@ -9,7 +9,6 @@ import { SiteConnect } from './components/SiteConnect';
 import { ThemeToggle } from './components/ThemeToggle';
 import { SiteFooter } from './components/SiteFooter';
 import { TokenPage } from './components/TokenPage';
-import { TickerTape } from './components/TickerTape';
 import { TokensTab } from './components/TokensTab';
 import { useExploreTokens } from './hooks/useExploreTokens';
 import { useEnsureRobinhoodChain } from './hooks/useEnsureRobinhoodChain';
@@ -90,7 +89,6 @@ export default function App() {
 
   const showExploreChrome = !tokenAddress && !deployerProfile && !devPage && !communityLaunchPage;
   const {
-    tokens: exploreTokens,
     catalog,
     metricsByAddress,
     loading,
@@ -176,9 +174,6 @@ export default function App() {
             <SiteConnect />
           </div>
         </header>
-
-        {/* Ticker tape */}
-        {showExploreChrome && tab === 'tokens' ? <TickerTape tokens={exploreTokens} /> : null}
 
         {/* Page content */}
         <main className="app-content">
