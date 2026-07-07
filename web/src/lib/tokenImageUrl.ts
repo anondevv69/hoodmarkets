@@ -40,17 +40,16 @@ export function looksLikeDirectImageUrl(url: string | undefined | null): boolean
   return false;
 }
 
-/** Ordered URLs to try when rendering a token logo (configured Pinata gateway first for IPFS). */
+/** Ordered URLs to try when rendering a token logo (fast gateways first). */
 export function buildTokenImageCandidates(imageUrl: string | undefined | null): string[] {
   const raw = imageUrl?.trim();
   if (!raw) return [];
   const cid = extractIpfsCid(raw);
   if (!cid) return [raw];
-  const gateways = gatewayUrlsForCid(cid);
+  const gateways = gatewayUrlsForCid(cid).slice(0, 3);
   if (raw.startsWith('http://') || raw.startsWith('https://')) {
-    const ordered = [...gateways];
-    if (!ordered.includes(raw)) ordered.push(raw);
-    return [...new Set(ordered)];
+    const ordered = [raw, ...gateways.filter((g) => g !== raw)];
+    return [...new Set(ordered)].slice(0, 4);
   }
   return gateways;
 }

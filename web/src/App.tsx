@@ -145,7 +145,7 @@ export default function App() {
           </div>
         ) : null}
 
-        <div className="panel">
+        <div className={tokenAddress ? 'token-page-panel' : 'panel'}>
           {devPage ? (
             <DevPage />
           ) : communityLaunchPage ? (
