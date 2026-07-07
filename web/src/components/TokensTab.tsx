@@ -126,8 +126,7 @@ const SORT_OPTIONS: { id: ExploreSort; label: string }[] = [
   { id: 'mcap', label: 'Top mcap' },
 ];
 
-const FILTER_OPTIONS: { id: ExploreFilter; label: string; countKey?: 'liveCount' }[] = [
-  { id: 'live', label: 'Live', countKey: 'liveCount' },
+const FILTER_OPTIONS: { id: ExploreFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'new', label: 'New' },
 ];
@@ -245,11 +244,7 @@ export function TokensTab({ onNavigateToLaunch }: { onNavigateToLaunch?: () => v
         <div className="explore-filter-row">
           {FILTER_OPTIONS.map((opt) => {
             const count =
-              opt.countKey && platformStats
-                ? platformStats[opt.countKey]
-                : opt.id === 'all' && platformStats
-                  ? platformStats.tokensLaunched
-                  : null;
+              opt.id === 'all' && platformStats ? platformStats.tokensLaunched : null;
             return (
               <button
                 key={opt.id}
@@ -385,10 +380,6 @@ export function TokensTab({ onNavigateToLaunch }: { onNavigateToLaunch?: () => v
           <div>
             <span className="explore-platform-stats-label">Tokens launched</span>
             <strong>{platformStats.tokensLaunched}</strong>
-          </div>
-          <div>
-            <span className="explore-platform-stats-label">Live now</span>
-            <strong>{platformStats.liveCount}</strong>
           </div>
         </div>
       ) : null}
