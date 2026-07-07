@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchDeploymentByAddress, type TokenDetail } from '../api';
+import { fetchDeploymentByAddress, fetchTokenDexBranding, type TokenDetail } from '../api';
 import { shortenAddress, tokenUrl } from '../chain';
 import { fetchTokenMetricsFromDexscreener, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import { fetchTokenDescriptionFromChain } from '../lib/tokenOnChainMetadata';
@@ -14,6 +14,7 @@ import { TokenHeroMetrics } from './TokenHeroMetrics';
 import { TokenPageSidebar } from './TokenPageSidebar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 import { TokenSpaceComments } from './TokenSpaceComments';
+import { TokenBrandingPanel } from './TokenBrandingPanel';
 import { TokenFractionPanel } from './TokenFractionPanel';
 
 function CopyIcon() {
@@ -62,6 +63,8 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   const [description, setDescription] = useState<string | undefined>();
   const [metrics, setMetrics] = useState<DexTokenMetrics | undefined>();
   const [metricsLoading, setMetricsLoading] = useState(true);
+  const [displayImageUrl, setDisplayImageUrl] = useState<string | undefined>();
+  const [displayBannerUrl, setDisplayBannerUrl] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -74,6 +77,8 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
       setToken(null);
       setDescription(undefined);
       setMetrics(undefined);
+      setDisplayImageUrl(undefined);
+      setDisplayBannerUrl(undefined);
       setMetricsLoading(true);
       try {
         const row = await fetchDeploymentByAddress(tokenAddress);
@@ -89,8 +94,25 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               const onChainDesc = await fetchTokenDescriptionFromChain(tokenAddress);
               if (!cancelled) setDescription(onChainDesc);
             }
-            const m = await fetchTokenMetricsFromDexscreener([row.tokenAddress]);
-            if (!cancelled) setMetrics(m[row.tokenAddress]);
+            const [m, branding] = await Promise.all([
+              fetchTokenMetricsFromDexscreener([row.tokenAddress]),
+              fetchTokenDexBranding(row.tokenAddress).catch(() => null),
+            ]);
+            if (!cancelled) {
+              const metricsRow = m[row.tokenAddress];
+              setMetrics(metricsRow);
+              const paid = branding?.dex.enhancedInfoPaid ?? metricsRow?.enhancedInfoPaid;
+              setDisplayImageUrl(
+                branding?.displayImageUrl ||
+                  row.tokenImageUrl ||
+                  (paid ? metricsRow?.dexIconUrl ?? undefined : undefined),
+              );
+              setDisplayBannerUrl(
+                branding?.displayBannerUrl ||
+                  row.tokenBannerUrl ||
+                  (paid ? metricsRow?.dexBannerUrl ?? undefined : undefined),
+              );
+            }
           } finally {
             if (!cancelled) setMetricsLoading(false);
           }
@@ -108,7 +130,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   }, [tokenAddress]);
 
   useEffect(() => {
-    const img = token?.tokenImageUrl;
+    const img = displayImageUrl ?? token?.tokenImageUrl;
     if (!img) return;
     const href = resolveTokenImageUrl(img);
     if (!href) return;
@@ -120,7 +142,15 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
     return () => {
       link.remove();
     };
-  }, [token?.tokenImageUrl]);
+  }, [displayImageUrl, token?.tokenImageUrl]);
+
+  const refreshBrandingDisplay = () => {
+    void fetchDeploymentByAddress(tokenAddress).then((row) => {
+      setToken(row);
+      setDisplayImageUrl(row.tokenImageUrl);
+      setDisplayBannerUrl(row.tokenBannerUrl);
+    });
+  };
 
   if (loading) return <p className="muted">Loading token…</p>;
   if (error || !token) {
@@ -149,10 +179,25 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
 
   return (
     <div className="token-page lp-fade-in">
+      {displayBannerUrl ? (
+        <div className="tp-page-banner-wrap">
+          <img
+            className="tp-page-banner"
+            src={resolveTokenImageUrl(displayBannerUrl) ?? displayBannerUrl}
+            alt=""
+            loading="lazy"
+          />
+        </div>
+      ) : null}
       <section className="tp-token-card">
         <div className="tp-token-card-top">
           <div className="tp-token-card-id">
-            <TokenAvatar symbol={sym} imageUrl={token.tokenImageUrl} size={52} priority />
+            <TokenAvatar
+              symbol={sym}
+              imageUrl={displayImageUrl ?? token.tokenImageUrl}
+              size={52}
+              priority
+            />
             <div className="tp-token-card-title">
               <div className="tp-token-card-name-row">
                 <h1 className="tp-token-card-name">{token.tokenName}</h1>
@@ -230,6 +275,10 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
           deployBlockNumber={token.blockNumber}
           feeRecipientAddress={token.feeRecipientAddress}
         />
+      </div>
+
+      <div className="token-page-full-bleed">
+        <TokenBrandingPanel tokenAddress={token.tokenAddress} onImported={refreshBrandingDisplay} />
       </div>
 
       <div className="token-page-full-bleed">

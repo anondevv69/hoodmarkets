@@ -42,7 +42,8 @@ export function TokenHeroMetrics({
     metrics?.liquidityUsd != null ||
     metrics?.fdvUsd != null ||
     metrics?.volumeH24Usd != null ||
-    metrics?.priceUsd != null;
+    metrics?.priceUsd != null ||
+    metrics?.enhancedInfoPaid;
 
   if (!hasAny) return null;
 
@@ -53,17 +54,43 @@ export function TokenHeroMetrics({
       className={embedded ? 'tp-token-card-metrics' : 'tp-zone tp-hero-zone'}
       aria-busy={showSkeleton}
     >
-      <div className={embedded ? 'tp-token-card-mcap-label' : 'tp-hero-label'}>Market cap</div>
-      <div className={embedded ? 'tp-token-card-mcap-row' : 'tp-hero-value'}>
-        <span className={showSkeleton ? 'tp-hero-value-skeleton' : undefined}>
-          {showSkeleton ? '\u00a0' : formatUsdVol(mc)}
-        </span>
-        {!showSkeleton && change != null && Number.isFinite(change) ? (
-          <span className={`tp-hero-change${change < 0 ? ' neg' : ''}`}>
-            {change >= 0 ? '+' : ''}
-            {change.toFixed(2)}%
-          </span>
-        ) : null}
+      <div className={embedded ? 'tp-token-card-mcap-row tp-token-card-mcap-row--with-badge' : 'tp-hero-value'}>
+        {embedded ? (
+          <>
+            <div>
+              <div className="tp-token-card-mcap-label">Market cap</div>
+              <div className="tp-token-card-mcap-value">
+                <span className={showSkeleton ? 'tp-hero-value-skeleton' : undefined}>
+                  {showSkeleton ? '\u00a0' : formatUsdVol(mc)}
+                </span>
+                {!showSkeleton && change != null && Number.isFinite(change) ? (
+                  <span className={`tp-hero-change${change < 0 ? ' neg' : ''}`}>
+                    {change >= 0 ? '+' : ''}
+                    {change.toFixed(2)}%
+                  </span>
+                ) : null}
+              </div>
+            </div>
+            {!showSkeleton && metrics?.enhancedInfoPaid ? (
+              <span className="tp-dex-paid-badge" title="DexScreener Enhanced Token Info">
+                Dex paid ✓
+              </span>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <div className="tp-hero-label">Market cap</div>
+            <span className={showSkeleton ? 'tp-hero-value-skeleton' : undefined}>
+              {showSkeleton ? '\u00a0' : formatUsdVol(mc)}
+            </span>
+            {!showSkeleton && change != null && Number.isFinite(change) ? (
+              <span className={`tp-hero-change${change < 0 ? ' neg' : ''}`}>
+                {change >= 0 ? '+' : ''}
+                {change.toFixed(2)}%
+              </span>
+            ) : null}
+          </>
+        )}
       </div>
       <div className={embedded ? 'tp-token-card-stats' : 'tp-stat-row'}>
         <HeroStat

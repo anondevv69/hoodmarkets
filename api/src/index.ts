@@ -28,6 +28,7 @@ import { registerMyDeploymentsRoutes } from './routes/myDeployments.js';
 import { registerDeployerProfileRoutes } from './routes/deployerProfile.js';
 import { registerUserProfileRoutes } from './routes/userProfile.js';
 import { registerTokenSpaceRoutes } from './routes/tokenSpaces.js';
+import { registerTokenPageBrandingRoutes } from './routes/tokenPageBranding.js';
 import { registerMyDeploymentsClaimRoutes } from './routes/myDeploymentsClaim.js';
 import { registerMyDeploymentsCollectPoolRoutes } from './routes/myDeploymentsCollectPool.js';
 import { registerDeploymentFeeActionRoutes } from './routes/deploymentFeeActions.js';
@@ -235,6 +236,7 @@ async function main() {
     registerDeployerProfileRoutes(app);
     registerUserProfileRoutes(app);
     registerTokenSpaceRoutes(app);
+    registerTokenPageBrandingRoutes(app);
     registerMyDeploymentsClaimRoutes(app);
     registerMyDeploymentsCollectPoolRoutes(app);
     registerAgentCaptchaRoutes(app);

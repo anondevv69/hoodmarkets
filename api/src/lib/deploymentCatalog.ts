@@ -59,6 +59,8 @@ export interface DeploymentCatalogRow {
   tokenAddress: string;
   /** Public HTTPS or IPFS gateway URL stored at deploy time (also on-chain `imageUrl`). */
   tokenImageUrl?: string;
+  /** Optional hero banner for token page (Dex import or manual). */
+  tokenBannerUrl?: string;
   tokenWebsiteUrl?: string;
   tokenXUrl?: string;
   tokenDescription?: string;
@@ -832,6 +834,18 @@ export function initDeploymentCatalogDb(): void {
       },
     );
     db!.run(
+      `ALTER TABLE deployment_catalog ADD COLUMN token_banner_url TEXT NOT NULL DEFAULT ''`,
+      (err) => {
+        if (
+          err &&
+          !String(err.message).toLowerCase().includes('duplicate') &&
+          !String(err.message).toLowerCase().includes('already exists')
+        ) {
+          logger.warn('deploymentCatalog: token_banner_url column migration:', err.message);
+        }
+      },
+    );
+    db!.run(
       `ALTER TABLE deployment_catalog ADD COLUMN factory_address TEXT NOT NULL DEFAULT ''`,
       (err) => {
         if (
@@ -1108,6 +1122,51 @@ export async function updateDeploymentCatalogLaunchSource(
   });
 }
 
+export async function updateDeploymentCatalogBranding(
+  tokenAddress: string,
+  patch: { tokenImageUrl?: string; tokenBannerUrl?: string },
+): Promise<boolean> {
+  if (!db) return false;
+  let tok: string;
+  try {
+    tok = getAddress(tokenAddress).toLowerCase();
+  } catch {
+    return false;
+  }
+
+  const sets: string[] = [];
+  const params: string[] = [];
+
+  if (patch.tokenImageUrl !== undefined) {
+    const image = resolveTokenImageUrl(patch.tokenImageUrl.trim())?.slice(0, 1024) ?? '';
+    sets.push('token_image_url = ?');
+    params.push(image);
+  }
+  if (patch.tokenBannerUrl !== undefined) {
+    const banner = patch.tokenBannerUrl.trim().slice(0, 1024);
+    sets.push('token_banner_url = ?');
+    params.push(banner);
+  }
+  if (!sets.length) return false;
+
+  params.push(tok);
+
+  return new Promise((resolve) => {
+    db!.run(
+      `UPDATE deployment_catalog SET ${sets.join(', ')} WHERE lower(token_address) = ?`,
+      params,
+      function (this: { changes: number }, err) {
+        if (err) {
+          logger.warn('updateDeploymentCatalogBranding failed:', err.message);
+          resolve(false);
+          return;
+        }
+        resolve(this.changes > 0);
+      },
+    );
+  });
+}
+
 export type DeploymentCatalogClaimedFilter = 'any' | 'yes' | 'no';
 
 export async function countVisibleDeploymentCatalog(
@@ -1167,6 +1226,7 @@ export async function listDeploymentCatalog(
               COALESCE(dc.factory_address, '') AS factoryAddress,
               dc.token_name AS tokenName, dc.token_symbol AS tokenSymbol,
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
+              COALESCE(dc.token_banner_url, '') AS tokenBannerUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
               COALESCE(dc.token_x_url, '') AS tokenXUrl,
               COALESCE(dc.token_description, '') AS tokenDescription,
@@ -1237,6 +1297,7 @@ export async function listDeploymentCatalogByFeeRecipient(
               COALESCE(dc.chain, 'base') AS chain,
               dc.token_name AS tokenName, dc.token_symbol AS tokenSymbol,
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
+              COALESCE(dc.token_banner_url, '') AS tokenBannerUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
               COALESCE(dc.token_x_url, '') AS tokenXUrl,
               COALESCE(dc.token_description, '') AS tokenDescription,
@@ -1322,6 +1383,7 @@ export async function listDeploymentCatalogByDeployerPlatformHandle(
               COALESCE(dc.chain, 'base') AS chain,
               dc.token_name AS tokenName, dc.token_symbol AS tokenSymbol,
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
+              COALESCE(dc.token_banner_url, '') AS tokenBannerUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
               COALESCE(dc.token_x_url, '') AS tokenXUrl,
               COALESCE(dc.token_description, '') AS tokenDescription,
@@ -1387,6 +1449,7 @@ export async function listDeploymentCatalogByDeployer(
               COALESCE(dc.chain, 'base') AS chain,
               dc.token_name AS tokenName, dc.token_symbol AS tokenSymbol,
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
+              COALESCE(dc.token_banner_url, '') AS tokenBannerUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
               COALESCE(dc.token_x_url, '') AS tokenXUrl,
               COALESCE(dc.token_description, '') AS tokenDescription,
@@ -1452,6 +1515,7 @@ export async function listDeploymentCatalogForUser(
               COALESCE(dc.chain, 'base') AS chain,
               dc.token_name AS tokenName, dc.token_symbol AS tokenSymbol,
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
+              COALESCE(dc.token_banner_url, '') AS tokenBannerUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
               COALESCE(dc.token_x_url, '') AS tokenXUrl,
               COALESCE(dc.token_description, '') AS tokenDescription,
@@ -1500,6 +1564,7 @@ const SELECT_DEPLOYMENT_ROW = `dc.id, dc.created_at AS createdAt, dc.platform, d
               COALESCE(dc.factory_address, '') AS factoryAddress,
               dc.token_name AS tokenName, dc.token_symbol AS tokenSymbol,
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
+              COALESCE(dc.token_banner_url, '') AS tokenBannerUrl,
               COALESCE(dc.token_website_url, '') AS tokenWebsiteUrl,
               COALESCE(dc.token_x_url, '') AS tokenXUrl,
               COALESCE(dc.token_description, '') AS tokenDescription,
