@@ -41,7 +41,7 @@ type WebAuthContextValue = {
 const WebAuthContext = createContext<WebAuthContextValue | null>(null);
 
 export function WebAuthProvider({ children }: { children: ReactNode }) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, status } = useAccount();
   const { disconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
   const { openConnectModal } = useConnectModal();
@@ -86,6 +86,22 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const signInConnectedWallet = useCallback(async () => {
+    if (!address || signing) return;
+    setSigning(true);
+    try {
+      await completeWalletLogin(address, (message) => signMessageAsync({ message }), 'injected');
+    } catch (e) {
+      setAuthError(e instanceof Error ? e.message : 'Wallet sign-in failed.');
+      disconnect();
+      clearStoredSession();
+      setSession(null);
+      setAuthMethod(null);
+    } finally {
+      setSigning(false);
+    }
+  }, [address, signing, completeWalletLogin, signMessageAsync, disconnect]);
+
   useEffect(() => {
     if (!ready || signing || authMethod === 'bankr') return;
     if (!isConnected || !address) return;
@@ -128,10 +144,34 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
     setAuthError(null);
     if (openConnectModal) {
       openConnectModal();
-    } else {
-      setAuthError('Wallet connect is unavailable. Refresh and try again.');
+      return;
     }
-  }, [openConnectModal]);
+    if (status === 'connecting' || status === 'reconnecting') {
+      setAuthError('Connecting wallet… check your extension.');
+      return;
+    }
+    if (isConnected && address) {
+      if (signing) {
+        setAuthError('Approve the sign-in message in your wallet.');
+        return;
+      }
+      if (session?.walletAddress?.toLowerCase() !== address.toLowerCase()) {
+        void signInConnectedWallet();
+        return;
+      }
+      setAuthError('Already connected. Refresh if sign-in did not complete.');
+      return;
+    }
+    setAuthError('Wallet connect is loading… try again in a moment.');
+  }, [
+    openConnectModal,
+    status,
+    isConnected,
+    address,
+    signing,
+    session?.walletAddress,
+    signInConnectedWallet,
+  ]);
 
   const loginWithBankr = useCallback(
     async (apiKey: string) => {
