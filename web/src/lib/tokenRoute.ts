@@ -2,14 +2,18 @@ export type AppTab = 'tokens' | 'launch' | 'profile';
 
 /** Leave token/profile/dev routes and open a main app tab on `/`. */
 export function navigateToAppTab(tab: AppTab): void {
-  const url = new URL(window.location.origin + '/');
+  const url = new URL(window.location.href);
+  if (url.pathname !== '/' && url.pathname !== '') {
+    url.pathname = '/';
+  }
   url.searchParams.set('tab', tab);
   url.searchParams.delete('token');
   url.searchParams.delete('buy');
   url.searchParams.delete('profile');
   url.searchParams.delete('user');
   url.searchParams.delete('address');
-  window.history.pushState({}, '', `${url.pathname}${url.search}`);
+  const next = `${url.pathname}${url.search}`;
+  window.history.pushState({}, '', next);
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 

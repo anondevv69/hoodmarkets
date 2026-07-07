@@ -140,14 +140,10 @@ function ExploreRow({
   );
 }
 
-function ExploreToolbarActions() {
+function ExploreToolbarActions({ onLaunch }: { onLaunch: () => void }) {
   return (
     <div className="explore-toolbar-actions">
-      <button
-        type="button"
-        className="btn btn-primary btn-sm"
-        onClick={() => navigateToAppTab('launch')}
-      >
+      <button type="button" className="btn btn-primary btn-sm" onClick={onLaunch}>
         Launch
       </button>
     </div>
@@ -162,6 +158,7 @@ export function TokensTab({
   error,
   onEnsureMetrics,
   onEnsureCatalogSize,
+  onNavigateToLaunch,
 }: {
   catalog: Deployment[];
   metricsByAddress: Record<string, DexTokenMetrics | undefined>;
@@ -170,6 +167,7 @@ export function TokensTab({
   error: string | null;
   onEnsureMetrics?: (addresses: string[]) => void;
   onEnsureCatalogSize?: (minCount: number) => void;
+  onNavigateToLaunch?: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ExploreSort>('mcap');
@@ -269,6 +267,11 @@ export function TokensTab({
     fullAddressQuery != null &&
     (loading || inCatalog || addressLookupState === 'loading');
 
+  const goLaunch = () => {
+    if (onNavigateToLaunch) onNavigateToLaunch();
+    else navigateToAppTab('launch');
+  };
+
   if (loading) return <p className="muted">Loading tokens…</p>;
   if (error) return <p className="error">{error}</p>;
 
@@ -282,7 +285,7 @@ export function TokensTab({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by name or contract address"
           />
-          <ExploreToolbarActions />
+          <ExploreToolbarActions onLaunch={goLaunch} />
         </div>
         <p className="muted">Opening token page…</p>
       </div>
@@ -322,7 +325,7 @@ export function TokensTab({
             Newest
           </button>
         </div>
-        <ExploreToolbarActions />
+        <ExploreToolbarActions onLaunch={goLaunch} />
         {sortedTokens.length > 0 ? (
           <p className="explore-count muted">
             {sortedTokens.length} token{sortedTokens.length === 1 ? '' : 's'}

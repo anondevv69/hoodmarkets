@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { LaunchTab } from './components/LaunchTab';
 import { ProfileTab } from './components/ProfileTab';
 import { DeployerProfilePage } from './components/DeployerProfilePage';
@@ -102,6 +102,11 @@ export default function App() {
   const isProfileActive = tab === 'profile' && !tokenAddress && !deployerProfile && !devPage && !communityLaunchPage;
   const isDocsActive = devPage;
 
+  const navigateTab = useCallback((next: Tab) => {
+    setTab(next);
+    navigateToAppTab(next);
+  }, []);
+
   return (
     <div className="app-shell">
       {/* Left sidebar */}
@@ -120,7 +125,7 @@ export default function App() {
           <button
             type="button"
             className={`sidebar-nav-item${isExploreActive ? ' active' : ''}`}
-            onClick={() => navigateToAppTab('tokens')}
+            onClick={() => navigateTab('tokens')}
           >
             <ExploreIcon />
             <span>Explore</span>
@@ -128,7 +133,7 @@ export default function App() {
           <button
             type="button"
             className={`sidebar-nav-item${isLaunchActive ? ' active' : ''}`}
-            onClick={() => navigateToAppTab('launch')}
+            onClick={() => navigateTab('launch')}
           >
             <LaunchIcon />
             <span>Launch</span>
@@ -136,7 +141,7 @@ export default function App() {
           <button
             type="button"
             className={`sidebar-nav-item${isProfileActive ? ' active' : ''}`}
-            onClick={() => navigateToAppTab('profile')}
+            onClick={() => navigateTab('profile')}
           >
             <ProfileIcon />
             <span>Profile</span>
@@ -206,6 +211,7 @@ export default function App() {
                 error={error}
                 onEnsureMetrics={ensureMetrics}
                 onEnsureCatalogSize={ensureCatalogSize}
+                onNavigateToLaunch={() => navigateTab('launch')}
               />
             ) : tab === 'launch' ? (
               <LaunchTab />
@@ -221,7 +227,7 @@ export default function App() {
         <button
           type="button"
           className={`mobile-nav-item${isExploreActive ? ' active' : ''}`}
-          onClick={() => navigateToAppTab('tokens')}
+          onClick={() => navigateTab('tokens')}
         >
           <ExploreIcon />
           <span>Explore</span>
@@ -229,7 +235,7 @@ export default function App() {
         <button
           type="button"
           className={`mobile-nav-item${isLaunchActive ? ' active' : ''}`}
-          onClick={() => navigateToAppTab('launch')}
+          onClick={() => navigateTab('launch')}
         >
           <LaunchIcon />
           <span>Launch</span>
@@ -237,7 +243,7 @@ export default function App() {
         <button
           type="button"
           className={`mobile-nav-item${isProfileActive ? ' active' : ''}`}
-          onClick={() => navigateToAppTab('profile')}
+          onClick={() => navigateTab('profile')}
         >
           <ProfileIcon />
           <span>Profile</span>
