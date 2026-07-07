@@ -52,7 +52,13 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
   const [signing, setSigning] = useState(false);
 
   useEffect(() => {
-    setSession(readStoredSession());
+    const stored = readStoredSession();
+    setSession(stored);
+    if (stored?.walletKind === 'bankr-evm') {
+      setAuthMethod('bankr');
+    } else if (stored?.token) {
+      setAuthMethod('rainbow');
+    }
     setReady(true);
   }, []);
 
@@ -120,7 +126,11 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
 
   const connectWallet = useCallback(() => {
     setAuthError(null);
-    openConnectModal?.();
+    if (openConnectModal) {
+      openConnectModal();
+    } else {
+      setAuthError('Wallet connect is unavailable. Refresh and try again.');
+    }
   }, [openConnectModal]);
 
   const loginWithBankr = useCallback(

@@ -1,3 +1,4 @@
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useState } from 'react';
 import { shortenAddress } from '../chain';
 import { useWebAuth } from '../auth/WebAuthContext';
@@ -9,7 +10,6 @@ export function SiteConnect() {
     authenticated,
     walletAddress,
     authMethod,
-    connectWallet,
     loginWithBankr,
     logout,
     authError,
@@ -19,6 +19,7 @@ export function SiteConnect() {
   const [bankrKey, setBankrKey] = useState('');
   const [bankrBusy, setBankrBusy] = useState(false);
   const [bankrError, setBankrError] = useState<string | null>(null);
+  const [connectError, setConnectError] = useState<string | null>(null);
 
   if (!ready) return null;
 
@@ -59,23 +60,42 @@ export function SiteConnect() {
 
   return (
     <div className="site-connect">
-      <button type="button" className="btn btn-primary site-connect-btn" onClick={connectWallet}>
-        Connect wallet
-      </button>
+      <ConnectButton.Custom>
+        {({ openConnectModal, mounted }) => (
+          <button
+            type="button"
+            className="btn btn-primary site-connect-btn"
+            disabled={!mounted}
+            onClick={() => {
+              setConnectError(null);
+              setBankrError(null);
+              clearAuthError();
+              if (openConnectModal) {
+                openConnectModal();
+              } else {
+                setConnectError('Wallet connect is unavailable. Refresh and try again.');
+              }
+            }}
+          >
+            Connect wallet
+          </button>
+        )}
+      </ConnectButton.Custom>
       <button
         type="button"
         className="btn btn-ghost site-connect-btn"
         onClick={() => {
           setBankrOpen((v) => !v);
           setBankrError(null);
+          setConnectError(null);
           clearAuthError();
         }}
       >
         Bankr
       </button>
-      {(authError || bankrError) && (
+      {(authError || bankrError || connectError) && (
         <p className="site-connect-error" role="alert">
-          {bankrError || authError}
+          {bankrError || connectError || authError}
         </p>
       )}
       {bankrOpen ? (
@@ -90,7 +110,7 @@ export function SiteConnect() {
           </p>
           <input
             type="password"
-            className="input"
+            className="lp-input"
             placeholder="bk_…"
             value={bankrKey}
             onChange={(e) => setBankrKey(e.target.value)}
