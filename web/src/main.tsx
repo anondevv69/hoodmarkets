@@ -1,5 +1,5 @@
 import '@rainbow-me/rainbowkit/styles.css';
-import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
+import { RainbowKitProvider, lightTheme, darkTheme } from '@rainbow-me/rainbowkit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -7,7 +7,10 @@ import { WagmiProvider } from 'wagmi';
 import App from './App';
 import { WebAuthProvider } from './auth/WebAuthContext';
 import { wagmiConfig } from './wagmi';
+import { initTheme } from './lib/theme';
 import './index.css';
+
+initTheme();
 
 const queryClient = new QueryClient();
 
@@ -16,10 +19,18 @@ createRoot(document.getElementById('root')!).render(
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
-          theme={darkTheme({
-            accentColor: '#00c805',
-            borderRadius: 'medium',
-          })}
+          theme={{
+            lightMode: lightTheme({
+              accentColor: '#1C180D',
+              accentColorForeground: '#CCFF00',
+              borderRadius: 'medium',
+            }),
+            darkMode: darkTheme({
+              accentColor: '#CCFF00',
+              accentColorForeground: '#1C180D',
+              borderRadius: 'medium',
+            }),
+          }}
           modalSize="compact"
         >
           <WebAuthProvider>

@@ -29,7 +29,7 @@ export function DexMetricsStrip({ metrics }: { metrics?: DexTokenMetrics }) {
       {typeof chg === 'number' ? (
         <span
           title="24h price change"
-          style={{ color: chg >= 0 ? 'var(--accent)' : 'var(--danger)' }}
+          style={{ color: chg >= 0 ? 'var(--ticker-up)' : 'var(--danger)' }}
         >
           {chg >= 0 ? '+' : ''}
           {chg.toFixed(1)}%
