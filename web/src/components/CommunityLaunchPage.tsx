@@ -8,6 +8,8 @@ import {
   fetchCommunityLaunchStatus,
   prepareCommunityLaunchDeposit,
   confirmCommunityLaunchDeposit,
+  refundCommunityLaunch,
+  cancelCommunityLaunch,
   type CommunityLaunchSummary,
 } from '../api';
 import {
@@ -21,6 +23,11 @@ import {
 } from '../lib/communityLaunchRoute';
 import { openTokenPage } from '../lib/tokenRoute';
 import { shortenAddress } from '../chain';
+
+function walletsMatch(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  return a.toLowerCase() === b.toLowerCase();
+}
 
 function RaiseProgressBar({
   raisedEth,
@@ -188,6 +195,7 @@ function PetitionDetail({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [contributionEth, setContributionEth] = useState('');
   const [busy, setBusy] = useState(false);
+  const [action, setAction] = useState<'deposit' | 'refund' | 'cancel' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -225,6 +233,7 @@ function PetitionDetail({ id }: { id: string }) {
       return;
     }
     setBusy(true);
+    setAction('deposit');
     setError(null);
     setMessage(null);
     try {
@@ -259,13 +268,91 @@ function PetitionDetail({ id }: { id: string }) {
       setError(e instanceof Error ? e.message : 'Deposit failed');
     } finally {
       setBusy(false);
+      setAction(null);
+    }
+  };
+
+  const onRefund = async () => {
+    if (!walletAddress) {
+      connectWallet();
+      return;
+    }
+    if (
+      !window.confirm(
+        'Request a full refund of your ETH contribution? This cannot be undone.',
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setAction('refund');
+    setError(null);
+    setMessage(null);
+    try {
+      const order = petition?.orders?.find(
+        (o) => walletsMatch(o.wallet, walletAddress) && o.status === 'active',
+      );
+      const res = await refundCommunityLaunch({ id, wallet: walletAddress });
+      setMessage(`Refunded ${order?.contributionEth ?? ''} ETH to your wallet.`);
+      setPetition(res.petition);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Refund failed');
+    } finally {
+      setBusy(false);
+      setAction(null);
+    }
+  };
+
+  const onCancelLaunch = async () => {
+    if (!walletAddress) {
+      connectWallet();
+      return;
+    }
+    const refundNote =
+      Number.parseFloat(petition?.raisedEth ?? '0') > 0
+        ? ' All backers will receive full ETH refunds.'
+        : '';
+    if (
+      !window.confirm(
+        `Cancel this community launch?${refundNote} This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setAction('cancel');
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await cancelCommunityLaunch({ id, wallet: walletAddress });
+      const count = res.refunds?.length ?? 0;
+      setMessage(
+        count > 0
+          ? `Launch cancelled — refunded ${count} backer${count === 1 ? '' : 's'}.`
+          : 'Launch cancelled.',
+      );
+      setPetition(res.petition);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Cancel failed');
+    } finally {
+      setBusy(false);
+      setAction(null);
     }
   };
 
   if (loading && !petition) return <p className="muted">Loading community launch…</p>;
   if (!petition) return <p className="error">{error ?? 'Community launch not found'}</p>;
 
+  const canRefund = petition.status === 'open' || petition.status === 'expired';
   const canDeposit = petition.status === 'open';
+  const isCreator = walletsMatch(walletAddress, petition.starterWallet);
+  const myOrder = petition.orders?.find(
+    (o) => walletsMatch(o.wallet, walletAddress) && o.status === 'active',
+  );
+  const hasActiveContribution = Boolean(myOrder);
+  const slotMode = petition.agentParticipation.fixedUnitsPerWallet;
+  const supportersRemaining = petition.agentParticipation.supportersRemaining;
+  const supportersJoined = petition.agentParticipation.supportersJoined;
   const estimatedPct =
     contributionEth && petition.targetRaiseEth
       ? Math.min(
@@ -302,8 +389,32 @@ function PetitionDetail({ id }: { id: string }) {
             <dd>{petition.status}</dd>
           </div>
           <div>
+            <dt>Raised</dt>
+            <dd>
+              {petition.raisedEth} / {petition.targetRaiseEth} ETH
+            </dd>
+          </div>
+          {canRefund ? (
+            <div>
+              <dt>Remaining</dt>
+              <dd>{petition.remainingEth} ETH to goal</dd>
+            </div>
+          ) : null}
+          <div>
             <dt>Initial LP buy</dt>
             <dd>{petition.targetRaiseEth} ETH at goal</dd>
+          </div>
+          {slotMode && supportersRemaining != null ? (
+            <div>
+              <dt>Supporter slots</dt>
+              <dd>
+                {supportersJoined ?? 0} joined · {supportersRemaining} left
+              </dd>
+            </div>
+          ) : null}
+          <div>
+            <dt>Holder NFT shares</dt>
+            <dd>1,000 total · split pro-rata at launch</dd>
           </div>
           <div>
             <dt>Expires</dt>
@@ -313,6 +424,12 @@ function PetitionDetail({ id }: { id: string }) {
             <div>
               <dt>Per slot</dt>
               <dd>{petition.contributionPerSlotEth} ETH</dd>
+            </div>
+          ) : null}
+          {petition.starterWallet ? (
+            <div>
+              <dt>Creator</dt>
+              <dd className="lp-mono">{shortenAddress(petition.starterWallet)}</dd>
             </div>
           ) : null}
           {petition.escrowWallet ? (
@@ -333,7 +450,7 @@ function PetitionDetail({ id }: { id: string }) {
           </button>
         ) : null}
 
-        {canDeposit ? (
+        {canDeposit && !hasActiveContribution ? (
           <div className="petition-back-block">
             <h2 className="petition-section-title">Back this launch</h2>
             <label className="field-label">
@@ -351,13 +468,67 @@ function PetitionDetail({ id }: { id: string }) {
                 ~{estimatedShares} / 1,000 shares ({estimatedPct.toFixed(2)}% of raise at goal)
               </p>
             ) : null}
-            {error ? <p className="error">{error}</p> : null}
-            {message ? <p className="muted">{message}</p> : null}
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={onDeposit}>
-              {busy ? 'Sending…' : wallet ? 'Send ETH contribution' : 'Connect wallet to back'}
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy}
+              onClick={onDeposit}
+            >
+              {busy && action === 'deposit'
+                ? 'Sending…'
+                : wallet
+                  ? 'Send ETH contribution'
+                  : 'Connect wallet to back'}
             </button>
           </div>
         ) : null}
+
+        {hasActiveContribution ? (
+          <div className="petition-back-block">
+            <h2 className="petition-section-title">Your contribution</h2>
+            <p className="muted">
+              {myOrder!.contributionEth} ETH · ~{myOrder!.estimatedShares} Holder NFT shares at
+              current raise
+            </p>
+            {canRefund ? (
+              <div className="petition-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={busy}
+                  onClick={onRefund}
+                >
+                  {busy && action === 'refund' ? 'Refunding…' : 'Request refund'}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {isCreator && canRefund ? (
+          <div className="petition-back-block petition-cancel-block">
+            <h2 className="petition-section-title">Creator controls</h2>
+            <p className="muted">
+              Cancel this launch at any time before the goal is met.
+              {Number.parseFloat(petition.raisedEth) > 0
+                ? ' All backers will be refunded automatically.'
+                : ''}
+            </p>
+            <div className="petition-actions">
+              <button
+                type="button"
+                className="btn btn-ghost petition-cancel-btn"
+                disabled={busy}
+                onClick={onCancelLaunch}
+              >
+                {busy && action === 'cancel' ? 'Cancelling…' : 'Cancel launch & refund all'}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {error ? <p className="error">{error}</p> : null}
+        {message ? <p className="muted">{message}</p> : null}
       </div>
     </div>
   );

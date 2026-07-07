@@ -379,8 +379,12 @@ export async function markPetitionFailed(petitionId: number, error: string): Pro
   ]);
 }
 
-export async function markPetitionCancelled(petitionId: number): Promise<void> {
-  await run(`UPDATE petitions SET status = 'cancelled' WHERE id = ?`, [petitionId]);
+export async function markPetitionCancelled(petitionId: number): Promise<boolean> {
+  await run(`UPDATE petitions SET status = 'cancelled' WHERE id = ? AND status IN ('open', 'expired')`, [
+    petitionId,
+  ]);
+  const row = await getPetitionById(petitionId);
+  return row?.status === 'cancelled';
 }
 
 export async function insertPetitionOrder(input: {
