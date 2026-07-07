@@ -51,7 +51,7 @@ export function LiveTradesTable({
     try {
       let trades = await fetchGeckoTokenTrades(tokenAddress);
       if (trades.length === 0) {
-        const latest = await fetchLatestRobinhoodSwaps(100);
+        const latest = await fetchLatestRobinhoodSwaps(500);
         trades = filterSwapsForToken(latest, tokenAddress).map(swapToRow);
       }
       setRows(trades);
@@ -80,7 +80,7 @@ export function LiveTradesTable({
     })
     .slice(0, compact ? COMPACT_MAX_ROWS : undefined);
 
-  if (hideWhenEmpty && (loading || visible.length === 0)) {
+  if (hideWhenEmpty && !loading && rows.length === 0) {
     return null;
   }
 

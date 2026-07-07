@@ -105,7 +105,22 @@ function mapGeckoTrade(raw: GeckoTrade): TokenTradeRow | null {
 
 /** Recent swaps for a token (top pool by liquidity), HoodPad-style. */
 export async function fetchGeckoTokenTrades(tokenAddress: string): Promise<TokenTradeRow[]> {
-  const pool = await resolveTopPoolAddress(tokenAddress);
+  const key = tokenAddress.trim();
+  const apiBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim() || 'https://api.hood.markets';
+
+  try {
+    const res = await fetch(`${apiBase}/api/tokens/${encodeURIComponent(key)}/trades`);
+    if (res.ok) {
+      const data = (await res.json()) as { trades?: TokenTradeRow[] };
+      if (Array.isArray(data.trades)) {
+        return data.trades.slice(0, MAX_TRADES);
+      }
+    }
+  } catch {
+    /* fall through to direct Gecko */
+  }
+
+  const pool = await resolveTopPoolAddress(key);
   if (!pool) return [];
 
   const data = await geckoGet<{ data?: GeckoTrade[] }>(
