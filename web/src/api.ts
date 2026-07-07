@@ -441,6 +441,7 @@ async function postDeploy(
     transactionHash?: string;
     deploymentConfig?: WalletDeployPrepare['deploymentConfig'];
   },
+  opts?: { timeoutMs?: number },
 ): Promise<DeployResult & WalletDeployPrepare> {
   const res = await fetch(`${API_BASE}/api/deploy`, {
     method: 'POST',
@@ -452,6 +453,7 @@ async function postDeploy(
       ...payload,
       ...deployFeeBody(payload),
     }),
+    signal: opts?.timeoutMs ? AbortSignal.timeout(opts.timeoutMs) : undefined,
   });
 
   const data = (await res.json()) as DeployResult &
@@ -548,11 +550,25 @@ export async function deployToken(
       throw new Error('Connect a wallet to include your initial buy in the launch transaction.');
     }
 
-    const prepare = await postDeploy(token, {
-      ...payload,
-      initialBuyEth: initialBuy,
-      walletDeployPhase: 'prepare',
-    });
+    let prepare: DeployResult & WalletDeployPrepare;
+    try {
+      prepare = await postDeploy(
+        token,
+        {
+          ...payload,
+          initialBuyEth: initialBuy,
+          walletDeployPhase: 'prepare',
+        },
+        { timeoutMs: 120_000 },
+      );
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'TimeoutError') {
+        throw new Error(
+          'Launch prepare timed out waiting on the API. Try again in a moment — your wallet opens after the server finishes building the deploy.',
+        );
+      }
+      throw err;
+    }
 
     if (prepare.mode !== 'wallet') {
       throw new Error(

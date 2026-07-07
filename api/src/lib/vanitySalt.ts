@@ -15,12 +15,11 @@ export function normalizeVanitySuffix(raw: string): string {
   return s;
 }
 
-/** Suffix for CREATE2 vanity mining. Default `4004`; set `false` / `off` / `0` to disable. */
+/** Suffix for CREATE2 vanity mining. Opt-in only — set e.g. `4004`; unset / false / off disables. */
 export function resolveVanityAddressSuffix(): string | null {
   const raw = process.env.VANITY_ADDRESS_SUFFIX?.trim();
   if (!raw || raw === 'false' || raw === '0' || raw === 'off' || raw === 'none') {
-    if (raw) return null;
-    return normalizeVanitySuffix('4004');
+    return null;
   }
   return normalizeVanitySuffix(raw);
 }
@@ -80,7 +79,7 @@ export async function bruteForceVanitySalt(
       }
     }
 
-    if (totalAttempts === batch || totalAttempts - lastProgressLog >= 25_000) {
+    if (totalAttempts === batch || totalAttempts - lastProgressLog >= 5_000) {
       lastProgressLog = totalAttempts;
       logger.info('Vanity mining in progress', {
         attempts: totalAttempts,
