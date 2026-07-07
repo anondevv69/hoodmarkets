@@ -107,10 +107,14 @@ body {
   min-height: 100vh;
   background: var(--bg);
   background-image: none;
+  overflow-x: clip;
 }
 
 #root {
   min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: clip;
 }
 
 .lp-display {
@@ -157,17 +161,19 @@ a:hover {
 .app-shell {
   display: flex;
   min-height: 100vh;
-  position: relative;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: clip;
 }
 
 /* ── Sidebar ── */
 .site-sidebar {
   width: 220px;
   flex-shrink: 0;
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  bottom: 0;
+  align-self: flex-start;
+  height: 100vh;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--border);
   display: flex;
@@ -248,7 +254,7 @@ a:hover {
 /* ── Main area ── */
 .app-main {
   flex: 1;
-  margin-left: 220px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -299,9 +305,10 @@ a:hover {
 .app-content {
   flex: 1;
   padding: 1.5rem 1.5rem 3rem;
-  max-width: 1000px;
   width: 100%;
+  max-width: 1080px;
   margin: 0 auto;
+  min-width: 0;
 }
 
 .content-panel {
@@ -309,6 +316,7 @@ a:hover {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 1.25rem;
+  min-width: 0;
 }
 
 /* Legacy: keep .panel for components that still use it directly */
@@ -331,7 +339,6 @@ a:hover {
   }
 
   .app-main {
-    margin-left: 0;
     padding-bottom: 60px;
   }
 
@@ -4481,6 +4488,7 @@ label {
 
 .explore-card {
   overflow: hidden;
+  min-width: 0;
 }
 
 .explore-head {
