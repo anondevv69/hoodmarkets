@@ -77,7 +77,7 @@ export function ClaimFeesActions({
   async function requireWallet() {
     if (!wallet) {
       if (login) login();
-      throw new Error('Connect a wallet to continue. You pay gas.');
+      throw new Error('Connect a wallet to continue.');
     }
     const provider = await wallet.getEthereumProvider();
     return { wallet, provider };
@@ -146,9 +146,7 @@ export function ClaimFeesActions({
       ? '…'
       : 'Never';
 
-  const walletNote = wallet
-    ? 'You pay gas for on-chain transactions.'
-    : 'Connect a wallet to claim. You pay gas.';
+  const walletNote = 'Anyone can claim fees for fee recipients.';
 
   if (variant === 'sidebar') {
     return (
