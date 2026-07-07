@@ -157,10 +157,22 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
           max={500}
           value={supporterSlots}
           onChange={(e) => setSupporterSlots(e.target.value)}
-          placeholder="e.g. 20 → equal ETH slots"
+          placeholder="e.g. 20"
         />
       </label>
-      {slotHint ? <p className="muted petition-slot-hint">{slotHint}</p> : null}
+      <div className="petition-field-help muted" role="note">
+        <p>
+          <strong>Leave blank</strong> for a flexible raise: anyone can back any amount up to what&apos;s
+          left on the goal. Shares are split <strong>pro-rata</strong> by ETH contributed — a 2 ETH
+          backer earns more Holder NFT shares than a 0.1 ETH backer; there are no fixed seats.
+        </p>
+        <p>
+          <strong>Set a number</strong> to split the goal into equal fixed slots — each backer must
+          send exactly goal ÷ slots ETH, and only that many backers can join. Examples: 5 ETH ÷ 20
+          slots = 0.25 ETH each; 1 ETH ÷ 10 = 0.1 ETH each (goal must divide evenly).
+        </p>
+        {slotHint ? <p className="petition-slot-hint">{slotHint} with your current goal.</p> : null}
+      </div>
       {error ? <p className="error">{error}</p> : null}
       <button type="submit" className="btn btn-primary" disabled={loading}>
         {loading ? 'Creating…' : 'Create community launch'}
