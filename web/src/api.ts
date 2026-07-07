@@ -186,6 +186,65 @@ export async function fetchDeploymentsPage(
   return { deployments, total };
 }
 
+export type ExploreSort = 'mcap' | 'volume' | 'launch' | 'lastTrade';
+export type ExploreFilter = 'all' | 'live' | 'new';
+
+export interface ExploreTokenStats {
+  volume24hUsd: number;
+  mcapUsd: number;
+  liquidityUsd: number;
+  change24hPct: number | null;
+  txnsH24: number;
+  priceUsd: number | null;
+  dexscreenerUrl: string | null;
+  lastTradeAt: string | null;
+  statsUpdatedAt: string | null;
+}
+
+export interface ExploreFeedItem {
+  deployment: Deployment;
+  stats: ExploreTokenStats;
+}
+
+export interface ExplorePlatformStats {
+  tokensLaunched: number;
+  volume24hUsd: number;
+  liveCount: number;
+  statsUpdatedAt: string | null;
+}
+
+export async function fetchExplorePage(params: {
+  sort?: ExploreSort;
+  filter?: ExploreFilter;
+  q?: string;
+  limit?: number;
+  offset?: number;
+  minLiquidityUsd?: number;
+}): Promise<{
+  total: number;
+  sort: ExploreSort;
+  filter: ExploreFilter;
+  tokens: ExploreFeedItem[];
+}> {
+  const qs = new URLSearchParams();
+  if (params.sort) qs.set('sort', params.sort);
+  if (params.filter && params.filter !== 'all') qs.set('filter', params.filter);
+  if (params.q?.trim()) qs.set('q', params.q.trim());
+  if (params.limit != null) qs.set('limit', String(params.limit));
+  if (params.offset != null) qs.set('offset', String(params.offset));
+  if (params.minLiquidityUsd != null && params.minLiquidityUsd > 0) {
+    qs.set('minLiquidity', String(params.minLiquidityUsd));
+  }
+  const res = await fetch(`${API_BASE}/api/explore?${qs}`);
+  return parseJson(res);
+}
+
+export async function fetchExploreStats(): Promise<ExplorePlatformStats> {
+  const res = await fetch(`${API_BASE}/api/explore/stats`);
+  const data = await parseJson<{ stats: ExplorePlatformStats }>(res);
+  return data.stats;
+}
+
 export async function fetchDeploymentByAddress(tokenAddress: string): Promise<TokenDetail> {
   const addr = tokenAddress.trim();
   const res = await fetch(`${API_BASE}/api/deployments/${addr}`);

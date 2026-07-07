@@ -9,7 +9,6 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { TokenPage } from './components/TokenPage';
 import { TokensTab } from './components/TokensTab';
 import { useWebAuth } from './auth/WebAuthContext';
-import { useExploreTokens } from './hooks/useExploreTokens';
 import { useEnsureRobinhoodChain } from './hooks/useEnsureRobinhoodChain';
 import { isDevPage, openDevPage } from './lib/devRoute';
 import { migrateCommunityLaunchPath } from './lib/communityLaunchRoute';
@@ -90,17 +89,6 @@ export default function App() {
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
   }, []);
-
-  const showExploreChrome = !tokenAddress && !deployerProfile && !devPage;
-  const {
-    catalog,
-    metricsByAddress,
-    loading,
-    loadingMetrics,
-    error,
-    ensureMetrics,
-    ensureCatalogSize,
-  } = useExploreTokens(showExploreChrome);
 
   const isExploreActive = tab === 'tokens' && !tokenAddress && !deployerProfile && !devPage;
   const isLaunchActive = tab === 'launch' && !tokenAddress && !deployerProfile && !devPage;
@@ -214,16 +202,7 @@ export default function App() {
             ) : deployerProfile?.platform === 'wallet' ? (
               <WalletProfilePage walletAddress={deployerProfile.address} />
             ) : tab === 'tokens' ? (
-              <TokensTab
-                catalog={catalog}
-                metricsByAddress={metricsByAddress}
-                loading={loading}
-                loadingMetrics={loadingMetrics}
-                error={error}
-                onEnsureMetrics={ensureMetrics}
-                onEnsureCatalogSize={ensureCatalogSize}
-                onNavigateToLaunch={() => navigateTab('launch')}
-              />
+              <TokensTab onNavigateToLaunch={() => navigateTab('launch')} />
             ) : tab === 'launch' ? (
               <LaunchTab />
             ) : (

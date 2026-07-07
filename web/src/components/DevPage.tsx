@@ -45,6 +45,8 @@ const AGENT_ENDPOINTS = [
   ['POST', '/api/agent/claim', 'Claim fees (launcher pays gas)'],
   ['POST', '/api/agent/claim-for-recipient', 'Claim for any catalog token (no JWT)'],
   ['GET', '/api/deployments?limit=50', 'Public token catalog'],
+  ['GET', '/api/explore?sort=volume&filter=live', 'Ranked explore feed (cached metrics)'],
+  ['GET', '/api/explore/stats', 'Platform explore stats'],
 ] as const;
 
 const GITHUB_LINKS = [

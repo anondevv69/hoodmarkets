@@ -45,14 +45,18 @@ import { registerLangchainAgentRoutes } from './routes/langchainAgent.js';
 import { registerAgentBankrRoutes } from './routes/agentBankr.js';
 import { registerCatalogAdminRoutes } from './routes/catalogAdmin.js';
 import { registerCommunityLaunchRoutes } from './routes/communityLaunch.js';
+import { registerExploreRoutes } from './routes/explore.js';
 import { registerWalletAuthRoutes } from './routes/walletAuth.js';
 import { registerWebDeployCorsMiddleware } from './lib/webDeployCors.js';
+import { initTokenMarketStatsDb, closeTokenMarketStatsDb } from './lib/tokenMarketStats.js';
+import { startExploreStatsPoller } from './lib/exploreStatsPoller.js';
 
 async function main() {
   try {
     // Initialize deploy dedup database + deployment catalog (same `.data` dir — use a volume in prod)
     initDedupDb();
     initDeploymentCatalogDb();
+    initTokenMarketStatsDb();
     initVanitySaltBankDb();
     initHoodSocialDb();
     initPetitionDb();
@@ -227,6 +231,7 @@ async function main() {
     registerAgentClaimForRecipientRoutes(app);
     registerResolveSourceRoutes(app, neynar);
     registerDeploymentCatalogRoutes(app);
+    registerExploreRoutes(app);
     registerDeploymentFeeActionRoutes(app);
     registerFractionBuyerRewardRoutes(app);
     registerFractionMetadataRoutes(app);
@@ -252,6 +257,7 @@ async function main() {
     app.listen(port, () => {
       logger.info(`🚀 Liquid Social Launcher running on port ${port}`);
       startBuyerRewardPoller();
+      startExploreStatsPoller();
       logger.info(`Health: http://localhost:${port}/`);
       logger.info(`Neynar webhook: http://localhost:${port}/webhooks/neynar`);
       logger.info(`X webhook: http://localhost:${port}/webhooks/x`);
@@ -357,6 +363,7 @@ process.on('uncaughtException', (error: any) => {
   logger.error('Uncaught exception:', error);
   closeDedupDb();
   closeDeploymentCatalogDb();
+  closeTokenMarketStatsDb();
   closeVanitySaltBankDb();
   process.exit(1);
 });
@@ -365,6 +372,7 @@ process.on('SIGTERM', () => {
   logger.info('SIGTERM: shutting down gracefully');
   closeDedupDb();
   closeDeploymentCatalogDb();
+  closeTokenMarketStatsDb();
   closeVanitySaltBankDb();
   closeHoodSocialDb();
   closePetitionDb();
@@ -375,6 +383,7 @@ process.on('SIGINT', () => {
   logger.info('SIGINT: shutting down gracefully');
   closeDedupDb();
   closeDeploymentCatalogDb();
+  closeTokenMarketStatsDb();
   closeVanitySaltBankDb();
   closeHoodSocialDb();
   closePetitionDb();
