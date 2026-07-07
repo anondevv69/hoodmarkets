@@ -6,7 +6,6 @@ import {
   importTokenDexBranding,
   type TokenDexBrandingResponse,
 } from '../api';
-import { shortenAddress } from '../chain';
 
 export function TokenBrandingPanel({
   tokenAddress,
@@ -68,16 +67,15 @@ export function TokenBrandingPanel({
   }
 
   const dex = branding?.dex;
-  const admin = branding?.admin;
   const isAdmin = branding?.isAdmin ?? false;
+
+  if (loading || !isAdmin) return null;
 
   return (
     <section className="tp-zone tp-branding-zone" aria-label="Token branding">
       <div className="tp-branding-head">
         <p className="tp-zone-label">Dex branding</p>
-        {loading ? (
-          <span className="muted">Checking DexScreener…</span>
-        ) : dex?.enhancedInfoPaid ? (
+        {dex?.enhancedInfoPaid ? (
           <span className="tp-dex-paid-badge" title="DexScreener Enhanced Token Info">
             Dex paid ✓
           </span>
@@ -91,19 +89,15 @@ export function TokenBrandingPanel({
         can be pulled from DexScreener. Only the page admin can import into hood.markets.
       </p>
 
-      {!loading && admin ? (
-        <p className="muted tp-branding-admin-copy">
-          Page admin:{' '}
-          <span className="lp-mono">{shortenAddress(admin.adminWallet)}</span>
-          {admin.adminRole === 'top_share_holder' && admin.topShareCount
-            ? ` · top holder (${admin.topShareCount} shares)`
-            : admin.adminRole === 'deployer'
-              ? ' · deployer'
-              : ' · fee recipient'}
+      {!dex?.enhancedInfoPaid ? (
+        <p className="muted">
+          Pay for{' '}
+          <a href="https://marketplace.dexscreener.com/product/token-info" target="_blank" rel="noreferrer">
+            DexScreener Enhanced Token Info
+          </a>{' '}
+          to unlock custom icon and banner on Dex and here.
         </p>
-      ) : null}
-
-      {!loading && dex?.enhancedInfoPaid && isAdmin ? (
+      ) : (
         <div className="tp-branding-actions">
           <button
             type="button"
@@ -117,21 +111,7 @@ export function TokenBrandingPanel({
             <span className="muted">Sign in with the admin wallet first.</span>
           ) : null}
         </div>
-      ) : null}
-
-      {!loading && dex?.enhancedInfoPaid && !isAdmin ? (
-        <p className="muted">Connect as the page admin wallet to import Dex branding.</p>
-      ) : null}
-
-      {!loading && !dex?.enhancedInfoPaid ? (
-        <p className="muted">
-          Pay for{' '}
-          <a href="https://marketplace.dexscreener.com/product/token-info" target="_blank" rel="noreferrer">
-            DexScreener Enhanced Token Info
-          </a>{' '}
-          to unlock custom icon and banner on Dex and here.
-        </p>
-      ) : null}
+      )}
 
       {message ? <p className="tp-branding-ok">{message}</p> : null}
       {error ? <p className="error">{error}</p> : null}
