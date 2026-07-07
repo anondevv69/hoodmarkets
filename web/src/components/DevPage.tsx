@@ -156,7 +156,7 @@ export function DevPage() {
 
   return (
     <div className="docs-page">
-      <header className="docs-hero lp-card">
+      <header className="docs-hero">
         <p className="docs-eyebrow">Documentation</p>
         <h1 className="docs-hero-title lp-display">How hood.markets Works</h1>
         <p className="docs-hero-lead">
@@ -164,11 +164,12 @@ export function DevPage() {
           earn swap fees through Holder NFT shares. Build with the SDK, wire up agents, or integrate
           the contracts directly.
         </p>
+        <p className="docs-hero-actions-label">Open in app</p>
         <div className="docs-hero-actions">
           <a className="docs-hero-btn docs-hero-btn--primary" href="/?tab=launch">
             Launch a token
           </a>
-          <a className="docs-hero-btn" href="/">
+          <a className="docs-hero-btn" href="/?tab=tokens">
             Browse tokens
           </a>
           <a className="docs-hero-btn" href="/community-launch">
@@ -205,7 +206,7 @@ export function DevPage() {
         </aside>
 
         <div className="docs-main">
-          <section id="overview" className="docs-section lp-card">
+          <section id="overview" className="docs-section">
             <p className="docs-section-eyebrow">Overview</p>
             <h2 className="docs-section-title">What is hood.markets</h2>
             <p className="docs-lead">
@@ -234,7 +235,7 @@ export function DevPage() {
             </div>
           </section>
 
-          <section id="fees" className="docs-section lp-card">
+          <section id="fees" className="docs-section">
             <p className="docs-section-eyebrow">Economics</p>
             <h2 className="docs-section-title">Platform fees</h2>
             <p className="docs-lead">
@@ -264,7 +265,7 @@ export function DevPage() {
             </p>
           </section>
 
-          <section id="contracts" className="docs-section lp-card">
+          <section id="contracts" className="docs-section">
             <p className="docs-section-eyebrow">On-chain</p>
             <h2 className="docs-section-title">Contracts (v0.11.0)</h2>
             <p className="docs-lead">
@@ -288,7 +289,7 @@ export function DevPage() {
                       <td>{row.name}</td>
                       <td>
                         <a
-                          className="docs-mono docs-link"
+                          className="docs-mono docs-address"
                           href={addressUrl(row.address)}
                           target="_blank"
                           rel="noreferrer"
@@ -314,7 +315,7 @@ export function DevPage() {
             </p>
           </section>
 
-          <section id="sdk" className="docs-section lp-card">
+          <section id="sdk" className="docs-section">
             <p className="docs-section-eyebrow">Integrate</p>
             <h2 className="docs-section-title">SDK</h2>
             <p className="docs-lead">
@@ -355,7 +356,7 @@ const result = await hm.deployToken({
             </p>
           </section>
 
-          <section id="agents" className="docs-section lp-card">
+          <section id="agents" className="docs-section">
             <p className="docs-section-eyebrow">Automation</p>
             <h2 className="docs-section-title">Agents</h2>
             <p className="docs-lead">
@@ -418,7 +419,7 @@ Content-Type: application/json
             </p>
           </section>
 
-          <section id="community-launch" className="docs-section lp-card">
+          <section id="community-launch" className="docs-section">
             <p className="docs-section-eyebrow">Robinhood Chain</p>
             <h2 className="docs-section-title">Community Launch API</h2>
             <p className="docs-lead">
@@ -465,7 +466,7 @@ Content-Type: application/json
             </p>
           </section>
 
-          <section id="github" className="docs-section lp-card">
+          <section id="github" className="docs-section">
             <p className="docs-section-eyebrow">Source</p>
             <h2 className="docs-section-title">GitHub & resources</h2>
             <p className="docs-lead">
@@ -495,7 +496,7 @@ Content-Type: application/json
             </p>
           </section>
 
-          <section id="faq" className="docs-section lp-card">
+          <section id="faq" className="docs-section">
             <p className="docs-section-eyebrow">Questions</p>
             <h2 className="docs-section-title">FAQ</h2>
             <dl className="docs-faq">
