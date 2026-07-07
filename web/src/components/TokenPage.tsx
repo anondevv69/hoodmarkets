@@ -5,7 +5,6 @@ import { fetchTokenMetricsFromDexscreener, type DexTokenMetrics } from '../lib/d
 import { fetchTokenDescriptionFromChain } from '../lib/tokenOnChainMetadata';
 import { closeTokenPage } from '../lib/tokenRoute';
 import { formatTickerAge } from '../lib/exploreTokens';
-import { formatUsdVol } from '../lib/dexscreenerVolume';
 import { resolveTokenImageUrl } from '../lib/tokenImageUrl';
 import { splitTokenDescriptionForDisplay } from '../lib/tokenDescriptionDisplay';
 import { DexScreenerChartEmbed } from './TokenListingStatus';
@@ -155,7 +154,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
 
   const sym = token.tokenSymbol.replace(/^\$/, '');
   const age = formatTickerAge(token.createdAt);
-  const mc = metrics?.marketCapUsd ?? metrics?.fdvUsd;
   const { userText: descriptionUser, deployNotes: descriptionDeployNote } =
     splitTokenDescriptionForDisplay(description);
 
@@ -220,13 +218,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
                   {copied ? <CheckIcon /> : <CopyIcon />}
                 </span>
               </button>
-              {mc != null && mc > 0 ? (
-                <span className="tp-meta-mc">MC {formatUsdVol(mc)}</span>
-              ) : metricsLoading ? (
-                <span className="tp-meta-mc tp-meta-skeleton" aria-hidden>
-                  MC —
-                </span>
-              ) : null}
               <span className="tp-live-pulse">
                 <span className="tp-dot-live" aria-hidden />
                 {age}
