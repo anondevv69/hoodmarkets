@@ -170,6 +170,17 @@ export function TokenFractionPanel({
         </p>
       ) : null}
 
+      <p className="token-fraction-recipient muted">
+        <a
+          className="token-fraction-explorer lp-mono"
+          href={tokenUrl(info.collectionAddress)}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {shortenAddress(info.collectionAddress)}
+        </a>
+      </p>
+
       <div className="token-fraction-layout">
         <div className="token-fraction-stats token-fraction-stats--wide token-fraction-stats--inline">
           <div className="token-fraction-stat">
@@ -190,17 +201,6 @@ export function TokenFractionPanel({
             <span className="token-fraction-stat-k">Per share</span>
             <span className="token-fraction-stat-v">{shareTokenHuman}</span>
           </div>
-          <span className="token-fraction-stat-sep" aria-hidden>
-            ·
-          </span>
-          <a
-            className="token-fraction-explorer lp-mono"
-            href={tokenUrl(info.collectionAddress)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {shortenAddress(info.collectionAddress)}
-          </a>
         </div>
 
         {walletShares != null && walletShares > 0 ? (
@@ -242,8 +242,6 @@ export function TokenFractionPanel({
           <TokenFractionListings
             collectionAddress={info.collectionAddress}
             wallet={authenticated && wallet ? wallet : null}
-            authenticated={authenticated}
-            onLogin={login}
             onRefresh={() => refreshFractionState(info.collectionAddress)}
           />
 
@@ -291,7 +289,8 @@ export function TokenFractionPanel({
             <button type="button" className="btn btn-ghost btn-sm" onClick={login}>
               Sign in
             </button>{' '}
-            to send, redeem, or claim from a wallet that holds shares.
+            to buy shares or cancel your listings, send, redeem, or claim from a wallet that holds
+            shares.
           </p>
         ) : null}
       </div>
