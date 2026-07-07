@@ -216,7 +216,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
             tokenAddress={token.tokenAddress}
             tokenSymbol={sym}
             variant="compact"
-            hideWhenEmpty
           />
         </div>
 

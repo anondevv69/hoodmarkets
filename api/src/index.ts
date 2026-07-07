@@ -23,6 +23,7 @@ import { registerWebDeployRoutes } from './routes/deployWeb.js';
 import { registerResolveSourceRoutes } from './routes/resolveSource.js';
 import { registerDeploymentCatalogRoutes } from './routes/deploymentCatalog.js';
 import { registerTokenSwapRoutes } from './routes/tokenSwap.js';
+import { registerTokenTradesRoutes } from './routes/tokenTrades.js';
 import { registerMyDeploymentsRoutes } from './routes/myDeployments.js';
 import { registerDeployerProfileRoutes } from './routes/deployerProfile.js';
 import { registerUserProfileRoutes } from './routes/userProfile.js';
@@ -229,6 +230,7 @@ async function main() {
     registerFractionBuyerRewardRoutes(app);
     registerFractionMetadataRoutes(app);
     registerTokenSwapRoutes(app);
+    registerTokenTradesRoutes(app);
     registerMyDeploymentsRoutes(app);
     registerDeployerProfileRoutes(app);
     registerUserProfileRoutes(app);

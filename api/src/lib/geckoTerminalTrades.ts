@@ -1,15 +1,14 @@
 /**
- * Robinhood Chain trades via GeckoTerminal (same approach as hoodpad.fun for pool swaps).
- * Free public API — rate-limited; we cache pool lookups and poll modestly.
- * @see https://www.geckoterminal.com/dex-api
+ * GeckoTerminal trades for Robinhood Chain — server-side with cache (avoids browser rate limits).
  */
 
 const GECKO_API = 'https://api.geckoterminal.com/api/v2';
 const GECKO_NETWORK = 'robinhood';
 const POOL_CACHE_TTL_MS = 5 * 60_000;
+const TRADES_CACHE_TTL_MS = 15_000;
 const MAX_TRADES = 30;
 
-export type TokenTradeRow = {
+export type GeckoTokenTradeRow = {
   id: string;
   txHash: string;
   wallet: string;
@@ -41,6 +40,7 @@ type GeckoTrade = {
 };
 
 const poolByToken = new Map<string, { pool: string; at: number }>();
+const tradesByToken = new Map<string, { trades: GeckoTokenTradeRow[]; at: number }>();
 
 async function geckoGet<T>(path: string): Promise<T | null> {
   try {
@@ -76,7 +76,7 @@ async function resolveTopPoolAddress(tokenAddress: string): Promise<string | nul
   return pool;
 }
 
-function mapGeckoTrade(raw: GeckoTrade): TokenTradeRow | null {
+function mapGeckoTrade(raw: GeckoTrade): GeckoTokenTradeRow | null {
   const a = raw.attributes;
   if (!a?.tx_hash || !a.tx_from_address || !a.block_timestamp) return null;
 
@@ -86,8 +86,20 @@ function mapGeckoTrade(raw: GeckoTrade): TokenTradeRow | null {
   const toAmt = Number.parseFloat(a.to_token_amount ?? '');
   const usd = Number.parseFloat(a.volume_in_usd ?? '');
 
-  const ethAmount = isBuy ? (Number.isFinite(fromAmt) ? fromAmt : 0) : Number.isFinite(toAmt) ? toAmt : 0;
-  const tokenAmount = isBuy ? (Number.isFinite(toAmt) ? toAmt : 0) : Number.isFinite(fromAmt) ? fromAmt : 0;
+  const ethAmount = isBuy
+    ? Number.isFinite(fromAmt)
+      ? fromAmt
+      : 0
+    : Number.isFinite(toAmt)
+      ? toAmt
+      : 0;
+  const tokenAmount = isBuy
+    ? Number.isFinite(toAmt)
+      ? toAmt
+      : 0
+    : Number.isFinite(fromAmt)
+      ? fromAmt
+      : 0;
 
   if (ethAmount <= 0 && tokenAmount <= 0) return null;
 
@@ -103,31 +115,24 @@ function mapGeckoTrade(raw: GeckoTrade): TokenTradeRow | null {
   };
 }
 
-/** Recent swaps for a token (top pool by liquidity), HoodPad-style. */
-export async function fetchGeckoTokenTrades(tokenAddress: string): Promise<TokenTradeRow[]> {
-  const key = tokenAddress.trim();
-  const apiBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim() || 'https://api.hood.markets';
-
-  try {
-    const res = await fetch(`${apiBase}/api/tokens/${encodeURIComponent(key)}/trades`);
-    if (res.ok) {
-      const data = (await res.json()) as { trades?: TokenTradeRow[] };
-      if (Array.isArray(data.trades)) {
-        return data.trades.slice(0, MAX_TRADES);
-      }
-    }
-  } catch {
-    /* fall through to direct Gecko */
+export async function fetchGeckoTokenTrades(tokenAddress: string): Promise<GeckoTokenTradeRow[]> {
+  const key = tokenAddress.trim().toLowerCase();
+  const cached = tradesByToken.get(key);
+  if (cached && Date.now() - cached.at < TRADES_CACHE_TTL_MS) {
+    return cached.trades;
   }
 
   const pool = await resolveTopPoolAddress(key);
-  if (!pool) return [];
+  if (!pool) return cached?.trades ?? [];
 
   const data = await geckoGet<{ data?: GeckoTrade[] }>(
     `/networks/${GECKO_NETWORK}/pools/${pool}/trades`,
   );
-  return (data?.data ?? [])
+  const trades = (data?.data ?? [])
     .map(mapGeckoTrade)
-    .filter((t): t is TokenTradeRow => t != null)
+    .filter((t): t is GeckoTokenTradeRow => t != null)
     .slice(0, MAX_TRADES);
+
+  tradesByToken.set(key, { trades, at: Date.now() });
+  return trades;
 }
