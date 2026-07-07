@@ -1,0 +1,23 @@
+{
+  "name": "hood.markets Community Launch API",
+  "version": "1",
+  "baseUrl": "https://api.hood.markets/api/community-launch",
+  "chain": "robinhood",
+  "chainId": 4663,
+  "platform": "hood.markets",
+  "cors": "*",
+  "auth": "None required for public integrator endpoints on api.hood.markets.",
+  "documentation": "https://hood.markets/docs#community-launch",
+  "webUi": "https://hood.markets/community-launch",
+  "note": "Robinhood Chain only. Operated by hood.markets — not Token Marketplace or any Base/Solana petition service.",
+  "endpoints": [
+    { "method": "GET", "path": "/config", "description": "Robinhood rail, unit price, escrow wallet, supporter slot divisors" },
+    { "method": "GET", "path": "/list", "description": "Open community launches catalog" },
+    { "method": "GET", "path": "/status?id=", "description": "Full round state, backers, finalResult when live" },
+    { "method": "POST", "path": "/create", "description": "Open a 24h Holder NFT share pre-sale on Robinhood Chain" },
+    { "method": "GET", "path": "/prepare-deposit", "description": "Quote deposit + nextStep for wallet tx on chain 4663" },
+    { "method": "POST", "path": "/confirm", "description": "Record on-chain deposit after tx" },
+    { "method": "POST", "path": "/refund", "description": "Refund while open or expired" },
+    { "method": "POST", "path": "/cancel", "description": "Creator cancel empty round" }
+  ]
+}

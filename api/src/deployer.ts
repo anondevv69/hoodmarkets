@@ -72,6 +72,8 @@ export interface TokenDeploymentParams {
   buyerRewardShareCount?: number;
   /** User description for catalog UI (may differ from on-chain metadata text). */
   tokenDescription?: string;
+  /** Catalog-only fee recipient when on-chain admin differs (e.g. petition launcher deploy). */
+  catalogFeeRecipientAddress?: string;
 }
 
 export interface DeploymentResult {
@@ -259,7 +261,7 @@ export class LiquidDeployer {
       feeRecipientAddress:
         params.feesToPlatformOnly && config.platformFeeRecipient
           ? config.platformFeeRecipient
-          : params.walletAddress,
+          : params.catalogFeeRecipientAddress?.trim() || params.walletAddress,
       feeRecipientLabel: params.feeRecipientLabel,
       tokenName: params.name,
       tokenSymbol: params.symbol,

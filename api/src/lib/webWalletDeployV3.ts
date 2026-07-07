@@ -1,5 +1,7 @@
 import {
+  createPublicClient,
   getAddress,
+  http,
   type Address,
   type Hash,
   type PublicClient,
@@ -8,7 +10,7 @@ import { config } from '../config.js';
 import { robinhood } from './robinhoodChain.js';
 import {
   assertHoodMarketsV3Factory,
-  buildHoodMarketsV3DeploymentConfig,
+  buildHoodMarketsV3DeploymentConfigWithVanity,
   parseHoodMarketsV3TokenCreatedFromReceipt,
 } from './hoodmarketsV3Deploy.js';
 import { buildWebDeployArtifacts } from './webDeployArtifacts.js';
@@ -67,19 +69,31 @@ export async function buildWebWalletDeployPrepareV3(
     clientKind: input.clientKind,
   });
 
-  const deploymentConfig = buildHoodMarketsV3DeploymentConfig({
-    name: input.name,
-    symbol: input.symbol,
+  const publicClient = createPublicClient({
+    chain: robinhood,
+    transport: http(config.chainRpcUrl),
+  }) as PublicClient;
+
+  const deploymentConfig = await buildHoodMarketsV3DeploymentConfigWithVanity(
+    publicClient,
     tokenAdmin,
-    image,
-    metadata,
-    context,
-    feesToPlatformOnly: input.feesToPlatformOnly,
-    platformFeeRecipient: input.feesToPlatformOnly
-      ? config.platformFeeRecipient || undefined
-      : undefined,
-    buyerRewardShareCount: input.buyerRewardShareCount,
-  });
+    factory,
+    {
+      factory,
+      name: input.name,
+      symbol: input.symbol,
+      tokenAdmin,
+      image,
+      metadata,
+      context,
+      devBuyAmount: input.devBuyAmount,
+      feesToPlatformOnly: input.feesToPlatformOnly,
+      platformFeeRecipient: input.feesToPlatformOnly
+        ? config.platformFeeRecipient || undefined
+        : undefined,
+      buyerRewardShareCount: input.buyerRewardShareCount,
+    },
+  );
 
   return {
     mode: 'wallet',

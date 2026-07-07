@@ -11,6 +11,10 @@ import {
 } from 'viem';
 import { HOODMARKETS_V3_ABI } from './hoodmarketsV3Abi.js';
 import { ROBINHOOD_CHAIN_ID, ROBINHOOD_WETH } from './robinhoodChain.js';
+import {
+  bruteForceVanitySalt,
+  resolveVanityAddressSuffix,
+} from './vanitySalt.js';
 
 /** ~$10k FDV at ~$40k ETH — same starting price family as upstream v3.1 WETH launches. */
 const DEFAULT_INITIAL_TICK = -230400;
@@ -107,8 +111,10 @@ export function buildHoodMarketsV3DeploymentConfig(input: {
   feesToPlatformOnly?: boolean;
   platformFeeRecipient?: Address;
   buyerRewardShareCount?: number;
+  /** Pre-mined CREATE2 salt; when omitted a random salt is used (or vanity-mined at deploy). */
+  salt?: Hex;
 }): HoodMarketsV3DeploymentConfig {
-  const salt = keccak256(toHex(randomBytes(32)));
+  const salt = input.salt ?? keccak256(toHex(randomBytes(32)));
   const tokenAdmin = getAddress(input.tokenAdmin);
   /** Fee recipient admin; receives all 1,000 fraction shares at launch. On v0.5+, swap fees
    *  route to the fraction contract pro-rata unless feesToPlatformOnly overrides recipient. */
@@ -157,7 +163,7 @@ export function buildHoodMarketsV3DeploymentConfig(input: {
   };
 }
 
-function buildDeploymentConfig(input: HoodMarketsV3DeployInput) {
+function buildDeploymentConfig(input: HoodMarketsV3DeployInput, salt?: Hex) {
   return buildHoodMarketsV3DeploymentConfig({
     name: input.name,
     symbol: input.symbol,
@@ -168,7 +174,66 @@ function buildDeploymentConfig(input: HoodMarketsV3DeployInput) {
     feesToPlatformOnly: input.feesToPlatformOnly,
     platformFeeRecipient: input.platformFeeRecipient,
     buyerRewardShareCount: input.buyerRewardShareCount,
+    salt,
   });
+}
+
+const V3_DEPLOY_SIM_GAS = 18_000_000n;
+
+export async function mineHoodMarketsV3VanitySalt(
+  publicClient: PublicClient,
+  account: Address,
+  factory: Address,
+  deploymentConfig: HoodMarketsV3DeploymentConfig,
+  devBuyAmount: bigint,
+  suffix: string,
+): Promise<Hex> {
+  return bruteForceVanitySalt(suffix, async (candidate) => {
+    const configWithSalt: HoodMarketsV3DeploymentConfig = {
+      ...deploymentConfig,
+      tokenConfig: { ...deploymentConfig.tokenConfig, salt: candidate },
+    };
+    try {
+      const { result } = await publicClient.simulateContract({
+        address: factory,
+        abi: HOODMARKETS_V3_ABI,
+        functionName: 'deployToken',
+        args: [configWithSalt],
+        account,
+        value: devBuyAmount,
+        gas: V3_DEPLOY_SIM_GAS,
+      });
+      const [tokenAddress] = result as readonly [Address, bigint];
+      const addr = getAddress(tokenAddress);
+      return addr.toLowerCase().endsWith(suffix) ? addr : null;
+    } catch {
+      return null;
+    }
+  });
+}
+
+export async function buildHoodMarketsV3DeploymentConfigWithVanity(
+  publicClient: PublicClient,
+  account: Address,
+  factory: Address,
+  input: HoodMarketsV3DeployInput,
+): Promise<HoodMarketsV3DeploymentConfig> {
+  const base = buildDeploymentConfig(input);
+  const suffix = resolveVanityAddressSuffix();
+  if (!suffix) return base;
+
+  const mined = await mineHoodMarketsV3VanitySalt(
+    publicClient,
+    account,
+    factory,
+    base,
+    input.devBuyAmount,
+    suffix,
+  );
+  return {
+    ...base,
+    tokenConfig: { ...base.tokenConfig, salt: mined },
+  };
 }
 
 const HOODMARKETS_V3_TOKEN_CREATED_TOPIC_V031 =
@@ -242,11 +307,17 @@ export async function deployHoodMarketsV3Token(
   input: HoodMarketsV3DeployInput,
 ): Promise<HoodMarketsV3DeployResult> {
   const factory = getAddress(input.factory);
-  const deploymentConfig = buildDeploymentConfig(input);
   const account = walletClient.account;
   if (!account) {
     throw new Error('Wallet client has no account');
   }
+
+  const deploymentConfig = await buildHoodMarketsV3DeploymentConfigWithVanity(
+    publicClient,
+    account.address,
+    factory,
+    input,
+  );
 
   const writeParams = {
     address: factory,

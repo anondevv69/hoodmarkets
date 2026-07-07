@@ -17,6 +17,7 @@ import { initDeploymentCatalogDb,
   runCatalogPurgesIfNeeded,
 } from './lib/deploymentCatalog.js';
 import { initHoodSocialDb, closeHoodSocialDb } from './lib/hoodSocialDb.js';
+import { initPetitionDb, closePetitionDb } from './lib/petitionDb.js';
 import { registerWebDeployRoutes } from './routes/deployWeb.js';
 import { registerResolveSourceRoutes } from './routes/resolveSource.js';
 import { registerDeploymentCatalogRoutes } from './routes/deploymentCatalog.js';
@@ -40,6 +41,7 @@ import { registerBotSwapRoutes } from './routes/botSwap.js';
 import { registerLangchainAgentRoutes } from './routes/langchainAgent.js';
 import { registerAgentBankrRoutes } from './routes/agentBankr.js';
 import { registerCatalogAdminRoutes } from './routes/catalogAdmin.js';
+import { registerCommunityLaunchRoutes } from './routes/communityLaunch.js';
 import { registerWebDeployCorsMiddleware } from './lib/webDeployCors.js';
 
 async function main() {
@@ -48,6 +50,7 @@ async function main() {
     initDedupDb();
     initDeploymentCatalogDb();
     initHoodSocialDb();
+    initPetitionDb();
     setTimeout(() => {
       void runCatalogPurgesIfNeeded(config.chainRpcUrl).catch((e: unknown) =>
         logger.warn('Catalog purge failed:', e instanceof Error ? e.message : e),
@@ -223,6 +226,7 @@ async function main() {
     registerAgentCaptchaRoutes(app);
     registerAgentBankrRoutes(app);
     registerCatalogAdminRoutes(app);
+    registerCommunityLaunchRoutes(app);
     registerZeroExSwapRoutes(app);
     registerBotSwapRoutes(app);
     registerLangchainAgentRoutes(app);
@@ -236,6 +240,7 @@ async function main() {
       logger.info(`Neynar webhook: http://localhost:${port}/webhooks/neynar`);
       logger.info(`X webhook: http://localhost:${port}/webhooks/x`);
       logger.info(`Deployment catalog: GET http://localhost:${port}/api/deployments`);
+      logger.info(`Community Launch API: GET http://localhost:${port}/api/community-launch/config`);
       if (config.privy.enabled && config.webDeployCorsOrigins.length > 0) {
         logger.info(`Web deploy API: POST http://localhost:${port}/api/deploy`);
         logger.info(`Agent captcha challenge: GET http://localhost:${port}/api/agent-captcha/challenge`);
@@ -344,6 +349,7 @@ process.on('SIGTERM', () => {
   closeDedupDb();
   closeDeploymentCatalogDb();
   closeHoodSocialDb();
+  closePetitionDb();
   process.exit(0);
 });
 
@@ -352,5 +358,6 @@ process.on('SIGINT', () => {
   closeDedupDb();
   closeDeploymentCatalogDb();
   closeHoodSocialDb();
+  closePetitionDb();
   process.exit(0);
 });

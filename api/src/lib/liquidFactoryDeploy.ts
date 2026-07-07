@@ -14,6 +14,10 @@ import { LiquidFactoryAbi } from 'liquid-sdk';
 import { config } from '../config.js';
 import { buildLiquidDevBuyExtension } from './liquidDevBuyExtension.js';
 import {
+  bruteForceVanitySalt,
+  resolveVanityAddressSuffix,
+} from './vanitySalt.js';
+import {
   CHAIN_WETH,
   ROBINHOOD_CHAIN_ID,
   ROBINHOOD_WETH,
@@ -255,79 +259,28 @@ export function assertValidTokenAdmin(address: string): `0x${string}` {
   return getAddress(address);
 }
 
-/** Normalize env `VANITY_ADDRESS_SUFFIX` to lowercase hex (no 0x). */
-function normalizeVanitySuffix(raw: string): string {
-  let s = raw.trim().toLowerCase();
-  if (s.startsWith('0x')) s = s.slice(2);
-  if (!/^[0-9a-f]+$/.test(s)) {
-    throw new Error(
-      `VANITY_ADDRESS_SUFFIX must be hex digits (e.g. 1c3); got: ${raw}`
-    );
-  }
-  if (s.length < 1 || s.length > 40) {
-    throw new Error(
-      'VANITY_ADDRESS_SUFFIX must be 1–40 hex characters (20-byte address tail).'
-    );
-  }
-  return s;
-}
-
-/**
- * Brute-force a CREATE2 salt by simulating `deployToken` until the returned token
- * address ends with the desired hex suffix. Uses on-chain simulation so the
- * result matches the factory exactly (init code depends on full config + salt).
- *
- * **Performance:** Each attempt is an RPC round-trip. Use `VANITY_SALT_CONCURRENCY`
- * (parallel simulations per batch) and a low-latency `BASE_RPC_URL` — sequential
- * mining is intentionally slow on remote RPCs (e.g. 25k attempts × 80ms ≈ 30+ min).
- */
 async function mineVanitySalt(
   publicClient: PublicClient,
   account: Address,
   input: DeployTokenArgs,
   platformFeeRecipient: `0x${string}` | undefined,
   platformFeeBps: number | undefined,
-  suffix: string
+  suffix: string,
 ): Promise<Hex> {
-  const maxAttempts = (() => {
-    const raw = process.env.VANITY_SALT_MAX_ATTEMPTS?.trim();
-    if (!raw) return 1_000_000;
-    const n = Number.parseInt(raw, 10);
-    if (!Number.isFinite(n) || n < 1) {
-      throw new Error('VANITY_SALT_MAX_ATTEMPTS must be a positive integer');
-    }
-    return n;
-  })();
-
-  const concurrency = (() => {
-    const raw = process.env.VANITY_SALT_CONCURRENCY?.trim();
-    if (!raw) return 32;
-    const n = Number.parseInt(raw, 10);
-    if (!Number.isFinite(n) || n < 1) {
-      throw new Error('VANITY_SALT_CONCURRENCY must be a positive integer');
-    }
-    return Math.min(256, n);
-  })();
-
   const simGas =
-    deploymentConfigExtensionMsgValue(input, platformFeeRecipient, platformFeeBps) >
-    0n
+    deploymentConfigExtensionMsgValue(input, platformFeeRecipient, platformFeeBps) > 0n
       ? deployTokenGasLimitWithValue()
       : undefined;
 
-  let lastErr: unknown;
-  let totalAttempts = 0;
-  let lastProgressLog = 0;
-
-  const tryCandidate = async (candidate: Hex): Promise<Address | null> => {
+  return bruteForceVanitySalt(suffix, async (candidate) => {
     const deploymentConfig = buildDeploymentConfig(
       { ...input, salt: candidate },
       platformFeeRecipient,
-      platformFeeBps
+      platformFeeBps,
     );
     const msgValue = deploymentConfig.extensionConfigs.reduce(
       (sum, ext) => sum + ext.msgValue,
-      0n
+      0n,
     );
     try {
       const { result } = await publicClient.simulateContract({
@@ -340,57 +293,13 @@ async function mineVanitySalt(
         ...(simGas !== undefined ? { gas: simGas } : {}),
       });
       const tokenAddress = getAddress(result as Address);
-      if (tokenAddress.toLowerCase().endsWith(suffix)) {
-        return tokenAddress;
-      }
-    } catch (e) {
-      lastErr = e;
+      return tokenAddress.toLowerCase().endsWith(suffix) ? tokenAddress : null;
+    } catch {
+      return null;
     }
-    return null;
-  };
-
-  while (totalAttempts < maxAttempts) {
-    const batch = Math.min(concurrency, maxAttempts - totalAttempts);
-    const candidates = Array.from(
-      { length: batch },
-      () => toHex(randomBytes(32)) as Hex
-    );
-    const results = await Promise.all(
-      candidates.map((salt) =>
-        tryCandidate(salt).then((addr) => ({ salt, addr }))
-      )
-    );
-    totalAttempts += batch;
-
-    for (const { salt, addr } of results) {
-      if (addr) {
-        console.log(
-          `Vanity salt found after ${totalAttempts} attempts (batch size ${concurrency}) → token ${addr}`
-        );
-        return salt;
-      }
-    }
-
-    if (
-      totalAttempts === batch ||
-      totalAttempts - lastProgressLog >= 25_000
-    ) {
-      lastProgressLog = totalAttempts;
-      console.log(
-        `Vanity mining… ${totalAttempts}/${maxAttempts} parallel=${concurrency} (want …${suffix})`
-      );
-    }
-  }
-
-  throw new Error(
-    `Vanity salt not found after ${maxAttempts} attempts (suffix 0x${suffix}). ` +
-      `Increase VANITY_SALT_MAX_ATTEMPTS or shorten VANITY_ADDRESS_SUFFIX; ` +
-      `try VANITY_SALT_CONCURRENCY=64 and a fast BASE_RPC_URL. ` +
-      (lastErr instanceof Error ? `Last error: ${lastErr.message}` : '')
-  );
+  });
 }
 
-/** Sum of extension msg.value for gas / simulation (dev buy). */
 function deploymentConfigExtensionMsgValue(
   input: DeployTokenArgs,
   platformFeeRecipient?: `0x${string}`,
@@ -411,21 +320,20 @@ export async function deployTokenOnchain(
   if (!account) throw new Error('WalletClient has no account');
 
   let deployInput: DeployTokenArgs = input;
-  const vanityRaw = process.env.VANITY_ADDRESS_SUFFIX?.trim();
-  if (vanityRaw) {
+  const vanitySuffix = resolveVanityAddressSuffix();
+  if (vanitySuffix) {
     if (input.salt) {
       throw new Error(
-        'Do not set salt manually when VANITY_ADDRESS_SUFFIX is enabled (salt is mined).'
+        'Do not set salt manually when vanity addressing is enabled (salt is mined).',
       );
     }
-    const suffix = normalizeVanitySuffix(vanityRaw);
     const mined = await mineVanitySalt(
       publicClient,
       account.address,
       input,
       platformFeeRecipient,
       platformFeeBps,
-      suffix
+      vanitySuffix,
     );
     deployInput = { ...input, salt: mined };
   }

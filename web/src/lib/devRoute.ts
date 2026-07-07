@@ -4,6 +4,7 @@ export type DevSection =
   | 'contracts'
   | 'sdk'
   | 'agents'
+  | 'community-launch'
   | 'github'
   | 'faq';
 
@@ -21,7 +22,7 @@ export function normalizeDevSection(hash: string): DevSection | undefined {
   const id = hash.replace(/^#/, '').toLowerCase();
   if (!id) return undefined;
   if (id in LEGACY_SECTION) return LEGACY_SECTION[id];
-  const sections: DevSection[] = ['overview', 'fees', 'contracts', 'sdk', 'agents', 'github', 'faq'];
+  const sections: DevSection[] = ['overview', 'fees', 'contracts', 'sdk', 'agents', 'community-launch', 'github', 'faq'];
   return sections.includes(id as DevSection) ? (id as DevSection) : undefined;
 }
 

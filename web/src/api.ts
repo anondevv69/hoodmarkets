@@ -125,10 +125,22 @@ export interface DeployResult {
   links?: Record<string, string>;
 }
 
+export interface CommunityLaunchLockConflict {
+  kind: 'ticker' | 'name';
+  roundId: number;
+  tokenName: string;
+  tokenSymbol: string;
+  status: string;
+  expiresAt: string;
+  shareUrl: string;
+}
+
 export interface CooldownCheckResult {
   cooldownHours: number;
   tickerConflict: DeployCooldownConflict | null;
   nameConflict: DeployCooldownConflict | null;
+  communityLaunchConflict: CommunityLaunchLockConflict | null;
+  communityLaunchMessage: string | null;
   tickerReserved: boolean;
   nameReserved: boolean;
   reservedTickerMessage: string | null;
@@ -717,3 +729,143 @@ export async function processBuyerRewards(tokenAddress: string): Promise<Process
   });
   return parseJson<ProcessBuyerRewardsResult>(res);
 }
+
+const COMMUNITY_LAUNCH_API = `${API_BASE}/api/community-launch`;
+
+export interface CommunityLaunchSummary {
+  id: string;
+  status: string;
+  chain: string;
+  chainId: number;
+  tokenName: string;
+  tokenSymbol: string;
+  description: string;
+  shareSupply: number;
+  targetRaiseEth: string;
+  targetRaiseWei: string;
+  raisedEth: string;
+  raisedWei: string;
+  remainingEth: string;
+  remainingWei: string;
+  raiseProgressPct: number;
+  contributionPerSlotEth: string | null;
+  supporterSlots: number | null;
+  expiresAt: string;
+  escrowWallet: string | null;
+  shareUrl: string;
+  tokenAddress: string | null;
+  finalResult: {
+    tokenAddress: string;
+    deployTxHash: string;
+    airdropTxHash?: string;
+    initialBuyEth?: string;
+  } | null;
+  agentParticipation: {
+    fixedUnitsPerWallet: boolean;
+    supportersJoined: number | null;
+    supportersRemaining: number | null;
+  };
+  /** @deprecated use raisedEth / targetRaiseEth */
+  publicCap?: number;
+  soldUnits?: number;
+  remainingUnits?: number;
+  unitPriceEth?: string;
+}
+
+/** @deprecated use CommunityLaunchSummary */
+export type PetitionSummary = CommunityLaunchSummary;
+
+async function communityLaunchJson<T>(res: Response): Promise<T> {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      (data as { error?: string }).error || res.statusText || 'Community Launch API error',
+    );
+  }
+  return data as T;
+}
+
+export async function fetchCommunityLaunchConfig(): Promise<{
+  ok: boolean;
+  config: { enabled: boolean };
+}> {
+  const res = await fetch(`${COMMUNITY_LAUNCH_API}/config`);
+  return communityLaunchJson(res);
+}
+
+export async function fetchCommunityLaunchList(): Promise<{
+  ok: boolean;
+  petitions: CommunityLaunchSummary[];
+}> {
+  const res = await fetch(`${COMMUNITY_LAUNCH_API}/list`);
+  return communityLaunchJson(res);
+}
+
+export async function fetchCommunityLaunchStatus(
+  id: string,
+): Promise<{ ok: boolean; petition: CommunityLaunchSummary }> {
+  const res = await fetch(`${COMMUNITY_LAUNCH_API}/status?id=${encodeURIComponent(id)}`);
+  return communityLaunchJson(res);
+}
+
+export async function createCommunityLaunch(body: {
+  tokenName: string;
+  tokenSymbol: string;
+  description?: string;
+  starterWallet?: string;
+  targetRaiseEth: string;
+  supporterSlots?: number;
+  hoodClaimOptIn?: boolean;
+}): Promise<{ ok: boolean; petition: CommunityLaunchSummary }> {
+  const res = await fetch(`${COMMUNITY_LAUNCH_API}/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return communityLaunchJson(res);
+}
+
+export async function prepareCommunityLaunchDeposit(params: {
+  id: string;
+  wallet: string;
+  contributionEth: string;
+}): Promise<{
+  ok: boolean;
+  nextStep: { to: string; value: string; data: string; chainId: number };
+  deposit: { totalEth: string; contributionEth: string };
+}> {
+  const q = new URLSearchParams({
+    id: params.id,
+    wallet: params.wallet,
+    contributionEth: params.contributionEth,
+  });
+  const res = await fetch(`${COMMUNITY_LAUNCH_API}/prepare-deposit?${q}`);
+  return communityLaunchJson(res);
+}
+
+export async function confirmCommunityLaunchDeposit(body: {
+  id: string;
+  wallet: string;
+  contributionEth: string;
+  signature: string;
+}): Promise<{ ok: boolean; petition: CommunityLaunchSummary }> {
+  const res = await fetch(`${COMMUNITY_LAUNCH_API}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return communityLaunchJson(res);
+}
+
+/** @deprecated use fetchCommunityLaunchConfig */
+export const fetchPetitionConfig = fetchCommunityLaunchConfig;
+/** @deprecated use fetchCommunityLaunchList */
+export const fetchPetitionList = fetchCommunityLaunchList;
+/** @deprecated use fetchCommunityLaunchStatus */
+export const fetchPetitionStatus = fetchCommunityLaunchStatus;
+/** @deprecated use createCommunityLaunch */
+export const createPetition = createCommunityLaunch;
+/** @deprecated use prepareCommunityLaunchDeposit */
+export const preparePetitionDeposit = prepareCommunityLaunchDeposit;
+/** @deprecated use confirmCommunityLaunchDeposit */
+export const confirmPetitionDeposit = confirmCommunityLaunchDeposit;

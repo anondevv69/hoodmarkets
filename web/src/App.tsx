@@ -4,6 +4,7 @@ import { ProfileTab } from './components/ProfileTab';
 import { DeployerProfilePage } from './components/DeployerProfilePage';
 import { WalletProfilePage } from './components/WalletProfilePage';
 import { DevPage } from './components/DevPage';
+import { CommunityLaunchPage } from './components/CommunityLaunchPage';
 import { SiteFooter } from './components/SiteFooter';
 import { TokenPage } from './components/TokenPage';
 import { TickerTape } from './components/TickerTape';
@@ -11,6 +12,7 @@ import { TokensTab } from './components/TokensTab';
 import { useExploreTokens } from './hooks/useExploreTokens';
 import { useEnsureRobinhoodChain } from './hooks/useEnsureRobinhoodChain';
 import { isDevPage } from './lib/devRoute';
+import { isCommunityLaunchPage } from './lib/communityLaunchRoute';
 import { closeDeployerProfile, readDeployerProfileFromUrl } from './lib/deployerProfileRoute';
 import { closeTokenPage, navigateToAppTab, openExplorePage, readTokenFromUrl } from './lib/tokenRoute';
 
@@ -32,7 +34,7 @@ const TAB_COPY: Record<Tab, { title: string; sub: string }> = {
 };
 
 function readTabFromUrl(): Tab {
-  if (isDevPage() || readTokenFromUrl() || readDeployerProfileFromUrl()) return 'tokens';
+  if (isDevPage() || isCommunityLaunchPage() || readTokenFromUrl() || readDeployerProfileFromUrl()) return 'tokens';
   const t = new URLSearchParams(window.location.search).get('tab');
   if (t === 'launch' || t === 'profile' || t === 'tokens') return t;
   return 'launch';
@@ -44,12 +46,14 @@ export default function App() {
   const [tokenAddress, setTokenAddress] = useState<string | null>(readTokenFromUrl);
   const [deployerProfile, setDeployerProfile] = useState(readDeployerProfileFromUrl);
   const [devPage, setDevPage] = useState(isDevPage);
+  const [communityLaunchPage, setCommunityLaunchPage] = useState(isCommunityLaunchPage);
 
   useEffect(() => {
     const sync = () => {
       setTokenAddress(readTokenFromUrl());
       setDeployerProfile(readDeployerProfileFromUrl());
       setDevPage(isDevPage());
+      setCommunityLaunchPage(isCommunityLaunchPage());
       setTab(readTabFromUrl());
     };
     window.addEventListener('popstate', sync);
@@ -57,12 +61,12 @@ export default function App() {
   }, []);
 
   const copy =
-    devPage
+    devPage || communityLaunchPage
       ? null
       : tokenAddress || deployerProfile
         ? null
         : TAB_COPY[tab];
-  const showExploreChrome = !tokenAddress && !deployerProfile && !devPage;
+  const showExploreChrome = !tokenAddress && !deployerProfile && !devPage && !communityLaunchPage;
   const {
     tokens: exploreTokens,
     catalog,
@@ -89,21 +93,21 @@ export default function App() {
           <nav className="site-nav" aria-label="Main">
             <button
               type="button"
-              className={`nav-tab ${tab === 'tokens' && !tokenAddress && !devPage ? 'active' : ''}`}
+              className={`nav-tab ${tab === 'tokens' && !tokenAddress && !devPage && !communityLaunchPage ? 'active' : ''}`}
               onClick={() => navigateToAppTab('tokens')}
             >
               Explore
             </button>
             <button
               type="button"
-              className={`nav-tab ${tab === 'launch' && !tokenAddress && !devPage ? 'active' : ''}`}
+              className={`nav-tab ${tab === 'launch' && !tokenAddress && !devPage && !communityLaunchPage ? 'active' : ''}`}
               onClick={() => navigateToAppTab('launch')}
             >
               Launch
             </button>
             <button
               type="button"
-              className={`nav-tab ${tab === 'profile' && !tokenAddress && !devPage ? 'active' : ''}`}
+              className={`nav-tab ${tab === 'profile' && !tokenAddress && !devPage && !communityLaunchPage ? 'active' : ''}`}
               onClick={() => navigateToAppTab('profile')}
             >
               Profile
@@ -138,6 +142,8 @@ export default function App() {
         <div className="panel">
           {devPage ? (
             <DevPage />
+          ) : communityLaunchPage ? (
+            <CommunityLaunchPage />
           ) : tokenAddress ? (
             <TokenPage tokenAddress={tokenAddress} />
           ) : deployerProfile?.platform === 'x' ? (
