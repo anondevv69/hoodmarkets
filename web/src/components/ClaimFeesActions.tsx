@@ -1,17 +1,14 @@
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  claimTradingFees,
-  claimTradingFeesPublic,
-  collectPoolFees,
-  collectPoolFeesPublic,
-  fetchTokenFeeStatus,
-  type TokenFeeStatus,
-} from '../api';
-import { txUrl, shortenAddress } from '../chain';
+import { fetchTokenFeeStatus, type TokenFeeStatus } from '../api';
+import { txUrl } from '../chain';
 import { isHoodmarketsPlatformFeeRecipient } from '../lib/feeRecipientDisplay';
 import { isSimpleLaunchDeployment } from '../lib/launchType';
-import { openWalletProfile } from '../lib/deployerProfileRoute';
+import {
+  claimV3TradingFeesFromWallet,
+  claimV4LockerFeesFromWallet,
+  collectV4PoolFeesFromWallet,
+} from '../lib/walletFeeClaims';
 
 export function ClaimFeesActions({
   tokenAddress,
@@ -19,7 +16,6 @@ export function ClaimFeesActions({
   feeRecipientLabel,
   poolId,
   factoryAddress,
-  /** When true (token page), anyone can trigger collect/claim — funds always go to fee recipient. */
   publicCollect = false,
   variant = 'card',
 }: {
@@ -31,9 +27,10 @@ export function ClaimFeesActions({
   publicCollect?: boolean;
   variant?: 'card' | 'sidebar';
 }) {
-  const { authenticated, getAccessToken } = usePrivy();
+  const { authenticated, login } = usePrivy();
   const { wallets } = useWallets();
-  const walletAddress = wallets[0]?.address?.toLowerCase();
+  const wallet = wallets[0];
+  const walletAddress = wallet?.address?.toLowerCase();
   const platformFees = isHoodmarketsPlatformFeeRecipient(feeRecipientLabel);
   const isFeeOwner =
     !platformFees &&
@@ -72,11 +69,19 @@ export function ClaimFeesActions({
   }
 
   const catalogSimple = isSimpleLaunchDeployment({ poolId, factoryAddress });
-  /** Prefer catalog poolId/factory — fee-status loads async and wrongly defaulted to V4 while pending. */
   const isV3 =
     feeStatus?.feeModel === 'v4'
       ? false
       : feeStatus?.feeModel === 'v3' || catalogSimple;
+
+  async function requireWallet() {
+    if (!wallet) {
+      if (login) login();
+      throw new Error('Connect a wallet to continue. You pay gas.');
+    }
+    const provider = await wallet.getEthereumProvider();
+    return { wallet, provider };
+  }
 
   async function onCollect() {
     setError(null);
@@ -84,16 +89,14 @@ export function ClaimFeesActions({
     setTxHash(null);
     setCollecting(true);
     try {
-      const out = publicCollect
-        ? await collectPoolFeesPublic(tokenAddress)
-        : await (async () => {
-            const token = await getAccessToken();
-            if (!token) throw new Error('Not signed in');
-            return collectPoolFees(token, tokenAddress, walletAddress);
-          })();
-      if (!out.ok && out.error) throw new Error(out.error);
-      setMessage(out.message);
-      if (out.txHash) setTxHash(out.txHash);
+      const { wallet: w, provider } = await requireWallet();
+      const hash = await collectV4PoolFeesFromWallet({
+        tokenAddress,
+        walletAddress: w.address as `0x${string}`,
+        ethereumProvider: provider,
+      });
+      setTxHash(hash);
+      setMessage('Pool fees collected into the locker.');
       await refreshStatus();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Collect failed');
@@ -108,20 +111,20 @@ export function ClaimFeesActions({
     setTxHash(null);
     setClaiming(true);
     try {
-      const out = publicCollect
-        ? await claimTradingFeesPublic(tokenAddress)
-        : await (async () => {
-            const token = await getAccessToken();
-            if (!token) throw new Error('Not signed in');
-            return claimTradingFees(token, tokenAddress, walletAddress);
-          })();
-      if (!out.ok && out.error) throw new Error(out.error);
-      setMessage(
-        out.feeAmountHuman
-          ? `${out.message ?? 'Claimed'} (${out.feeAmountHuman} WETH)`
-          : out.message,
-      );
-      if (out.txHash) setTxHash(out.txHash);
+      const { wallet: w, provider } = await requireWallet();
+      const hash = isV3
+        ? await claimV3TradingFeesFromWallet({
+            tokenAddress,
+            walletAddress: w.address as `0x${string}`,
+            ethereumProvider: provider,
+          })
+        : await claimV4LockerFeesFromWallet({
+            feeRecipientAddress,
+            walletAddress: w.address as `0x${string}`,
+            ethereumProvider: provider,
+          });
+      setTxHash(hash);
+      setMessage(isV3 ? 'Trading fees claim submitted.' : 'Fees claim submitted.');
       await refreshStatus();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Claim failed');
@@ -142,6 +145,10 @@ export function ClaimFeesActions({
     : statusLoading
       ? '…'
       : 'Never';
+
+  const walletNote = wallet
+    ? 'You pay gas for on-chain transactions.'
+    : 'Connect a wallet to claim. You pay gas.';
 
   if (variant === 'sidebar') {
     return (
@@ -182,13 +189,7 @@ export function ClaimFeesActions({
           </>
         )}
 
-        <p className="tp-footnote">
-          {platformFees
-            ? 'Anyone can trigger this claim. Fees go to the hood.markets treasury — the caller only pays gas.'
-            : isV3
-              ? 'Anyone can trigger this claim. One transaction pays every Holder NFT share wallet pro-rata — hood.markets pays gas from the site.'
-              : 'Anyone can trigger this claim. WETH is sent to the fee recipient — hood.markets pays gas.'}
-        </p>
+        <p className="tp-footnote">{walletNote}</p>
 
         {message ? <p className="muted claim-fees-message">{message}</p> : null}
         {txHash ? (
@@ -206,57 +207,23 @@ export function ClaimFeesActions({
   return (
     <div className="lp-card claim-fees-card">
       <p className="section-label">Trading fees</p>
-      <p className="muted claim-fees-intro">
-        {platformFees ? (
-          <>
-            This launch hit the 24h self-fee limit — trading fees go to the hood.markets platform
-            wallet ({shortenAddress(feeRecipientAddress)}). Anyone can trigger the on-chain claim;
-            hood.markets pays gas and WETH is sent to the platform treasury.
-          </>
-        ) : isV3 ? (
-          <>
-            Simple (V3) launch: swap fees accrue in the Uniswap V3 pool. Anyone can trigger{' '}
-            <strong>Claim trading fees</strong> below — one transaction pulls fees from the pool
-            and sends each Holder NFT share wallet its pro-rata slice (95% creator pool). hood.markets
-            pays gas when triggered from the site.
-          </>
-        ) : publicCollect ? (
-          <>
-            Pro (V4) launches: pool fees go into a locker, then WETH is claimed to the{' '}
-            <button
-              type="button"
-              className="btn-link"
-              onClick={() => openWalletProfile(feeRecipientAddress)}
-            >
-              fee recipient
-            </button>{' '}
-            ({shortenAddress(feeRecipientAddress)}). hood.markets pays gas.
-          </>
-        ) : (
-          <>
-            Pull pool fees into the locker, then claim WETH to your wallet. Gas is paid by
-            hood.markets.
-          </>
-        )}
-      </p>
+      <p className="muted claim-fees-intro">{walletNote}</p>
 
       {statusLoading ? (
         <p className="muted claim-fees-status">Checking fee status…</p>
       ) : feeStatus ? (
         <p className="claim-fees-status">
           {isV3 ? (
-            <span className="muted">
-              V3: one claim pulls pool fees and pays every share holder pro-rata.
-            </span>
+            <span className="muted">V3: claim pulls pool fees to share holders.</span>
           ) : hasPending ? (
             <span className="lp-display">{pending} WETH in fee locker</span>
           ) : (
-            <span className="muted">No WETH in the fee locker yet — collect pool fees first</span>
+            <span className="muted">No WETH in the fee locker yet</span>
           )}
           {feeStatus.feeClaimedAt ? (
             <span className="muted">
               {' '}
-              · Last claim recorded {new Date(feeStatus.feeClaimedAt).toLocaleString()}
+              · Last claim {new Date(feeStatus.feeClaimedAt).toLocaleString()}
             </span>
           ) : null}
         </p>

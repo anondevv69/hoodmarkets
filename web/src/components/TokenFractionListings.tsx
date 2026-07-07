@@ -106,14 +106,10 @@ export function TokenFractionListings({
   return (
     <div className="token-fraction-listings">
       <p className="token-fraction-manage-title">Shares for sale</p>
-      <p className="muted token-fraction-action-hint">
-        On-chain listings — buyer pays the listed price in one transaction (5% platform fee, 95% to seller)
-        and receives shares automatically.
-      </p>
       {loading ? (
         <p className="muted">Loading listings…</p>
       ) : listings.length === 0 ? (
-        <p className="muted">No active listings yet.</p>
+        <p className="muted">No active listings.</p>
       ) : (
         <div className="token-fraction-table-wrap token-fraction-table-wrap--scroll">
           <table className="token-fraction-table">

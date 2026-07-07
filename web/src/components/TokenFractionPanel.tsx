@@ -146,9 +146,7 @@ export function TokenFractionPanel({
           Holder NFTs
         </p>
         <p className="token-fraction-sub">
-          {info.totalShares.toLocaleString()} equal shares · 10% supply vaulted · Platform fees:{' '}
-          <strong>swap trading fees 5% / 95%</strong> to holders ·{' '}
-          <strong>share listings 5%</strong> of sale price
+          {info.totalShares.toLocaleString()} equal shares · 10% supply vaulted
         </p>
       </div>
 
@@ -211,7 +209,7 @@ export function TokenFractionPanel({
             <strong>
               {walletShares.toLocaleString()} share{walletShares === 1 ? '' : 's'}
             </strong>{' '}
-            ({pctLabel((walletShares / info.totalShares) * 100)} of vault · same % of creator fees)
+            ({pctLabel((walletShares / info.totalShares) * 100)} of vault)
           </p>
         ) : null}
 
@@ -287,14 +285,6 @@ export function TokenFractionPanel({
             <p className="muted token-fraction-note">No outstanding shares — full vault redeemed.</p>
           )}
         </div>
-
-        <p className="muted token-fraction-foot">
-          ERC-1155 shares — transferable like NFTs (sends and airdrops: full amount, no fee). Hood.markets
-          takes a cut in <strong>two places only</strong>: swap trading fees (5% platform / 95% pro-rata to
-          holders via <code>claimTradingFees()</code>) and share marketplace sales (5% of listed price on{' '}
-          <code>buyShares</code>). Burn shares to withdraw tokens from the 10% vault (forfeit fee rights on
-          burned shares).
-        </p>
 
         {!authenticated ? (
           <p className="muted token-fraction-viewer-note token-fraction-signin-foot">
