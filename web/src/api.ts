@@ -14,11 +14,17 @@ export interface DeployCooldownConflict {
 
 export class DeployApiError extends Error {
   conflict?: DeployCooldownConflict;
+  communityLaunch?: CommunityLaunchLockConflict;
 
-  constructor(message: string, conflict?: DeployCooldownConflict) {
+  constructor(
+    message: string,
+    conflict?: DeployCooldownConflict,
+    communityLaunch?: CommunityLaunchLockConflict,
+  ) {
     super(message);
     this.name = 'DeployApiError';
     this.conflict = conflict;
+    this.communityLaunch = communityLaunch;
   }
 }
 
@@ -447,10 +453,15 @@ async function postDeploy(
     WalletDeployPrepare & {
       error?: string;
       conflict?: DeployCooldownConflict;
+      communityLaunch?: CommunityLaunchLockConflict;
     };
 
   if (!res.ok) {
-    throw new DeployApiError(data.error || res.statusText || 'Launch failed', data.conflict);
+    throw new DeployApiError(
+      data.error || res.statusText || 'Launch failed',
+      data.conflict,
+      data.communityLaunch,
+    );
   }
 
   return data;
