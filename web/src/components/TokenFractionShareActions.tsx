@@ -14,7 +14,8 @@ import {
   airdropFractionShares,
   type TokenFractionInfo,
 } from '../lib/tokenFractions';
-import { processBuyerRewards, claimTradingFeesPublic } from '../api';
+import { processBuyerRewards } from '../api';
+import { claimV3TradingFeesFromWallet } from '../lib/walletFeeClaims';
 import { formatTokenBalance } from '../lib/formatTokenBalance';
 import { zeroAddress } from 'viem';
 
@@ -195,7 +196,7 @@ export function TokenFractionShareActions({
         <p className="token-fraction-action-title">Send shares</p>
         <p className="muted token-fraction-action-hint">
           Transfer to one wallet. You hold {walletShares.toLocaleString()} share
-          {walletShares === 1 ? '' : 's'} — full amount, no platform fee.
+          {walletShares === 1 ? '' : 's'}.
         </p>
         <label className="token-fraction-field">
           Recipient wallet
@@ -245,8 +246,7 @@ export function TokenFractionShareActions({
       <div className="token-fraction-action">
         <p className="token-fraction-action-title">List shares for sale</p>
         <p className="muted token-fraction-action-hint">
-          Escrow shares at your asking price. On sale: you receive 95% of the listed price; hood.markets
-          collects 5% (one of two platform fees — the other is on swap trading fees).
+          Escrow shares at your asking price. Buyers purchase in one transaction.
         </p>
         <label className="token-fraction-field">
           Share count
@@ -615,11 +615,6 @@ export function TokenFractionShareActions({
 
       <div className="token-fraction-action">
         <p className="token-fraction-action-title">Trading fees</p>
-        <p className="muted token-fraction-action-hint">
-          Pulls Uniswap swap fees from the locked LP. Locker split: <strong>5% platform / 95% to holders</strong>{' '}
-          (pro-rata) — then one tx pays every share holder. This is one of the two platform fees; the other
-          is 5% on share marketplace sales.
-        </p>
         {pendingFees && (pendingFees.pending0 > 0n || pendingFees.pending1 > 0n) ? (
           <p className="muted token-fraction-pending">
             Your share when claimed:{' '}
@@ -640,9 +635,13 @@ export function TokenFractionShareActions({
               setClaimTx(null);
               setClaimingFees(true);
               try {
-                const out = await claimTradingFeesPublic(info.launchToken);
-                if (!out.ok && out.error) throw new Error(out.error);
-                if (out.txHash) setClaimTx(out.txHash);
+                const provider = await wallet.getEthereumProvider();
+                const hash = await claimV3TradingFeesFromWallet({
+                  tokenAddress: info.launchToken,
+                  walletAddress: wallet.address as `0x${string}`,
+                  ethereumProvider: provider,
+                });
+                setClaimTx(hash);
                 const { fetchPendingFractionTradingFees } = await import('../lib/tokenFractions');
                 const pending = await fetchPendingFractionTradingFees(
                   info.collectionAddress,

@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import type { Express, Request, Response } from 'express';
 import { createPublicClient, formatEther, http, getAddress, type Address } from 'viem';
-import { robinhood } from '../lib/robinhoodChain.js';
+import { robinhood, CHAIN_WETH } from '../lib/robinhoodChain.js';
 import { config } from '../config.js';
 import { logger } from '../logger.js';
 import type { LiquidDeployer } from '../deployer.js';
@@ -455,6 +455,11 @@ export function registerWebDeployRoutes(
       initialBuyDefaultEth: webInitialBuyDefaultEth(),
       initialBuyPresetsEth: [...WEB_INITIAL_BUY_PRESETS_ETH],
       walletDeployEnabled: true,
+      feeClaimContracts: {
+        liquidLpLocker: config.liquid.lpLocker || undefined,
+        feeLocker: config.liquid.feeLocker || undefined,
+        weth: CHAIN_WETH,
+      },
     });
   });
 

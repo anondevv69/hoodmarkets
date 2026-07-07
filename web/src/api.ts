@@ -120,6 +120,11 @@ export interface WebDeployConfig {
   initialBuyDefaultEth: string;
   initialBuyPresetsEth: string[];
   walletDeployEnabled: boolean;
+  feeClaimContracts?: {
+    liquidLpLocker?: string;
+    feeLocker?: string;
+    weth?: string;
+  };
 }
 
 export interface DeployResult {
