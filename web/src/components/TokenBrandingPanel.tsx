@@ -57,7 +57,7 @@ export function TokenBrandingPanel({
         return;
       }
       await importTokenDexBranding(token, tokenAddress, walletAddress);
-      setMessage('DexScreener icon and banner imported to this token page.');
+      setMessage('DexScreener icon and banner saved — banner shows at the top of this page.');
       await refresh();
       onImported?.();
     } catch (e) {
@@ -67,17 +67,17 @@ export function TokenBrandingPanel({
     }
   }
 
-  if (loading || !branding) return null;
-
-  const { dex, admin, isAdmin } = branding;
-  const canImport =
-    dex.enhancedInfoPaid && isAdmin && !!(dex.iconUrl || dex.bannerUrl);
+  const dex = branding?.dex;
+  const admin = branding?.admin;
+  const isAdmin = branding?.isAdmin ?? false;
 
   return (
     <section className="tp-zone tp-branding-zone" aria-label="Token branding">
       <div className="tp-branding-head">
-        <p className="tp-zone-label">Page admin</p>
-        {dex.enhancedInfoPaid ? (
+        <p className="tp-zone-label">Dex branding</p>
+        {loading ? (
+          <span className="muted">Checking DexScreener…</span>
+        ) : dex?.enhancedInfoPaid ? (
           <span className="tp-dex-paid-badge" title="DexScreener Enhanced Token Info">
             Dex paid ✓
           </span>
@@ -86,34 +86,51 @@ export function TokenBrandingPanel({
         )}
       </div>
 
-      <p className="muted tp-branding-admin-copy">
-        Admin:{' '}
-        <span className="lp-mono">{shortenAddress(admin.adminWallet)}</span>
-        {admin.adminRole === 'top_share_holder' && admin.topShareCount
-          ? ` · top holder (${admin.topShareCount} shares)`
-          : admin.adminRole === 'deployer'
-            ? ' · deployer'
-            : ' · fee recipient'}
+      <p className="muted token-space-note">
+        When Dex Enhanced Token Info is paid, the banner appears above the token header and the icon
+        can be pulled from DexScreener. Only the page admin can import into hood.markets.
       </p>
 
-      {canImport ? (
+      {!loading && admin ? (
+        <p className="muted tp-branding-admin-copy">
+          Page admin:{' '}
+          <span className="lp-mono">{shortenAddress(admin.adminWallet)}</span>
+          {admin.adminRole === 'top_share_holder' && admin.topShareCount
+            ? ` · top holder (${admin.topShareCount} shares)`
+            : admin.adminRole === 'deployer'
+              ? ' · deployer'
+              : ' · fee recipient'}
+        </p>
+      ) : null}
+
+      {!loading && dex?.enhancedInfoPaid && isAdmin ? (
         <div className="tp-branding-actions">
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
-            disabled={busy}
+            className="btn btn-primary btn-sm"
+            disabled={busy || !(dex.iconUrl || dex.bannerUrl)}
             onClick={() => void onImport()}
           >
             {busy ? 'Importing…' : 'Import DexScreener icon & banner'}
           </button>
           {!authenticated ? (
-            <span className="muted">Sign in with the admin wallet to import.</span>
-          ) : !isAdmin ? (
-            <span className="muted">Connect the admin wallet to import.</span>
+            <span className="muted">Sign in with the admin wallet first.</span>
           ) : null}
         </div>
-      ) : dex.enhancedInfoPaid && isAdmin ? (
-        <p className="muted">Dex paid — waiting for DexScreener to publish icon/banner.</p>
+      ) : null}
+
+      {!loading && dex?.enhancedInfoPaid && !isAdmin ? (
+        <p className="muted">Connect as the page admin wallet to import Dex branding.</p>
+      ) : null}
+
+      {!loading && !dex?.enhancedInfoPaid ? (
+        <p className="muted">
+          Pay for{' '}
+          <a href="https://marketplace.dexscreener.com/product/token-info" target="_blank" rel="noreferrer">
+            DexScreener Enhanced Token Info
+          </a>{' '}
+          to unlock custom icon and banner on Dex and here.
+        </p>
       ) : null}
 
       {message ? <p className="tp-branding-ok">{message}</p> : null}

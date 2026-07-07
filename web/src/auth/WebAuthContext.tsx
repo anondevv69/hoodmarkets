@@ -28,6 +28,7 @@ export type WebAuthMethod = 'rainbow' | 'bankr' | null;
 type WebAuthContextValue = {
   ready: boolean;
   authenticated: boolean;
+  signingIn: boolean;
   walletAddress: string | null;
   walletKind: string | null;
   authMethod: WebAuthMethod;
@@ -41,9 +42,13 @@ type WebAuthContextValue = {
 
 const WebAuthContext = createContext<WebAuthContextValue | null>(null);
 
-/** Brief pause so the wallet can finish connect UI before the sign prompt. */
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isUserRejection(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /reject|denied|cancel|declined/i.test(msg);
 }
 
 export function WebAuthProvider({ children }: { children: ReactNode }) {
@@ -55,6 +60,7 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
   const [authMethod, setAuthMethod] = useState<WebAuthMethod>(null);
   const [ready, setReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
   const signInFlightRef = useRef<string | null>(null);
   const sessionRef = useRef<StoredWebSession | null>(null);
 
@@ -106,10 +112,10 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
       if (signInFlightRef.current === key) return;
 
       signInFlightRef.current = key;
+      setSigningIn(true);
       setAuthError(null);
       try {
-        // Wallets often miss the sign prompt if fired in the same tick as connect.
-        await delay(400);
+        await delay(300);
         if (signInFlightRef.current !== key) return;
         await completeWalletLogin(
           walletAddress,
@@ -117,17 +123,24 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
           'injected',
         );
       } catch (e) {
-        if (signInFlightRef.current === key) {
-          setAuthError(e instanceof Error ? e.message : 'Wallet sign-in failed.');
-          disconnect();
-          clearStoredSession();
-          setSession(null);
-          sessionRef.current = null;
-          setAuthMethod(null);
+        if (signInFlightRef.current !== key) return;
+        if (isUserRejection(e)) {
+          setAuthError('Sign-in cancelled in wallet. Click Connect wallet to try again.');
+        } else {
+          const msg = e instanceof Error ? e.message : 'Wallet sign-in failed.';
+          setAuthError(msg);
+          if (!/challenge expired/i.test(msg)) {
+            disconnect();
+            clearStoredSession();
+            setSession(null);
+            sessionRef.current = null;
+            setAuthMethod(null);
+          }
         }
       } finally {
         if (signInFlightRef.current === key) {
           signInFlightRef.current = null;
+          setSigningIn(false);
         }
       }
     },
@@ -152,17 +165,21 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
     setAuthError(null);
 
     if (status === 'connecting' || status === 'reconnecting') {
-      setAuthError('Connecting wallet… check your extension.');
+      setAuthError('Connecting wallet… check your extension for prompts.');
+      return;
+    }
+
+    if (signingIn || signInFlightRef.current) {
+      setAuthError('Check your wallet — approve the hood.markets sign-in message.');
       return;
     }
 
     if (isConnected && address) {
       if (session?.walletAddress?.toLowerCase() === address.toLowerCase()) {
-        setAuthError('Already signed in.');
         return;
       }
       void runSignInIfNeeded(address);
-      setAuthError('Approve the sign-in message in your wallet. Tap Connect again if you do not see it.');
+      setAuthError('Check your wallet — approve the sign-in message.');
       return;
     }
 
@@ -171,12 +188,13 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setAuthError('Wallet connect is loading… try again in a moment.');
+    setAuthError('Wallet connect is loading… refresh if this persists.');
   }, [
     openConnectModal,
     status,
     isConnected,
     address,
+    signingIn,
     session?.walletAddress,
     runSignInIfNeeded,
   ]);
@@ -201,6 +219,7 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     signInFlightRef.current = null;
+    setSigningIn(false);
     clearStoredSession();
     setSession(null);
     sessionRef.current = null;
@@ -218,6 +237,7 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
     () => ({
       ready,
       authenticated: !!session?.token,
+      signingIn,
       walletAddress: session?.walletAddress ?? null,
       walletKind: session?.walletKind ?? null,
       authMethod,
@@ -231,6 +251,7 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
     [
       ready,
       session,
+      signingIn,
       authMethod,
       getAccessToken,
       connectWallet,
