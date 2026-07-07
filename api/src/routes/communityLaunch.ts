@@ -4,10 +4,6 @@
  */
 import type { Express, Request, Response } from 'express';
 import { getAddress, isAddress, parseEther } from 'viem';
-import { createPublicClient, createWalletClient, http } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { config } from '../config.js';
-import { robinhood } from '../lib/robinhoodChain.js';
 import {
   formatCommunityLaunchCreateBlockMessage,
   communityLaunchRowToConflict,
@@ -22,7 +18,6 @@ import {
   insertPetitionOrder,
   listOpenPetitions,
   listPetitionOrders,
-  markOrderRefunded,
   markPetitionCancelled,
   refreshPetitionExpiryStatus,
   sumActiveRaisedWei,
@@ -38,7 +33,8 @@ import {
 } from '../lib/petitionEthGoal.js';
 import { maybeStartFinalization } from '../lib/petitionFinalize.js';
 import { parsePetitionIdFromInput } from '../lib/petitionParse.js';
-import { createPetitionPublicClient, refundPetitionDeposit, verifyPetitionDeposit } from '../lib/petitionRobinhoodEscrow.js';
+import { createPetitionPublicClient, verifyPetitionDeposit } from '../lib/petitionRobinhoodEscrow.js';
+import { refundAllActivePetitionOrders, refundPetitionOrder, createPetitionRefundClients } from '../lib/petitionRefunds.js';
 import {
   buildPrepareDepositNextStep,
   petitionConfigPayload,
@@ -439,26 +435,8 @@ export function registerCommunityLaunchRoutes(app: Express): void {
       return;
     }
 
-    const refundWei = BigInt(order.deposit_wei || '0');
-    const account = privateKeyToAccount(config.deployerPrivateKey);
-    const publicClient = createPublicClient({
-      chain: robinhood,
-      transport: http(config.chainRpcUrl),
-    });
-    const walletClient = createWalletClient({
-      account,
-      chain: robinhood,
-      transport: http(config.chainRpcUrl),
-    });
-
-    const refundTx = await refundPetitionDeposit({
-      wallet,
-      wei: refundWei,
-      walletClient,
-      publicClient,
-    });
-
-    await markOrderRefunded(id, wallet);
+    const clients = createPetitionRefundClients();
+    const refundTx = await refundPetitionOrder(id, order, clients);
     await updatePetitionSoldUnits(id, 0);
 
     res.json({
@@ -478,36 +456,82 @@ export function registerCommunityLaunchRoutes(app: Express): void {
       res.status(400).json({ ok: false, error: 'id is required.' });
       return;
     }
+    if (!wallet || !isAddress(wallet)) {
+      res.status(400).json({ ok: false, error: 'Creator wallet is required.' });
+      return;
+    }
 
-    const petition = await getPetitionById(id);
+    let petition = await getPetitionById(id);
     if (!petition) {
       res.status(404).json({ ok: false, error: 'Petition not found.' });
       return;
     }
-    if (petition.status !== 'open') {
-      res.status(400).json({ ok: false, error: 'Only open petitions can be cancelled.' });
+    petition = await refreshPetitionExpiryStatus(petition);
+    if (petition.status !== 'open' && petition.status !== 'expired') {
+      res.status(400).json({
+        ok: false,
+        error: 'Only open or expired launches can be cancelled.',
+      });
+      return;
+    }
+
+    if (!petition.starter_wallet) {
+      res.status(400).json({ ok: false, error: 'This launch has no creator wallet on file.' });
+      return;
+    }
+    try {
+      if (getAddress(wallet) !== getAddress(petition.starter_wallet)) {
+        res.status(403).json({ ok: false, error: 'Only the creator can cancel this launch.' });
+        return;
+      }
+    } catch {
+      res.status(400).json({ ok: false, error: 'Invalid wallet.' });
       return;
     }
 
     const raised = await sumActiveRaisedWei(id);
-    if (raised > 0n) {
-      res.status(400).json({ ok: false, error: 'Cannot cancel a launch with active contributions.' });
+    const targetWei = petitionTargetRaiseWei(petition);
+    if (targetWei > 0n && raised >= targetWei) {
+      res.status(400).json({
+        ok: false,
+        error: 'Raise goal is met — launch is processing. Cancel is no longer available.',
+      });
       return;
     }
 
-    if (wallet && petition.starter_wallet) {
-      try {
-        if (getAddress(wallet) !== getAddress(petition.starter_wallet)) {
-          res.status(403).json({ ok: false, error: 'Only the creator can cancel this petition.' });
-          return;
-        }
-      } catch {
-        res.status(400).json({ ok: false, error: 'Invalid wallet.' });
-        return;
-      }
+    const orders = await listPetitionOrders(id);
+    let refunds: Array<{ wallet: string; refundTxHash: string }> = [];
+    try {
+      const refundResults = await refundAllActivePetitionOrders(id, orders);
+      refunds = refundResults.map((r) => ({
+        wallet: r.wallet,
+        refundTxHash: r.refundTxHash,
+      }));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      res.status(500).json({
+        ok: false,
+        error: `Refund failed: ${msg}`,
+        refunds,
+      });
+      return;
     }
 
-    await markPetitionCancelled(id);
-    res.json({ ok: true, petition: await loadPetitionSummary(id, req) });
+    const cancelled = await markPetitionCancelled(id);
+    if (!cancelled) {
+      res.status(409).json({
+        ok: false,
+        error: 'Launch status changed before cancel could complete. Refresh and try again.',
+        refunds,
+      });
+      return;
+    }
+
+    await updatePetitionSoldUnits(id, 0);
+    res.json({
+      ok: true,
+      refunds,
+      petition: await loadPetitionSummary(id, req),
+    });
   });
 }

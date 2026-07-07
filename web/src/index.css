@@ -1862,6 +1862,21 @@ label {
   gap: 0.65rem;
 }
 
+.petition-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.petition-cancel-block {
+  border-color: color-mix(in srgb, var(--error, #e55) 25%, var(--border-soft));
+}
+
+.petition-cancel-btn {
+  color: var(--error, #e55);
+}
+
 /* —— Token page redesign (QuantumFlux layout) —— */
 
 .tp-token-card {

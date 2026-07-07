@@ -851,7 +851,9 @@ export interface CommunityLaunchSummary {
   expiresAt: string;
   escrowWallet: string | null;
   shareUrl: string;
+  starterWallet: string | null;
   tokenAddress: string | null;
+  orders?: CommunityLaunchOrderSummary[];
   finalResult: {
     tokenAddress: string;
     deployTxHash: string;
@@ -868,6 +870,15 @@ export interface CommunityLaunchSummary {
   soldUnits?: number;
   remainingUnits?: number;
   unitPriceEth?: string;
+}
+
+export interface CommunityLaunchOrderSummary {
+  wallet: string;
+  contributionEth: string;
+  contributionWei: string;
+  estimatedShares: number;
+  ownershipPct: number;
+  status: string;
 }
 
 /** @deprecated use CommunityLaunchSummary */
@@ -948,6 +959,34 @@ export async function confirmCommunityLaunchDeposit(body: {
   signature: string;
 }): Promise<{ ok: boolean; petition: CommunityLaunchSummary }> {
   const res = await fetch(`${COMMUNITY_LAUNCH_API}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return communityLaunchJson(res);
+}
+
+export async function refundCommunityLaunch(body: {
+  id: string;
+  wallet: string;
+}): Promise<{ ok: boolean; refundTxHash: string; petition: CommunityLaunchSummary }> {
+  const res = await fetch(`${COMMUNITY_LAUNCH_API}/refund`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return communityLaunchJson(res);
+}
+
+export async function cancelCommunityLaunch(body: {
+  id: string;
+  wallet: string;
+}): Promise<{
+  ok: boolean;
+  refunds: Array<{ wallet: string; refundTxHash: string }>;
+  petition: CommunityLaunchSummary;
+}> {
+  const res = await fetch(`${COMMUNITY_LAUNCH_API}/cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

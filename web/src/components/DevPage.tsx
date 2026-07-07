@@ -93,8 +93,8 @@ const COMMUNITY_LAUNCH_ENDPOINTS = [
   ['POST', '/api/community-launch/create', 'Open 24h Holder NFT share pre-sale'],
   ['GET', '/api/community-launch/prepare-deposit', 'Quote deposit + wallet nextStep'],
   ['POST', '/api/community-launch/confirm', 'Record deposit tx hash'],
-  ['POST', '/api/community-launch/refund', 'Refund while open or expired'],
-  ['POST', '/api/community-launch/cancel', 'Creator cancel empty round'],
+  ['POST', '/api/community-launch/refund', 'Backer self-refund while open or expired'],
+  ['POST', '/api/community-launch/cancel', 'Creator cancel — refunds all backers'],
 ] as const;
 
 const SIDEBAR: { id: DevSection; label: string }[] = [
