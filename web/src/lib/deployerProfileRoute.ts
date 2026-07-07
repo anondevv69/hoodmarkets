@@ -45,6 +45,25 @@ export function openWalletProfile(walletAddress: string): void {
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
+/** Signed-in profile: wallet dashboard URL when possible, else sign-in tab. */
+export function navigateToMyProfile(walletAddress: string | null | undefined): void {
+  const addr = walletAddress?.trim();
+  if (addr && /^0x[a-fA-F0-9]{40}$/.test(addr)) {
+    openWalletProfile(addr);
+    return;
+  }
+  const url = new URL(window.location.href);
+  if (url.pathname !== '/' && url.pathname !== '') url.pathname = '/';
+  url.searchParams.set('tab', 'profile');
+  url.searchParams.delete('token');
+  url.searchParams.delete('buy');
+  url.searchParams.delete('profile');
+  url.searchParams.delete('user');
+  url.searchParams.delete('address');
+  window.history.pushState({}, '', `${url.pathname}${url.search}`);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
 export function closeDeployerProfile(): void {
   const url = new URL(window.location.origin + '/');
   url.searchParams.delete('profile');

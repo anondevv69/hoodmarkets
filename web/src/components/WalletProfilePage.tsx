@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchWalletProfile, type Deployment } from '../api';
+import { fetchMyDeployerProfile, fetchWalletProfile, type Deployment } from '../api';
 import { addressUrl, shortenAddress } from '../chain';
 import {
   fetchTokenMetricsFromDexscreener,
@@ -7,7 +7,9 @@ import {
   type DexTokenMetrics,
 } from '../lib/dexscreenerVolume';
 import { closeDeployerProfile } from '../lib/deployerProfileRoute';
+import { useWebAuth } from '../auth/WebAuthContext';
 import { TokenCard } from './TokenCard';
+import { ProfileBankrLink } from './ProfileBankrLink';
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
@@ -47,6 +49,9 @@ function TokenSection({
 }
 
 export function WalletProfilePage({ walletAddress }: { walletAddress: string }) {
+  const { authenticated, walletAddress: sessionWallet, logout, getAccessToken } = useWebAuth();
+  const isOwnProfile =
+    authenticated && sessionWallet?.toLowerCase() === walletAddress.trim().toLowerCase();
   const [feeRecipientTokens, setFeeRecipientTokens] = useState<Deployment[]>([]);
   const [initiatedTokens, setInitiatedTokens] = useState<Deployment[]>([]);
   const [feeRecipientTokenCount, setFeeRecipientTokenCount] = useState(0);
@@ -56,6 +61,31 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
   >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bankrProfile, setBankrProfile] = useState<{
+    bankrLinked: boolean;
+    bankrWallet: string | null;
+    bankrLaunchCount: number;
+  } | null>(null);
+
+  const reloadBankr = async () => {
+    if (!isOwnProfile) return;
+    const token = await getAccessToken();
+    if (!token) return;
+    const profile = await fetchMyDeployerProfile(token, walletAddress);
+    setBankrProfile({
+      bankrLinked: profile.bankrLinked,
+      bankrWallet: profile.bankrWallet,
+      bankrLaunchCount: profile.bankrLaunchCount,
+    });
+  };
+
+  useEffect(() => {
+    if (!isOwnProfile) {
+      setBankrProfile(null);
+      return;
+    }
+    void reloadBankr().catch(() => setBankrProfile(null));
+  }, [isOwnProfile, walletAddress]);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +151,17 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
 
   return (
     <div className="deployer-profile-page lp-fade-in">
+      {isOwnProfile ? (
+        <div className="profile-toolbar">
+          <div className="muted" style={{ fontSize: '0.85rem' }}>
+            {shortenAddress(walletAddress)}
+          </div>
+          <button type="button" className="btn btn-ghost" onClick={logout}>
+            Sign out
+          </button>
+        </div>
+      ) : null}
+
       <div className="lp-card deployer-profile-hero">
         <p className="section-label">Wallet profile</p>
         <h2 className="lp-display deployer-profile-handle mono">{shortenAddress(walletAddress)}</h2>
@@ -137,6 +178,10 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
           </a>
         </p>
       </div>
+
+      {isOwnProfile && bankrProfile ? (
+        <ProfileBankrLink profile={bankrProfile} onUpdated={reloadBankr} />
+      ) : null}
 
       <div className="profile-stats">
         {initiatedLaunchCount > 0 ? (

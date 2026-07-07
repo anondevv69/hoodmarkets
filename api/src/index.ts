@@ -12,6 +12,7 @@ import { XWebhookHandler } from './platforms/x-webhook.js';
 import { setPlatformListenSnapshot } from './lib/platformListenSnapshot.js';
 import { postStartupListenReport } from './lib/discordDebug.js';
 import { initDedupDb, closeDedupDb, cleanupOldRecords } from './lib/deployDedup.js';
+import { initVanitySaltBankDb, closeVanitySaltBankDb, maintainVanitySaltBanks } from './lib/vanitySaltBank.js';
 import { initDeploymentCatalogDb,
   closeDeploymentCatalogDb,
   runCatalogPurgesIfNeeded,
@@ -50,6 +51,7 @@ async function main() {
     // Initialize deploy dedup database + deployment catalog (same `.data` dir — use a volume in prod)
     initDedupDb();
     initDeploymentCatalogDb();
+    initVanitySaltBankDb();
     initHoodSocialDb();
     initPetitionDb();
     setTimeout(() => {
@@ -64,6 +66,14 @@ async function main() {
     // Validate config
     validateConfig();
     logger.info('Configuration validated');
+
+    if (config.hoodmarketsV3.factory && config.webWalletDeployVanity) {
+      setTimeout(() => {
+        void maintainVanitySaltBanks().catch((e: unknown) =>
+          logger.warn('Vanity salt bank maintenance failed:', e instanceof Error ? e.message : e),
+        );
+      }, 2000);
+    }
     
     // Initialize services
     const deployer = new LiquidDeployer();
@@ -343,6 +353,7 @@ process.on('uncaughtException', (error: any) => {
   logger.error('Uncaught exception:', error);
   closeDedupDb();
   closeDeploymentCatalogDb();
+  closeVanitySaltBankDb();
   process.exit(1);
 });
 
@@ -350,6 +361,7 @@ process.on('SIGTERM', () => {
   logger.info('SIGTERM: shutting down gracefully');
   closeDedupDb();
   closeDeploymentCatalogDb();
+  closeVanitySaltBankDb();
   closeHoodSocialDb();
   closePetitionDb();
   process.exit(0);
@@ -359,6 +371,7 @@ process.on('SIGINT', () => {
   logger.info('SIGINT: shutting down gracefully');
   closeDedupDb();
   closeDeploymentCatalogDb();
+  closeVanitySaltBankDb();
   closeHoodSocialDb();
   closePetitionDb();
   process.exit(0);

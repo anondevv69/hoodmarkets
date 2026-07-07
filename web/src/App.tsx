@@ -8,11 +8,16 @@ import { SiteConnect } from './components/SiteConnect';
 import { ThemeToggle } from './components/ThemeToggle';
 import { TokenPage } from './components/TokenPage';
 import { TokensTab } from './components/TokensTab';
+import { useWebAuth } from './auth/WebAuthContext';
 import { useExploreTokens } from './hooks/useExploreTokens';
 import { useEnsureRobinhoodChain } from './hooks/useEnsureRobinhoodChain';
 import { isDevPage, openDevPage } from './lib/devRoute';
 import { migrateCommunityLaunchPath } from './lib/communityLaunchRoute';
-import { closeDeployerProfile, readDeployerProfileFromUrl } from './lib/deployerProfileRoute';
+import {
+  closeDeployerProfile,
+  navigateToMyProfile,
+  readDeployerProfileFromUrl,
+} from './lib/deployerProfileRoute';
 import { closeTokenPage, navigateToAppTab, openExplorePage, readTokenFromUrl } from './lib/tokenRoute';
 
 type Tab = 'tokens' | 'launch' | 'profile';
@@ -67,6 +72,7 @@ function DocsIcon() {
 
 export default function App() {
   useEnsureRobinhoodChain();
+  const { walletAddress } = useWebAuth();
   const [tab, setTab] = useState<Tab>(readTabFromUrl);
   const [tokenAddress, setTokenAddress] = useState<string | null>(readTokenFromUrl);
   const [deployerProfile, setDeployerProfile] = useState(readDeployerProfileFromUrl);
@@ -98,13 +104,21 @@ export default function App() {
 
   const isExploreActive = tab === 'tokens' && !tokenAddress && !deployerProfile && !devPage;
   const isLaunchActive = tab === 'launch' && !tokenAddress && !deployerProfile && !devPage;
-  const isProfileActive = tab === 'profile' && !tokenAddress && !deployerProfile && !devPage;
+  const isProfileActive =
+    (tab === 'profile' || deployerProfile?.platform === 'wallet') &&
+    !tokenAddress &&
+    !devPage &&
+    deployerProfile?.platform !== 'x';
   const isDocsActive = devPage;
 
   const navigateTab = useCallback((next: Tab) => {
+    if (next === 'profile') {
+      navigateToMyProfile(walletAddress);
+      return;
+    }
     setTab(next);
     navigateToAppTab(next);
-  }, []);
+  }, [walletAddress]);
 
   return (
     <div className="app-shell">

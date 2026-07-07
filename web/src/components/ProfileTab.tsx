@@ -7,7 +7,7 @@ import {
   fetchTokenMetricsFromDexscreener,
   type DexTokenMetrics,
 } from '../lib/dexscreenerVolume';
-import { openDeployerProfile } from '../lib/deployerProfileRoute';
+import { openDeployerProfile, navigateToMyProfile } from '../lib/deployerProfileRoute';
 import { navigateToAppTab } from '../lib/tokenRoute';
 import { xProfileUrl } from '../lib/requesterXDisplay';
 import { TokenCard } from './TokenCard';
@@ -63,6 +63,12 @@ export function ProfileTab() {
       setMetricsByAddress({});
     }
   }, [getAccessToken, walletAddress]);
+
+  useEffect(() => {
+    if (authenticated && walletAddress) {
+      navigateToMyProfile(walletAddress);
+    }
+  }, [authenticated, walletAddress]);
 
   useEffect(() => {
     if (!authenticated) {

@@ -19,8 +19,6 @@ import {
 import {
   swapEthForV3Token,
   swapV3TokenForEth,
-  uniswapBuyUrl,
-  uniswapSellUrl,
 } from '../lib/robinhoodV3Swap';
 
 const BUY_PRESETS = ['0.001', '0.005', '0.01', '0.02'] as const;
@@ -162,8 +160,6 @@ export function TokenSwap({
       : '0';
   const displayAmount = mode === 'buy' ? amountEth : sellHeroAmount;
   const showingBalance = mode === 'sell' && !amountTokens.trim() && authenticated;
-  const externalUniswapUrl =
-    mode === 'buy' ? uniswapBuyUrl(tokenAddress, amountEth) : uniswapSellUrl(tokenAddress);
 
   async function resolveSellAmount(
     provider: unknown,
@@ -391,14 +387,7 @@ export function TokenSwap({
                 : `Sell $${sym}`}
         </button>
 
-        {isSimpleLaunch ? (
-          <p className="tp-footnote">
-            hood.markets uses Uniswap for swaps. Prefer the Uniswap app?{' '}
-            <a href={externalUniswapUrl} target="_blank" rel="noreferrer">
-              Open Uniswap
-            </a>
-          </p>
-        ) : oneClick ? (
+        {oneClick && !isSimpleLaunch ? (
           <p className="tp-footnote">
             {mode === 'buy'
               ? 'One confirmation — swap helper routes through the pool.'

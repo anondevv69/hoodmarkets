@@ -10,11 +10,18 @@ import {
   type WalletClient,
 } from 'viem';
 import { HOODMARKETS_V3_ABI } from './hoodmarketsV3Abi.js';
+import { logger } from '../logger.js';
 import { ROBINHOOD_CHAIN_ID, ROBINHOOD_WETH } from './robinhoodChain.js';
 import {
   bruteForceVanitySalt,
   resolveVanityAddressSuffix,
 } from './vanitySalt.js';
+import {
+  buildHoodMarketsV3DeployBytecode,
+  mineVanitySaltsLocal,
+  predictHoodMarketsV3TokenAddressWithBytecodeHash,
+  vanityParamsFromDeploymentConfig,
+} from './hoodmarketsV3Create2.js';
 
 /** ~$10k FDV at ~$40k ETH — same starting price family as upstream v3.1 WETH launches. */
 const DEFAULT_INITIAL_TICK = -230400;
@@ -188,6 +195,27 @@ export async function mineHoodMarketsV3VanitySalt(
   devBuyAmount: bigint,
   suffix: string,
 ): Promise<Hex> {
+  const params = vanityParamsFromDeploymentConfig(factory, deploymentConfig);
+  const deployBytecode = buildHoodMarketsV3DeployBytecode(params);
+  const deployBytecodeHash = keccak256(deployBytecode);
+  const predict = (tokenSalt: Hex) =>
+    predictHoodMarketsV3TokenAddressWithBytecodeHash(
+      params.factory,
+      params.admin,
+      tokenSalt,
+      deployBytecodeHash,
+    );
+
+  try {
+    const mined = mineVanitySaltsLocal(predict, suffix, { count: 1 });
+    return mined.primary;
+  } catch (localErr) {
+    logger.warn('Local vanity mining failed; falling back to RPC simulate', {
+      suffix,
+      error: localErr instanceof Error ? localErr.message : String(localErr),
+    });
+  }
+
   return bruteForceVanitySalt(suffix, async (candidate) => {
     const configWithSalt: HoodMarketsV3DeploymentConfig = {
       ...deploymentConfig,
