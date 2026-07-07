@@ -56,6 +56,7 @@ export interface Deployment {
   tokenSymbol: string;
   tokenAddress: string;
   tokenImageUrl?: string;
+  tokenBannerUrl?: string;
   tokenWebsiteUrl?: string;
   tokenXUrl?: string;
   tokenDescription?: string;
@@ -354,6 +355,64 @@ export async function postTokenSpaceComment(
   });
   const data = await parseJson<{ post: TokenSpacePost }>(res);
   return data.post;
+}
+
+export type TokenPageAdminRole = 'top_share_holder' | 'deployer' | 'fee_recipient';
+
+export interface TokenDexBrandingResponse {
+  tokenAddress: string;
+  catalogImageUrl: string | null;
+  catalogBannerUrl: string | null;
+  displayImageUrl: string | null;
+  displayBannerUrl: string | null;
+  isAdmin: boolean;
+  dex: {
+    enhancedInfoPaid: boolean;
+    enhancedInfoStatus: string | null;
+    iconUrl: string | null;
+    bannerUrl: string | null;
+    dexUrl: string | null;
+  };
+  admin: {
+    adminWallet: string;
+    adminRole: TokenPageAdminRole;
+    topShareHolder: string | null;
+    topShareCount: number | null;
+    deployerWallet: string | null;
+    feeRecipientAddress: string;
+  };
+}
+
+export async function fetchTokenDexBranding(
+  tokenAddress: string,
+  walletAddress?: string,
+): Promise<TokenDexBrandingResponse> {
+  const params = new URLSearchParams();
+  if (walletAddress?.trim()) params.set('wallet', walletAddress.trim());
+  const qs = params.toString();
+  const res = await fetch(
+    `${API_BASE}/api/tokens/${encodeURIComponent(tokenAddress)}/dex-branding${qs ? `?${qs}` : ''}`,
+  );
+  return parseJson(res);
+}
+
+export async function importTokenDexBranding(
+  accessToken: string,
+  tokenAddress: string,
+  walletAddress: string,
+): Promise<{ ok: boolean; token?: Deployment }> {
+  const res = await fetch(
+    `${API_BASE}/api/tokens/${encodeURIComponent(tokenAddress)}/import-dex-branding`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ walletAddress }),
+    },
+  );
+  return parseJson(res);
 }
 
 export async function fetchWebDeployConfig(): Promise<WebDeployConfig> {

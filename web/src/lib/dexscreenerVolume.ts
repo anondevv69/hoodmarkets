@@ -40,6 +40,15 @@ interface DexPair {
     m5?: { buys?: number; sells?: number };
   };
   priceUsd?: string;
+  info?: {
+    imageUrl?: string | null;
+    header?: string | null;
+  };
+}
+
+interface DexOrder {
+  type?: string;
+  status?: string;
 }
 
 function isRobinhoodPair(p: DexPair): boolean {
@@ -94,6 +103,13 @@ export interface DexTokenMetrics {
   dexVersion?: string;
   /** DexScreener pair page URL when indexed (often pair address, not token). */
   dexscreenerUrl?: string;
+  /** DexScreener Enhanced Token Info paid (tokenProfile order approved/processing). */
+  enhancedInfoPaid?: boolean;
+  enhancedInfoStatus?: string | null;
+  /** DexScreener CDN icon when enhanced info is live. */
+  dexIconUrl?: string | null;
+  /** DexScreener CDN header/banner when enhanced info is live. */
+  dexBannerUrl?: string | null;
 }
 
 function assignPct(target: DexTokenMetrics, key: keyof DexTokenMetrics, v: unknown) {
@@ -138,7 +154,29 @@ function pairToMetrics(best: DexPair): DexTokenMetrics {
   if (typeof best.dexId === 'string' && best.dexId.length > 0) metrics.dexId = best.dexId;
   if (best.labels?.[0]) metrics.dexVersion = best.labels[0];
   if (typeof best.url === 'string' && best.url.length > 0) metrics.dexscreenerUrl = best.url;
+  if (best.info?.imageUrl) metrics.dexIconUrl = best.info.imageUrl;
+  if (best.info?.header) metrics.dexBannerUrl = best.info.header;
   return metrics;
+}
+
+async function fetchDexEnhancedInfo(
+  tokenAddress: string,
+): Promise<{ enhancedInfoPaid: boolean; enhancedInfoStatus: string | null }> {
+  try {
+    const res = await fetch(
+      `https://api.dexscreener.com/orders/v1/${CHAIN_KEY}/${tokenAddress.trim().toLowerCase()}`,
+    );
+    if (!res.ok) return { enhancedInfoPaid: false, enhancedInfoStatus: null };
+    const data = (await res.json()) as { orders?: DexOrder[] };
+    const tokenProfile = (data.orders ?? []).find((o) => o.type === 'tokenProfile');
+    const status = tokenProfile?.status ?? null;
+    return {
+      enhancedInfoPaid: status === 'approved' || status === 'processing',
+      enhancedInfoStatus: status,
+    };
+  } catch {
+    return { enhancedInfoPaid: false, enhancedInfoStatus: null };
+  }
 }
 
 export function formatDexName(dexId?: string, dexVersion?: string): string {
@@ -222,6 +260,14 @@ export async function fetchTokenMetricsFromDexscreener(
       continue;
     }
   }
+
+  await Promise.all(
+    uniq.map(async (addr) => {
+      const key = addr.toLowerCase();
+      const enhanced = await fetchDexEnhancedInfo(addr);
+      out[key] = { ...(out[key] ?? {}), ...enhanced };
+    }),
+  );
 
   const normalized: Record<string, DexTokenMetrics | undefined> = {};
   for (const a of uniq) normalized[a] = out[a.toLowerCase()];
