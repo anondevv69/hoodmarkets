@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { shortenAddress } from '../chain';
 import { useWebAuth } from '../auth/WebAuthContext';
+import { navigateToAppTab } from '../lib/tokenRoute';
 
 export function SiteConnect() {
   const {
@@ -24,10 +25,15 @@ export function SiteConnect() {
   if (authenticated && walletAddress) {
     return (
       <div className="site-connect">
-        <span className="site-connect-addr" title={walletAddress}>
-          {authMethod === 'bankr' ? 'Bankr ' : ''}
+        <button
+          type="button"
+          className="site-connect-addr site-connect-profile-btn"
+          title={`${walletAddress} — view profile`}
+          onClick={() => navigateToAppTab('profile')}
+        >
+          {authMethod === 'bankr' ? 'Bankr · ' : ''}
           {shortenAddress(walletAddress)}
-        </span>
+        </button>
         <button type="button" className="btn btn-ghost site-connect-btn" onClick={logout}>
           Sign out
         </button>

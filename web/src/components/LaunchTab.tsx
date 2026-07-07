@@ -27,6 +27,7 @@ import {
   CommunityLaunchRedirectNotice,
   redirectToCommunityLaunch,
 } from './CommunityLaunchRedirectNotice';
+import { openCommunityLaunchPage } from '../lib/communityLaunchRoute';
 import { TokenAvatar } from './TokenAvatar';
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -440,6 +441,24 @@ export function LaunchTab() {
   return (
     <div className="launch-layout lp-fade-in">
       <div className="launch-form-col">
+        {/* Launch type picker */}
+        <div className="launch-type-picker">
+          <button
+            type="button"
+            className="launch-type-btn active"
+          >
+            Standard Launch
+          </button>
+          <button
+            type="button"
+            className="launch-type-btn launch-type-community"
+            onClick={() => openCommunityLaunchPage()}
+          >
+            Community Launch
+            <span className="launch-type-badge">petition</span>
+          </button>
+        </div>
+
         <div className="notice">{limitsNote}</div>
         {rateLimitNotice ? (
           <div className="rate-limit-warning" role="alert">

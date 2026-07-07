@@ -78,6 +78,8 @@ export function TokenFractionShareActions({
   const [claimingFees, setClaimingFees] = useState(false);
   const [claimTx, setClaimTx] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
+
+  const [shareTab, setShareTab] = useState<'send' | 'list' | 'airdrop' | 'rewards' | 'burn'>('send');
   const [pendingFees, setPendingFees] = useState<{ pending0: bigint; pending1: bigint } | null>(
     null,
   );
@@ -192,8 +194,22 @@ export function TokenFractionShareActions({
 
   return (
     <div className="token-fraction-actions">
-      <div className="token-fraction-action">
-        <p className="token-fraction-action-title">Send shares</p>
+      {/* Tab bar */}
+      <div className="share-tab-bar">
+        {(['send', 'list', 'airdrop', 'rewards', 'burn'] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            className={`share-tab-btn${shareTab === t ? ' active' : ''}`}
+            onClick={() => setShareTab(t)}
+          >
+            {t === 'send' ? 'Send' : t === 'list' ? 'List' : t === 'airdrop' ? 'Airdrop' : t === 'rewards' ? 'Rewards' : 'Burn'}
+          </button>
+        ))}
+      </div>
+
+      {shareTab === 'send' && (
+      <div className="token-fraction-tab-panel">
         <p className="muted token-fraction-action-hint">
           Transfer to one wallet. You hold {walletShares.toLocaleString()} share
           {walletShares === 1 ? '' : 's'}.
@@ -242,9 +258,10 @@ export function TokenFractionShareActions({
         ) : null}
         {transferError ? <p className="error">{transferError}</p> : null}
       </div>
+      )}
 
-      <div className="token-fraction-action">
-        <p className="token-fraction-action-title">List shares for sale</p>
+      {shareTab === 'list' && (
+      <div className="token-fraction-tab-panel">
         <p className="muted token-fraction-action-hint">
           Escrow shares at your asking price. Buyers purchase in one transaction.
         </p>
@@ -321,9 +338,10 @@ export function TokenFractionShareActions({
         ) : null}
         {listError ? <p className="error">{listError}</p> : null}
       </div>
+      )}
 
-      <div className="token-fraction-action">
-        <p className="token-fraction-action-title">Airdrop to many</p>
+      {shareTab === 'airdrop' && (
+      <div className="token-fraction-tab-panel">
         <p className="muted token-fraction-action-hint">
           One address per line. Optional <code>,count</code> per line — otherwise uses default count.
           Duplicate wallets are merged. One transaction when supported (v0.10+). Full amounts — no platform
@@ -407,9 +425,10 @@ export function TokenFractionShareActions({
         ) : null}
         {airdropError ? <p className="error">{airdropError}</p> : null}
       </div>
+      )}
 
-      <div className="token-fraction-action">
-        <p className="token-fraction-action-title">Reward on buy</p>
+      {shareTab === 'rewards' && (
+      <div className="token-fraction-tab-panel">
         <p className="muted token-fraction-action-hint">
           Escrow shares for first unique pool buyers — hood.markets sends 1 share automatically when
           someone buys who does not hold one yet. You choose how many to escrow; cancel anytime to
@@ -534,9 +553,10 @@ export function TokenFractionShareActions({
         {buyRewardMsg ? <p className="muted token-fraction-pending">{buyRewardMsg}</p> : null}
         {buyRewardError ? <p className="error">{buyRewardError}</p> : null}
       </div>
+      )}
 
-      <div className="token-fraction-action">
-        <p className="token-fraction-action-title">Exit vault for launch tokens (optional)</p>
+      {shareTab === 'burn' && (
+      <div className="token-fraction-tab-panel">
         <p className="muted token-fraction-action-hint">
           At launch, 10% of supply sits in a vault as 1,000 shares. You can permanently burn shares
           to withdraw {shareTokenHuman} launch tokens per share — a one-time cash-out from that
@@ -612,19 +632,22 @@ export function TokenFractionShareActions({
         ) : null}
         {redeemError ? <p className="error">{redeemError}</p> : null}
       </div>
+      )}
 
-      <div className="token-fraction-action">
-        <p className="token-fraction-action-title">Trading fees</p>
-        {pendingFees && (pendingFees.pending0 > 0n || pendingFees.pending1 > 0n) ? (
-          <p className="muted token-fraction-pending">
-            Your share when claimed:{' '}
-            {pendingFees.pending0 > 0n ? `${formatTokenBalance(pendingFees.pending0, 18)} WETH` : null}
-            {pendingFees.pending0 > 0n && pendingFees.pending1 > 0n ? ' · ' : null}
-            {pendingFees.pending1 > 0n ? `${formatTokenBalance(pendingFees.pending1, 18)} token` : null}
-          </p>
-        ) : (
-          <p className="muted token-fraction-pending">No unclaimed fees for your shares yet.</p>
-        )}
+      {/* Trading fees — always visible below tabs */}
+      <div className="token-fraction-fees-row">
+        <div className="token-fraction-fees-info">
+          {pendingFees && (pendingFees.pending0 > 0n || pendingFees.pending1 > 0n) ? (
+            <p className="muted token-fraction-pending">
+              Claimable:{' '}
+              {pendingFees.pending0 > 0n ? `${formatTokenBalance(pendingFees.pending0, 18)} WETH` : null}
+              {pendingFees.pending0 > 0n && pendingFees.pending1 > 0n ? ' · ' : null}
+              {pendingFees.pending1 > 0n ? `${formatTokenBalance(pendingFees.pending1, 18)} token` : null}
+            </p>
+          ) : (
+            <p className="muted token-fraction-pending">No unclaimed fees yet.</p>
+          )}
+        </div>
         <button
           type="button"
           className="btn btn-primary btn-sm"
@@ -659,16 +682,16 @@ export function TokenFractionShareActions({
         >
           {claimingFees ? 'Claiming…' : 'Claim trading fees'}
         </button>
-        {claimTx ? (
-          <p className="mono token-fraction-action-tx">
-            Claimed for all holders ·{' '}
-            <a href={txUrl(claimTx)} target="_blank" rel="noreferrer">
-              {claimTx.slice(0, 10)}…
-            </a>
-          </p>
-        ) : null}
-        {claimError ? <p className="error">{claimError}</p> : null}
       </div>
+      {claimTx ? (
+        <p className="mono token-fraction-action-tx">
+          Claimed for all holders ·{' '}
+          <a href={txUrl(claimTx)} target="_blank" rel="noreferrer">
+            {claimTx.slice(0, 10)}…
+          </a>
+        </p>
+      ) : null}
+      {claimError ? <p className="error">{claimError}</p> : null}
     </div>
   );
 }
