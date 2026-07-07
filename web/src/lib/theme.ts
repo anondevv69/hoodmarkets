@@ -21,7 +21,7 @@ export function applyTheme(theme: SiteTheme): void {
   document.documentElement.dataset.theme = theme;
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
-    meta.setAttribute('content', theme === THEME_LIGHT ? '#FFFFFF' : '#110E08');
+    meta.setAttribute('content', theme === THEME_LIGHT ? '#F5F5F5' : '#111111');
   }
   try {
     localStorage.setItem(STORAGE_KEY, theme);
