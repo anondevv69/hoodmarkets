@@ -11,6 +11,7 @@ import {
   WalletDeployCompleteError,
   type DeployCooldownConflict,
   type DeployResult,
+  type CommunityLaunchLockConflict,
   type WebDeployConfig,
 } from '../api';
 import { txUrl } from '../chain';
@@ -22,6 +23,10 @@ import { LaunchSuccessLinks } from './TokenCard';
 import { tradingLinksFromApi } from '../lib/tradingLinks';
 import { ExistingTokenConflict } from './ExistingTokenConflict';
 import { ReservedBrandNotice } from './ReservedBrandNotice';
+import {
+  CommunityLaunchRedirectNotice,
+  redirectToCommunityLaunch,
+} from './CommunityLaunchRedirectNotice';
 import { TokenAvatar } from './TokenAvatar';
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -58,7 +63,8 @@ export function LaunchTab() {
   const [liveNameConflict, setLiveNameConflict] = useState<DeployCooldownConflict | null>(null);
   const [liveNameReserved, setLiveNameReserved] = useState<string | null>(null);
   const [liveTickerReserved, setLiveTickerReserved] = useState<string | null>(null);
-  const [liveCommunityLaunchMessage, setLiveCommunityLaunchMessage] = useState<string | null>(null);
+  const [liveCommunityLaunchConflict, setLiveCommunityLaunchConflict] =
+    useState<CommunityLaunchLockConflict | null>(null);
   const [checkingCooldown, setCheckingCooldown] = useState(false);
   const [result, setResult] = useState<DeployResult | null>(null);
   const [launchedMeta, setLaunchedMeta] = useState<{
@@ -122,7 +128,7 @@ export function LaunchTab() {
       setLiveNameConflict(null);
       setLiveNameReserved(null);
       setLiveTickerReserved(null);
-      setLiveCommunityLaunchMessage(null);
+      setLiveCommunityLaunchConflict(null);
       return;
     }
 
@@ -138,7 +144,7 @@ export function LaunchTab() {
         setLiveNameConflict(out.nameConflict);
         setLiveNameReserved(out.nameReserved ? out.reservedNameMessage : null);
         setLiveTickerReserved(out.tickerReserved ? out.reservedTickerMessage : null);
-        setLiveCommunityLaunchMessage(out.communityLaunchMessage);
+        setLiveCommunityLaunchConflict(out.communityLaunchConflict);
       })
       .catch(() => {
         if (!cancelled) {
@@ -146,7 +152,7 @@ export function LaunchTab() {
           setLiveNameConflict(null);
           setLiveNameReserved(null);
           setLiveTickerReserved(null);
-          setLiveCommunityLaunchMessage(null);
+          setLiveCommunityLaunchConflict(null);
         }
       })
       .finally(() => {
@@ -202,7 +208,7 @@ export function LaunchTab() {
   const cannotLaunch =
     !!blockingConflict ||
     !!blockingReserved ||
-    !!liveCommunityLaunchMessage ||
+    !!liveCommunityLaunchConflict ||
     (feeTarget === 'other' && !looksLikeFeeRecipientInput(feeRecipient));
 
   const previewSymbol = (symbol.trim() || 'TICK').toUpperCase();
@@ -327,6 +333,10 @@ export function LaunchTab() {
             : 'Your wallet transaction succeeded on-chain, but hood.markets could not register it yet. Try “Finalize launch” below.',
         );
       } else if (err instanceof DeployApiError) {
+        if (err.communityLaunch) {
+          redirectToCommunityLaunch(err.communityLaunch);
+          return;
+        }
         setError(err.message);
         if (err.conflict) setSubmitConflict(err.conflict);
       } else {
@@ -371,6 +381,10 @@ export function LaunchTab() {
         setHasPendingFinalize(true);
         setError(err.message);
       } else if (err instanceof DeployApiError) {
+        if (err.communityLaunch) {
+          redirectToCommunityLaunch(err.communityLaunch);
+          return;
+        }
         setError(err.message);
         if (err.conflict) setSubmitConflict(err.conflict);
       } else {
@@ -474,17 +488,14 @@ export function LaunchTab() {
 
               {liveNameReserved ? <ReservedBrandNotice message={liveNameReserved} /> : null}
               {liveTickerReserved ? <ReservedBrandNotice message={liveTickerReserved} /> : null}
-              {liveCommunityLaunchMessage ? (
-                <div className="reserved-card lp-fade-in" role="alert">
-                  <p className="reserved-title">Community Launch in progress</p>
-                  <p className="reserved-sub">{liveCommunityLaunchMessage}</p>
-                </div>
+              {liveCommunityLaunchConflict ? (
+                <CommunityLaunchRedirectNotice conflict={liveCommunityLaunchConflict} />
               ) : null}
 
-              {liveNameConflict && !liveTickerConflict && !liveNameReserved && !liveCommunityLaunchMessage ? (
+              {liveNameConflict && !liveTickerConflict && !liveNameReserved && !liveCommunityLaunchConflict ? (
                 <ExistingTokenConflict conflict={liveNameConflict} />
               ) : null}
-              {liveTickerConflict && !liveTickerReserved && !liveCommunityLaunchMessage ? (
+              {liveTickerConflict && !liveTickerReserved && !liveCommunityLaunchConflict ? (
                 <ExistingTokenConflict conflict={liveTickerConflict} />
               ) : null}
 

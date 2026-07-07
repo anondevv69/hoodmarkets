@@ -2822,6 +2822,31 @@ label {
   line-height: 1.5;
 }
 
+.community-launch-redirect {
+  margin: 0.85rem 0;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(100, 200, 255, 0.4);
+  background: rgba(60, 140, 220, 0.1);
+}
+
+.community-launch-redirect-title {
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: #9ed4ff;
+}
+
+.community-launch-redirect-body {
+  margin: 0 0 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.community-launch-redirect .btn {
+  width: 100%;
+}
+
 .conflict-title {
   margin: 0 0 0.35rem;
   font-weight: 700;
