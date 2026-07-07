@@ -1,10 +1,12 @@
 import { useWebAuth } from '../auth/WebAuthContext';
 import { useActiveWallet } from '../hooks/useActiveWallet';
+import { useAccount } from 'wagmi';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   checkDeployCooldown,
   deployToken,
   DeployApiError,
+  type DeployProgress,
   fetchDeployPreview,
   fetchWebDeployConfig,
   loadPendingWalletDeploy,
@@ -47,8 +49,10 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 export function LaunchTab() {
-  const { ready, authenticated, connectWallet, getAccessToken } = useWebAuth();
+  const { ready, authenticated, authMethod, connectWallet, getAccessToken } = useWebAuth();
+  const { isConnected, address: connectedAddress } = useAccount();
   const wallet = useActiveWallet();
+  const [launchPhase, setLaunchPhase] = useState<DeployProgress | null>(null);
   const [name, setName] = useState('');
   const [symbol, setSymbol] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -284,6 +288,28 @@ export function LaunchTab() {
       return;
     }
 
+    if (needsWallet && authMethod === 'bankr') {
+      setError('Bankr sign-in cannot sign launch transactions. Use Connect wallet (Rainbow) to deploy.');
+      return;
+    }
+
+    if (needsWallet && !isConnected) {
+      setError('Reconnect your wallet to sign the launch transaction.');
+      connectWallet();
+      return;
+    }
+
+    if (
+      needsWallet &&
+      wallet?.address &&
+      connectedAddress &&
+      wallet.address.toLowerCase() !== connectedAddress.toLowerCase()
+    ) {
+      setError('Connected wallet does not match your signed-in address. Reconnect the correct wallet.');
+      connectWallet();
+      return;
+    }
+
     if (needsWallet && !wallet?.address) {
       setError(
         `Connect your wallet to pay the pool seed (~${defaultBuyEth} ETH) plus gas.`,
@@ -303,6 +329,7 @@ export function LaunchTab() {
     }
 
     setSubmitting(true);
+    setLaunchPhase('prepare');
     try {
       const out = await deployToken(
         token,
@@ -324,6 +351,7 @@ export function LaunchTab() {
               getEthereumProvider: () => wallet.getEthereumProvider(),
             }
           : undefined,
+        { onProgress: setLaunchPhase },
       );
       setLaunchedMeta({
         name: name.trim(),
@@ -367,6 +395,7 @@ export function LaunchTab() {
       }
     } finally {
       setSubmitting(false);
+      setLaunchPhase(null);
     }
   }
 
@@ -748,7 +777,13 @@ export function LaunchTab() {
               disabled={submitting || cannotLaunch || !hasImage}
             >
               {submitting
-                ? 'Preparing launch…'
+                ? launchPhase === 'wallet'
+                  ? 'Confirm in wallet…'
+                  : launchPhase === 'confirm'
+                    ? 'Waiting for chain…'
+                    : launchPhase === 'finalize'
+                      ? 'Finalizing…'
+                      : 'Preparing launch…'
                 : !hasImage
                   ? 'Add a logo to launch'
                   : feeTarget === 'other' && !looksLikeFeeRecipientInput(feeRecipient)
@@ -761,7 +796,13 @@ export function LaunchTab() {
             </button>
             {submitting ? (
               <p className="muted" style={{ textAlign: 'center', fontSize: '0.8rem', marginTop: '0.5rem' }}>
-                Building deploy on the server — confirm in your wallet when prompted.
+                {launchPhase === 'wallet'
+                  ? 'Approve the launch transaction in your wallet (pool seed + gas).'
+                  : launchPhase === 'confirm'
+                    ? 'Transaction sent — waiting for Robinhood Chain confirmation…'
+                    : launchPhase === 'finalize'
+                      ? 'Saving your launch to hood.markets…'
+                      : 'Building deploy on the server — this should take a few seconds.'}
               </p>
             ) : null}
             {checkingCooldown && !cannotLaunch ? (

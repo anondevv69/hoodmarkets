@@ -534,6 +534,8 @@ export async function retryPendingWalletDeployComplete(token: string): Promise<D
   };
 }
 
+export type DeployProgress = 'prepare' | 'wallet' | 'confirm' | 'finalize';
+
 export async function deployToken(
   token: string,
   payload: LaunchPayload,
@@ -541,6 +543,7 @@ export async function deployToken(
     address: string;
     getEthereumProvider: () => Promise<unknown>;
   },
+  opts?: { onProgress?: (phase: DeployProgress) => void },
 ): Promise<DeployResult> {
   const initialBuy = payload.initialBuyEth?.trim() ?? '';
   const useWalletDeploy = initialBuy !== '' && initialBuy !== '0';
@@ -550,6 +553,7 @@ export async function deployToken(
       throw new Error('Connect a wallet to include your initial buy in the launch transaction.');
     }
 
+    opts?.onProgress?.('prepare');
     let prepare: DeployResult & WalletDeployPrepare;
     try {
       prepare = await postDeploy(
@@ -579,6 +583,7 @@ export async function deployToken(
     const walletPrepare = prepare as WalletDeployPrepare;
     assertV3WalletDeployPrepare(walletPrepare);
 
+    opts?.onProgress?.('wallet');
     const provider = await wallet.getEthereumProvider();
     await ensureRobinhoodChainInWallet(
       provider as Parameters<typeof ensureRobinhoodChainInWallet>[0],
@@ -590,6 +595,7 @@ export async function deployToken(
       account: wallet.address as `0x${string}`,
     });
 
+    opts?.onProgress?.('confirm');
     const receipt = await createPublicClient({
       chain: robinhood,
       transport: http(),
@@ -603,6 +609,7 @@ export async function deployToken(
     }
 
     try {
+      opts?.onProgress?.('finalize');
       const complete = await postDeploy(token, {
         ...payload,
         initialBuyEth: initialBuy,
