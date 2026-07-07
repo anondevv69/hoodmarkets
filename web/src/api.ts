@@ -556,7 +556,7 @@ export async function deployToken(
 
     if (prepare.mode !== 'wallet') {
       throw new Error(
-        'Server did not return wallet deploy preparation. Connect your hood.markets embedded wallet — website deploys are always wallet-signed.',
+        'Server did not return wallet deploy preparation. Connect your wallet and ensure it has enough ETH for the pool seed plus gas.',
       );
     }
 

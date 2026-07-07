@@ -275,6 +275,14 @@ export function LaunchTab() {
     const defaultBuyEth = config?.initialBuyDefaultEth ?? '0.005';
     const buyEth = initialBuyEth.trim() || defaultBuyEth;
     const needsWallet = Boolean(config?.walletDeployEnabled);
+    const minBuyEth = Number.parseFloat(config?.initialBuyMinEth ?? '0.001');
+    const maxBuyEth = Number.parseFloat(config?.initialBuyMaxEth ?? '0.1');
+    const buyEthNum = Number.parseFloat(buyEth);
+
+    if (needsWallet && (!Number.isFinite(buyEthNum) || buyEthNum < minBuyEth || buyEthNum > maxBuyEth)) {
+      setError(`Pool seed must be between ${config?.initialBuyMinEth ?? '0.001'} and ${config?.initialBuyMaxEth ?? '0.1'} ETH.`);
+      return;
+    }
 
     if (needsWallet && !wallet?.address) {
       setError(
