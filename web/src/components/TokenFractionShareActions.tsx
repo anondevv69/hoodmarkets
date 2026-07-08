@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { txUrl } from '../chain';
+import { shortenAddress, txUrl } from '../chain';
+import { openWalletProfile } from '../lib/deployerProfileRoute';
 import {
   cancelBuyerRewardPool,
   fetchBuyerRewardPoolState,
@@ -31,6 +32,8 @@ export function TokenFractionShareActions({
   deployBlockNumber,
   shareTokenHuman,
   isFeeRecipient,
+  buyerRewardAdmin,
+  canFundBuyerRewards,
   onRefresh,
 }: {
   info: TokenFractionInfo;
@@ -39,6 +42,8 @@ export function TokenFractionShareActions({
   deployBlockNumber?: string | null;
   shareTokenHuman: string;
   isFeeRecipient: boolean;
+  buyerRewardAdmin: string | null;
+  canFundBuyerRewards: boolean;
   onRefresh: () => Promise<void>;
 }) {
   const [transferTo, setTransferTo] = useState('');
@@ -446,7 +451,12 @@ export function TokenFractionShareActions({
         ) : (
           <p className="muted token-fraction-action-hint">No buyer-reward escrow active yet.</p>
         )}
-        {isFeeRecipient ? (
+        {!canFundBuyerRewards ? (
+          <p className="muted token-fraction-action-hint">
+            This token was deployed on an older factory that cannot fund buyer rewards after launch.
+            Only deploy-time escrow is supported for this contract.
+          </p>
+        ) : isFeeRecipient ? (
           <>
             <label className="token-fraction-field">
               Shares to escrow
@@ -548,6 +558,20 @@ export function TokenFractionShareActions({
           <p className="muted token-fraction-action-hint">
             Rewards run automatically while escrow remains. Only the launch fee recipient can fund or
             cancel the pool.
+          </p>
+        ) : buyerRewardAdmin ? (
+          <p className="muted token-fraction-action-hint">
+            Only the launch fee recipient can escrow shares for buyer rewards — holding shares is not
+            enough. Ask{' '}
+            <button
+              type="button"
+              className="token-fraction-holder lp-mono"
+              onClick={() => openWalletProfile(buyerRewardAdmin)}
+            >
+              {shortenAddress(buyerRewardAdmin)}
+            </button>{' '}
+            (buyer-reward admin) to fund the pool, or use Send / List / Airdrop to distribute your{' '}
+            {walletShares.toLocaleString()} shares directly.
           </p>
         ) : null}
         {buyRewardMsg ? <p className="muted token-fraction-pending">{buyRewardMsg}</p> : null}

@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { tokenUrl, shortenAddress } from '../chain';
 import { openWalletProfile } from '../lib/deployerProfileRoute';
 import { formatTokenBalance } from '../lib/formatTokenBalance';
-import { isSimpleLaunchDeployment } from '../lib/launchType';
+import { isSimpleLaunchDeployment, supportsPostLaunchBuyerRewards } from '../lib/launchType';
 import {
+  fetchBuyerRewardAdmin,
   fetchTokenFractionInfo,
   fetchWalletFractionBalance,
   type TokenFractionInfo,
@@ -37,6 +38,7 @@ export function TokenFractionPanel({
   const { authenticated, connectWallet } = useWebAuth();
   const [info, setInfo] = useState<TokenFractionInfo | null>(null);
   const [walletShares, setWalletShares] = useState<number | null>(null);
+  const [buyerRewardAdmin, setBuyerRewardAdmin] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,6 +74,24 @@ export function TokenFractionPanel({
       cancelled = true;
     };
   }, [tokenAddress, isSimple, deployBlockNumber]);
+
+  useEffect(() => {
+    if (!info?.collectionAddress) {
+      setBuyerRewardAdmin(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchBuyerRewardAdmin(info.collectionAddress)
+      .then((admin) => {
+        if (!cancelled) setBuyerRewardAdmin(admin);
+      })
+      .catch(() => {
+        if (!cancelled) setBuyerRewardAdmin(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [info?.collectionAddress]);
 
   useEffect(() => {
     if (!info?.collectionAddress || !walletAddress) {
@@ -131,13 +151,19 @@ export function TokenFractionPanel({
   if (!info) return null;
 
   const shareTokenHuman = formatTokenBalance(info.tokensPerShare, 18);
-  const feeRecipientLower = feeRecipientAddress?.trim().toLowerCase();
+  const buyerRewardAdminLower =
+    buyerRewardAdmin?.toLowerCase() ?? feeRecipientAddress?.trim().toLowerCase() ?? null;
   const walletLower = walletAddress?.toLowerCase();
-  const isFeeRecipientWallet =
-    !!feeRecipientLower && !!walletLower && feeRecipientLower === walletLower;
+  const isBuyerRewardAdmin =
+    !!buyerRewardAdminLower && !!walletLower && buyerRewardAdminLower === walletLower;
+  const feeRecipientLower = feeRecipientAddress?.trim().toLowerCase();
   const feeRecipientHolder = feeRecipientLower
     ? info.holders.find((h) => h.address.toLowerCase() === feeRecipientLower)
     : undefined;
+  const buyerRewardAdminHolder = buyerRewardAdminLower
+    ? info.holders.find((h) => h.address.toLowerCase() === buyerRewardAdminLower)
+    : undefined;
+  const canFundBuyerRewards = supportsPostLaunchBuyerRewards(factoryAddress);
 
   return (
     <section className="tp-zone tp-fraction-zone" aria-labelledby="fraction-heading">
@@ -150,7 +176,25 @@ export function TokenFractionPanel({
         </p>
       </div>
 
-      {feeRecipientAddress ? (
+      {buyerRewardAdmin ? (
+        <p className="token-fraction-recipient muted">
+          Buyer-reward admin:{' '}
+          <button
+            type="button"
+            className="token-fraction-holder lp-mono"
+            onClick={() => openWalletProfile(buyerRewardAdmin)}
+          >
+            {shortenAddress(buyerRewardAdmin)}
+          </button>
+          {buyerRewardAdminHolder ? (
+            <>
+              {' '}
+              · holds {buyerRewardAdminHolder.shares.toLocaleString()} share
+              {buyerRewardAdminHolder.shares === 1 ? '' : 's'}
+            </>
+          ) : null}
+        </p>
+      ) : feeRecipientAddress ? (
         <p className="token-fraction-recipient muted">
           Launch recipient:{' '}
           <button
@@ -213,14 +257,14 @@ export function TokenFractionPanel({
           </p>
         ) : null}
 
-        {(isFeeRecipientWallet || (walletShares != null && walletShares > 0)) &&
+        {(isBuyerRewardAdmin || (walletShares != null && walletShares > 0)) &&
         authenticated &&
         wallet &&
         walletShares != null &&
         walletShares > 0 ? (
           <div className="token-fraction-manage token-fraction-layout-actions">
             <p className="token-fraction-manage-title">
-              {isFeeRecipientWallet ? 'You received the launch shares' : 'You hold shares'}
+              {isBuyerRewardAdmin ? 'You received the launch shares' : 'You hold shares'}
             </p>
             <TokenFractionShareActions
               info={info}
@@ -228,11 +272,13 @@ export function TokenFractionPanel({
               walletShares={walletShares}
               deployBlockNumber={deployBlockNumber}
               shareTokenHuman={shareTokenHuman}
-              isFeeRecipient={!!isFeeRecipientWallet}
+              isFeeRecipient={isBuyerRewardAdmin}
+              buyerRewardAdmin={buyerRewardAdmin ?? feeRecipientAddress ?? null}
+              canFundBuyerRewards={canFundBuyerRewards}
               onRefresh={() => refreshFractionState(info.collectionAddress)}
             />
           </div>
-        ) : authenticated && wallet && (isFeeRecipientWallet || walletShares === 0) ? (
+        ) : authenticated && wallet && (isBuyerRewardAdmin || walletShares === 0) ? (
           <p className="muted token-fraction-viewer-note">
             Your connected wallet does not hold shares for this token.
           </p>
