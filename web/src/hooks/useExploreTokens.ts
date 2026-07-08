@@ -8,7 +8,7 @@ import {
   type ExploreSort,
 } from '../api';
 
-export const EXPLORE_PAGE_SIZE = 20;
+export const EXPLORE_PAGE_SIZE = 12;
 const POLL_MS = 45_000;
 
 export function useExploreTokens(
