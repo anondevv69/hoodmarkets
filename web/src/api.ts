@@ -414,26 +414,6 @@ export async function unlinkBankrWallet(token: string): Promise<{ ok: boolean }>
   return parseJson(res);
 }
 
-export async function linkXHandle(
-  token: string,
-  xHandle: string,
-): Promise<{ ok: boolean; xHandle: string }> {
-  const res = await fetch(`${API_BASE}/api/my-profile/link-x`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ xHandle }),
-  });
-  return parseJson(res);
-}
-
-export async function unlinkXHandle(token: string): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_BASE}/api/my-profile/link-x`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return parseJson(res);
-}
-
 export interface TokenSpacePost {
   id: number;
   tokenAddress: string;

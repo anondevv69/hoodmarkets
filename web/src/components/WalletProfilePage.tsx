@@ -10,11 +10,6 @@ import { closeDeployerProfile } from '../lib/deployerProfileRoute';
 import { useWebAuth } from '../auth/WebAuthContext';
 import { TokenCard } from './TokenCard';
 import { ProfileBankrLink } from './ProfileBankrLink';
-import { ProfileXLink } from './ProfileXLink';
-import {
-  ProfileLinkedAccountsSummary,
-  type LinkedAccountsSummary,
-} from './ProfileLinkedAccountsSummary';
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
@@ -71,7 +66,6 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
     bankrWallet: string | null;
     bankrLaunchCount: number;
   } | null>(null);
-  const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccountsSummary | null>(null);
 
   const reloadBankr = async () => {
     if (!isOwnProfile) return;
@@ -83,17 +77,6 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
       bankrWallet: profile.bankrWallet,
       bankrLaunchCount: profile.bankrLaunchCount,
     });
-    if (profile.linkedAccounts) {
-      setLinkedAccounts(profile.linkedAccounts);
-    } else {
-      setLinkedAccounts({
-        xHandle: profile.xHandle ?? profile.xUsername,
-        xLinked: profile.xLinked,
-        bankrWallet: profile.bankrWallet,
-        bankrLinked: profile.bankrLinked,
-        bankrVerified: profile.bankrVerified,
-      });
-    }
   };
 
   useEffect(() => {
@@ -116,15 +99,6 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
         setInitiatedTokens(profile.initiatedDeployments ?? []);
         setFeeRecipientTokenCount(profile.feeRecipientTokenCount);
         setInitiatedLaunchCount(profile.initiatedLaunchCount);
-        setLinkedAccounts(
-          profile.linkedAccounts ?? {
-            xHandle: profile.xHandle ?? null,
-            xLinked: profile.xLinked ?? false,
-            bankrWallet: profile.bankrWallet ?? null,
-            bankrLinked: profile.bankrLinked ?? false,
-            bankrVerified: profile.bankrLinked ?? false,
-          },
-        );
         const addresses = [
           ...new Set([
             ...profile.deployments.map((r) => r.tokenAddress),
@@ -205,18 +179,8 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
         </p>
       </div>
 
-      {linkedAccounts ? (
-        <div className="lp-card">
-          <ProfileLinkedAccountsSummary accounts={linkedAccounts} />
-        </div>
-      ) : null}
-
       {isOwnProfile && bankrProfile ? (
         <ProfileBankrLink profile={bankrProfile} onUpdated={reloadBankr} />
-      ) : null}
-
-      {isOwnProfile ? (
-        <ProfileXLink xHandle={linkedAccounts?.xHandle ?? null} onUpdated={reloadBankr} />
       ) : null}
 
       <div className="profile-stats">

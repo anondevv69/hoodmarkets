@@ -7,9 +7,8 @@ import {
   fetchTokenMetricsFromDexscreener,
   type DexTokenMetrics,
 } from '../lib/dexscreenerVolume';
-import { openDeployerProfile, navigateToMyProfile } from '../lib/deployerProfileRoute';
+import { navigateToMyProfile } from '../lib/deployerProfileRoute';
 import { navigateToAppTab } from '../lib/tokenRoute';
-import { xProfileUrl } from '../lib/requesterXDisplay';
 import { TokenCard } from './TokenCard';
 import { ProfileBankrLink } from './ProfileBankrLink';
 
@@ -31,8 +30,6 @@ export function ProfileTab() {
     useWebAuth();
   const [tokens, setTokens] = useState<Deployment[]>([]);
   const [totalLaunchCount, setTotalLaunchCount] = useState(0);
-  const [xLaunchCount, setXLaunchCount] = useState(0);
-  const [linkedX, setLinkedX] = useState<string | null>(null);
   const [bankrLaunchCount, setBankrLaunchCount] = useState(0);
   const [bankrLinked, setBankrLinked] = useState(false);
   const [bankrWallet, setBankrWallet] = useState<string | null>(null);
@@ -49,8 +46,6 @@ export function ProfileTab() {
     const profile = await fetchMyDeployerProfile(token, walletAddress ?? undefined);
     setTokens(profile.deployments);
     setTotalLaunchCount(profile.totalLaunchCount);
-    setXLaunchCount(profile.xLaunchCount);
-    setLinkedX(profile.xUsername);
     setBankrLaunchCount(profile.bankrLaunchCount);
     setBankrLinked(profile.bankrLinked);
     setBankrWallet(profile.bankrWallet);
@@ -74,8 +69,6 @@ export function ProfileTab() {
     if (!authenticated) {
       setTokens([]);
       setTotalLaunchCount(0);
-      setXLaunchCount(0);
-      setLinkedX(null);
       setBankrLaunchCount(0);
       setBankrLinked(false);
       setBankrWallet(null);
@@ -147,29 +140,6 @@ export function ProfileTab() {
         </button>
       </div>
 
-      {linkedX ? (
-        <div className="lp-card profile-linked-account">
-          <p className="section-label">X account</p>
-          <div className="profile-x-linked">
-            <a href={xProfileUrl(linkedX)} target="_blank" rel="noreferrer" className="lp-display">
-              @{linkedX}
-            </a>
-            <p className="muted token-fee-note">
-              {xLaunchCount === 1
-                ? '1 launch on hood.markets attributed to this X handle'
-                : `${xLaunchCount} launches on hood.markets attributed to this X handle`}
-            </p>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => openDeployerProfile(linkedX)}
-            >
-              View public profile
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       <ProfileBankrLink
         profile={{ bankrLinked, bankrWallet, bankrLaunchCount }}
         onUpdated={loadProfile}
@@ -178,9 +148,6 @@ export function ProfileTab() {
       {totalLaunchCount > 0 || walletLaunchCount > 0 ? (
         <div className="profile-stats">
           <StatCard label="Tokens launched" value={String(totalLaunchCount)} />
-          {linkedX && xLaunchCount !== totalLaunchCount ? (
-            <StatCard label="Via website wallet" value={String(walletLaunchCount)} />
-          ) : null}
           <StatCard
             label="Combined market cap"
             value={combinedMcap > 0 ? formatUsdVol(combinedMcap) : '—'}
