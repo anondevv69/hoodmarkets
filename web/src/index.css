@@ -5166,26 +5166,6 @@ label {
   background: linear-gradient(145deg, #1c1c1c, #141414);
 }
 
-.explore-coin-spark {
-  position: absolute;
-  left: 6%;
-  right: 6%;
-  bottom: 8%;
-  width: 88%;
-  height: 28%;
-  pointer-events: none;
-  opacity: 0.92;
-  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.55));
-}
-
-.explore-coin-spark.is-up {
-  color: var(--rh-neon);
-}
-
-.explore-coin-spark.is-down {
-  color: #ff5c5c;
-}
-
 .explore-coin-badge {
   position: absolute;
   top: 0.45rem;

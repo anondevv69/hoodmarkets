@@ -143,7 +143,6 @@ function ExploreCoinCard({
       >
         <div className="explore-coin-media">
           <ExploreCoinMedia symbol={sym} imageUrl={resolvedImageUrl} priority={imagePriority} />
-          <ChangeSparkline changePct={change} />
           {item.stats.lastTradeAt ? (
             <span className="explore-coin-badge">Live</span>
           ) : null}
