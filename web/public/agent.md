@@ -4,7 +4,7 @@
 
 > Robinhood Chain (4663) · API: `https://api.hood.markets` · Web: `https://hood.markets`
 
-Bankr: install skill from [anondevv69/hoodmarkets/skills/hoodmarkets](https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets) (v17) or [BankrBot/skills](https://github.com/BankrBot/skills).
+Bankr: install skill from [anondevv69/hoodmarkets/skills/hoodmarkets](https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets) (v19) or [BankrBot/skills](https://github.com/BankrBot/skills).
 
 ---
 
@@ -137,6 +137,21 @@ Full reference: skill `references/HOLDER-NFTS.md`
 
 ---
 
+## Community Launch (petition)
+
+24h ETH raise on Robinhood → V3 deploy + pro-rata Holder NFT airdrop. **No JWT.**
+
+| Intent | Flow |
+|--------|------|
+| Create | `GET /api/community-launch/preflight` → `POST /api/community-launch/create` |
+| Back | `GET …/prepare-deposit` → Bankr submit (native ETH) → `POST …/confirm` |
+| Status / list | `GET …/status?id=` · `GET …/list` |
+| Refund / cancel | `POST …/refund` · `POST …/cancel` (creator) |
+
+Web: [hood.markets/community-launch](https://hood.markets/community-launch) · Skill: `references/COMMUNITY-LAUNCH.md` · Index: [community-launch-api.json](https://hood.markets/community-launch-api.json)
+
+---
+
 ## Briefing
 
 ```
@@ -145,4 +160,4 @@ GET https://api.hood.markets/api/agent/briefing?wallet=0x…
 
 ---
 
-*Skill: `skills/hoodmarkets/` v17 · Contracts: [sdk.md](https://hood.markets/sdk.md)*
+*Skill: `skills/hoodmarkets/` v19 · Contracts: [sdk.md](https://hood.markets/sdk.md)*

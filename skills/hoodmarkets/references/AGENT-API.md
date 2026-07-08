@@ -344,3 +344,25 @@ POST https://api.bankr.bot/wallet/submit
 ```
 
 `chainId` must be **4663**. See `references/BANKR-SUBMIT.md`, `references/TX-VALIDATION.md`, `references/CHAIN-4663.md`.
+
+Also used for **Community Launch deposits**: native ETH (`data: "0x"`) to escrow from `GET /api/community-launch/prepare-deposit` → `nextStep`. Full flow: `references/COMMUNITY-LAUNCH.md`.
+
+---
+
+## Community Launch API (`/api/community-launch`)
+
+24h ETH petition → V3 deploy + pro-rata Holder NFT airdrop. **No JWT.** Robinhood 4663 only.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/community-launch/config` | Escrow wallet, min/max raise & contribution |
+| GET | `/api/community-launch/list` | Open rounds |
+| GET | `/api/community-launch/preflight?tokenName=&tokenSymbol=&targetRaiseEth=` | Blockers before create (409 if conflict) |
+| GET | `/api/community-launch/status?id=` | Full state + backers + `finalResult` |
+| POST | `/api/community-launch/create` | Open round — body: `tokenName`, `tokenSymbol`, `targetRaiseEth`, `starterWallet` |
+| GET | `/api/community-launch/prepare-deposit?id=&wallet=&contributionEth=` | Quote + Bankr `nextStep` |
+| POST | `/api/community-launch/confirm` | `{ id, wallet, contributionEth, signature: txHash }` |
+| POST | `/api/community-launch/refund` | `{ id, wallet }` while open/expired/failed |
+| POST | `/api/community-launch/cancel` | Creator only — `{ id, wallet: starterWallet }` |
+
+Web UI: `https://hood.markets/community-launch` · Detail: `references/COMMUNITY-LAUNCH.md`
