@@ -64,12 +64,12 @@ export function webDeployCorsHeaders(origin: string | undefined): Record<string,
   };
 }
 
-/** CORS for GET /api/deployments (public catalog) from the same allowed browser origins. */
+/** CORS for GET /api/deployments (public catalog) and profile read/unlink from allowed browser origins. */
 export function webDeployCorsHeadersRead(origin: string | undefined): Record<string, string> {
   if (!origin || !isWebDeployOriginAllowed(origin)) return {};
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Agent-Captcha-JWT',
     Vary: 'Origin',
   };
@@ -86,12 +86,12 @@ export function webDeployCorsHeadersSwap0x(origin: string | undefined): Record<s
   };
 }
 
-/** Combined CORS headers for any /api/* route (GET + POST + preflight). */
+/** Combined CORS headers for any /api/* route (GET + POST + DELETE + preflight). */
 function webDeployCorsHeadersAll(origin: string | undefined): Record<string, string> {
   if (!origin || !isWebDeployOriginAllowed(origin)) return {};
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Agent-Captcha-JWT',
     Vary: 'Origin',
   };

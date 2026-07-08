@@ -68,6 +68,7 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
     bankrLaunchCount: number;
   } | null>(null);
   const [linkedXHandle, setLinkedXHandle] = useState<string | null>(null);
+  const [linkedXVerified, setLinkedXVerified] = useState(false);
 
   const reloadBankr = async () => {
     if (!isOwnProfile) return;
@@ -80,12 +81,14 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
       bankrLaunchCount: profile.bankrLaunchCount,
     });
     setLinkedXHandle(profile.xHandle ?? profile.xUsername ?? null);
+    setLinkedXVerified(profile.xVerified ?? false);
   };
 
   useEffect(() => {
     if (!isOwnProfile) {
       setBankrProfile(null);
       setLinkedXHandle(null);
+      setLinkedXVerified(false);
       return;
     }
     void reloadBankr().catch(() => setBankrProfile(null));
@@ -188,7 +191,11 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
       ) : null}
 
       {isOwnProfile ? (
-        <ProfileXLink xHandle={linkedXHandle} onUpdated={reloadBankr} />
+        <ProfileXLink
+          xHandle={linkedXHandle}
+          xVerified={linkedXVerified}
+          onUpdated={reloadBankr}
+        />
       ) : null}
 
       <div className="profile-stats">

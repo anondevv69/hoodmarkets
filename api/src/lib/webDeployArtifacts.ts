@@ -19,6 +19,49 @@ export type WebDeployArtifacts = {
   context: string;
 };
 
+/** HTTP(S) image URL or data:image/*;base64 (for client uploads; max ~2MB). */
+export function normalizeLaunchImageInput(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const t = raw.trim();
+  if (!t) return undefined;
+  if (t.startsWith('https://') || t.startsWith('http://')) return t;
+  if (t.startsWith('data:image/') && t.includes(';base64,')) {
+    const maxChars = 2_800_000;
+    if (t.length > maxChars) return undefined;
+    return t;
+  }
+  return undefined;
+}
+
+/** Upload or normalize a launch logo for DB/catalog storage (HTTPS/IPFS URL). */
+export async function resolveLaunchImageForStorage(
+  raw: unknown,
+  tokenName: string,
+): Promise<string> {
+  const image = normalizeLaunchImageInput(raw);
+  if (!image) return '';
+
+  if (imageUploadService.isConfigured()) {
+    const lower = image.trim().toLowerCase();
+    const alreadyHosted =
+      image.startsWith('http') &&
+      !image.startsWith('data:') &&
+      (lower.includes('ipfs') || lower.includes('pinata'));
+    if (!alreadyHosted) {
+      const uploadedUrl = await imageUploadService.uploadTokenImage(image, tokenName);
+      if (uploadedUrl) return uploadedUrl.slice(0, 1024);
+    }
+  }
+
+  if (image.startsWith('data:')) {
+    throw new Error(
+      'Token image could not be stored. Use a public HTTPS image URL, or set PINATA_JWT on the server for logo uploads.',
+    );
+  }
+
+  return (resolveTokenImageUrl(image) ?? image).slice(0, 1024);
+}
+
 function liquidDeployContextInterface(
   params: Pick<WebDeployArtifactsInput, 'platform' | 'clientKind'>,
 ): string {
@@ -43,27 +86,9 @@ function liquidDeployContextInterface(
 export async function buildWebDeployArtifacts(
   params: WebDeployArtifactsInput,
 ): Promise<WebDeployArtifacts> {
-  let image = params.imageUrl ?? '';
-
-  if (image && imageUploadService.isConfigured()) {
-    const lower = image.trim().toLowerCase();
-    const alreadyHosted =
-      image.startsWith('http') &&
-      !image.startsWith('data:') &&
-      (lower.includes('ipfs') || lower.includes('pinata'));
-    if (!alreadyHosted) {
-      const uploadedUrl = await imageUploadService.uploadTokenImage(image, params.name);
-      if (uploadedUrl) {
-        image = uploadedUrl;
-      }
-    }
-  }
-  image = resolveTokenImageUrl(image) ?? image;
-  if (image.startsWith('data:')) {
-    throw new Error(
-      'Token image could not be stored. Use a public HTTPS image URL, or set PINATA_JWT on the server for logo uploads.',
-    );
-  }
+  const image = params.imageUrl
+    ? await resolveLaunchImageForStorage(params.imageUrl, params.name)
+    : '';
 
   const metadataPayload: Record<string, string | number> = {
     name: params.name,
