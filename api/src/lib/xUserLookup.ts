@@ -72,6 +72,59 @@ function xCredentialsOrNull(): XCredentials | null {
   };
 }
 
+export type XUserProfile = {
+  id: string;
+  username: string;
+  url?: string;
+  description?: string;
+};
+
+/**
+ * X API v2 profile for verification (website + bio).
+ */
+export async function fetchXUserProfileByUsername(screenName: string): Promise<XUserProfile | null> {
+  const clean = screenName.replace(/^@/, '').trim();
+  if (!clean) return null;
+  const credentials = xCredentialsOrNull();
+  if (!credentials) return null;
+
+  const baseUrl = `${X_API_BASE}/2/users/by/username/${encodeURIComponent(clean)}`;
+  try {
+    const res = await oauth1aGet(
+      baseUrl,
+      { 'user.fields': 'id,username,url,description' },
+      credentials,
+    );
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      const t = await res.text().catch(() => '');
+      logger.warn('X users/by/username profile failed', {
+        username: clean,
+        status: res.status,
+        body: t.slice(0, 200),
+      });
+      return null;
+    }
+    const j = (await res.json()) as {
+      data?: { id?: string; username?: string; url?: string; description?: string };
+    };
+    const data = j.data;
+    if (!data?.id || !data.username) return null;
+    return {
+      id: data.id,
+      username: data.username,
+      url: data.url,
+      description: data.description,
+    };
+  } catch (e: unknown) {
+    logger.warn('X users/by/username profile error', {
+      username: clean,
+      message: e instanceof Error ? e.message : String(e),
+    });
+    return null;
+  }
+}
+
 /**
  * X API v2 numeric user id for a screen name (same id as tweet `author_id`).
  * Used to provision Privy `custom_auth` `x:<id>` wallets — matches {@link getOrCreateWalletForUser} on the X bot.

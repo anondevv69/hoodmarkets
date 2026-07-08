@@ -40,6 +40,7 @@ import {
   petitionConfigPayload,
   summarizePetition,
 } from '../lib/petitionSummarize.js';
+import { resolveLaunchImageForStorage } from '../lib/webDeployArtifacts.js';
 
 function petitionCors(): Record<string, string> {
   return {
@@ -232,13 +233,24 @@ export function registerCommunityLaunchRoutes(app: Express): void {
       return;
     }
 
+    let storedImageUrl = '';
+    try {
+      storedImageUrl = await resolveLaunchImageForStorage(b.imageUrl, tokenName);
+    } catch (e: unknown) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : 'Invalid image.',
+      });
+      return;
+    }
+
     const row = await createPetition({
       tokenName,
       tokenSymbol: symbol,
       description: cleanString(b.description, 2000),
-      imageUrl: cleanString(b.imageUrl, 1024),
+      imageUrl: storedImageUrl,
       websiteUrl: cleanString(b.websiteUrl, 1024),
-      tweetUrl: cleanString(b.tweetUrl ?? b.promoTweetUrl ?? b.sourceTweetUrl, 1024),
+      tweetUrl: cleanString(b.tweetUrl ?? b.xUrl ?? b.promoTweetUrl ?? b.sourceTweetUrl, 1024),
       starterWallet,
       maxUnitsPerWallet: 1,
       supporterSlots: raise.supporterSlots,

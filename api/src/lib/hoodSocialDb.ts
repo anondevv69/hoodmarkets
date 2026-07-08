@@ -89,11 +89,22 @@ export function initHoodSocialDb(): void {
       `CREATE TABLE IF NOT EXISTS user_x_links (
         wallet_address TEXT PRIMARY KEY,
         x_handle TEXT NOT NULL,
-        linked_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        linked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        verified_at DATETIME
       )`,
     );
+    db!.run(`ALTER TABLE user_x_links ADD COLUMN verified_at DATETIME`, () => undefined);
     db!.run(
       `CREATE INDEX IF NOT EXISTS idx_user_x_handle ON user_x_links(x_handle)`,
+    );
+    db!.run(
+      `CREATE TABLE IF NOT EXISTS user_x_link_challenges (
+        wallet_address TEXT PRIMARY KEY,
+        x_handle TEXT NOT NULL,
+        verify_code TEXT NOT NULL,
+        expires_at_ms INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
     );
   });
 }
@@ -184,26 +195,107 @@ export async function insertTokenSpacePost(
 }
 
 export async function getXHandleForWallet(walletAddress: string): Promise<string | null> {
-  const wallet = getAddress(walletAddress).toLowerCase();
-  const row = await get<{ x_handle: string }>(
-    `SELECT x_handle FROM user_x_links WHERE wallet_address = ?`,
-    [wallet],
-  );
-  return row?.x_handle ?? null;
+  const link = await getXLinkForWallet(walletAddress);
+  return link?.xHandle ?? null;
 }
 
-export async function linkXHandleForWallet(walletAddress: string, xHandle: string): Promise<void> {
+export type WalletXLink = {
+  xHandle: string;
+  verifiedAt: string | null;
+  linkedAt: string;
+};
+
+export async function getXLinkForWallet(walletAddress: string): Promise<WalletXLink | null> {
+  const wallet = getAddress(walletAddress).toLowerCase();
+  const row = await get<{ x_handle: string; verified_at: string | null; linked_at: string }>(
+    `SELECT x_handle, verified_at, linked_at FROM user_x_links WHERE wallet_address = ?`,
+    [wallet],
+  );
+  if (!row?.x_handle) return null;
+  return {
+    xHandle: row.x_handle,
+    verifiedAt: row.verified_at ?? null,
+    linkedAt: row.linked_at,
+  };
+}
+
+export async function linkXHandleForWallet(
+  walletAddress: string,
+  xHandle: string,
+  verified = false,
+): Promise<void> {
   const wallet = getAddress(walletAddress).toLowerCase();
   const handle = xHandle.trim().replace(/^@/, '').toLowerCase().slice(0, 64);
   if (!handle) throw new Error('xHandle is required.');
+  if (verified) {
+    await run(
+      `INSERT INTO user_x_links (wallet_address, x_handle, linked_at, verified_at)
+       VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       ON CONFLICT(wallet_address) DO UPDATE SET
+         x_handle = excluded.x_handle,
+         linked_at = CURRENT_TIMESTAMP,
+         verified_at = CURRENT_TIMESTAMP`,
+      [wallet, handle],
+    );
+    return;
+  }
   await run(
-    `INSERT INTO user_x_links (wallet_address, x_handle, linked_at)
-     VALUES (?, ?, CURRENT_TIMESTAMP)
+    `INSERT INTO user_x_links (wallet_address, x_handle, linked_at, verified_at)
+     VALUES (?, ?, CURRENT_TIMESTAMP, NULL)
      ON CONFLICT(wallet_address) DO UPDATE SET
        x_handle = excluded.x_handle,
        linked_at = CURRENT_TIMESTAMP`,
     [wallet, handle],
   );
+}
+
+export type XLinkChallengeRow = {
+  xHandle: string;
+  verifyCode: string;
+  expiresAtMs: number;
+};
+
+export async function upsertXLinkChallenge(
+  walletAddress: string,
+  xHandle: string,
+  verifyCode: string,
+  expiresAtMs: number,
+): Promise<void> {
+  const wallet = getAddress(walletAddress).toLowerCase();
+  const handle = xHandle.trim().replace(/^@/, '').toLowerCase().slice(0, 64);
+  await run(
+    `INSERT INTO user_x_link_challenges (wallet_address, x_handle, verify_code, expires_at_ms)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(wallet_address) DO UPDATE SET
+       x_handle = excluded.x_handle,
+       verify_code = excluded.verify_code,
+       expires_at_ms = excluded.expires_at_ms,
+       created_at = CURRENT_TIMESTAMP`,
+    [wallet, handle, verifyCode, expiresAtMs],
+  );
+}
+
+export async function getXLinkChallenge(walletAddress: string): Promise<XLinkChallengeRow | null> {
+  const wallet = getAddress(walletAddress).toLowerCase();
+  const row = await get<{ x_handle: string; verify_code: string; expires_at_ms: number }>(
+    `SELECT x_handle, verify_code, expires_at_ms FROM user_x_link_challenges WHERE wallet_address = ?`,
+    [wallet],
+  );
+  if (!row) return null;
+  if (row.expires_at_ms < Date.now()) {
+    await deleteXLinkChallenge(wallet);
+    return null;
+  }
+  return {
+    xHandle: row.x_handle,
+    verifyCode: row.verify_code,
+    expiresAtMs: row.expires_at_ms,
+  };
+}
+
+export async function deleteXLinkChallenge(walletAddress: string): Promise<void> {
+  const wallet = getAddress(walletAddress).toLowerCase();
+  await run(`DELETE FROM user_x_link_challenges WHERE wallet_address = ?`, [wallet]);
 }
 
 export async function unlinkXHandleForWallet(walletAddress: string): Promise<void> {

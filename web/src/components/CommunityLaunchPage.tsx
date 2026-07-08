@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createWalletClient, custom, getAddress, type Address } from 'viem';
 import { useWebAuth } from '../auth/WebAuthContext';
 import { useActiveWallet } from '../hooks/useActiveWallet';
 import {
@@ -22,8 +23,10 @@ import {
   redirectLegacyPetitionPath,
   setLaunchSubMode,
 } from '../lib/communityLaunchRoute';
+import { ensureRobinhoodChainInWallet } from '../lib/ensureRobinhoodChain';
 import { openTokenPage } from '../lib/tokenRoute';
-import { shortenAddress } from '../chain';
+import { robinhood, shortenAddress } from '../chain';
+import { TokenAvatar } from './TokenAvatar';
 
 function walletsMatch(a: string | null | undefined, b: string | null | undefined): boolean {
   if (!a || !b) return false;
@@ -59,13 +62,7 @@ function PetitionCard({
   return (
     <button type="button" className="petition-card lp-card" onClick={() => onOpen(petition.id)}>
       <div className="petition-card-head">
-        {petition.imageUrl ? (
-          <img
-            src={petition.imageUrl}
-            alt={`${petition.tokenSymbol} logo`}
-            style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
-          />
-        ) : null}
+        <TokenAvatar symbol={petition.tokenSymbol} imageUrl={petition.imageUrl} size={32} />
         <strong>${petition.tokenSymbol}</strong>
         <span className="muted">{petition.tokenName}</span>
       </div>
@@ -150,6 +147,9 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
         })()
       : null;
 
+  const previewSymbol = (tokenSymbol.trim() || 'TKN').toUpperCase();
+  const previewImage = resolveLaunchImagePayload(imageDataUrl, imageUrl);
+
   return (
     <form className="petition-form lp-card" onSubmit={onSubmit}>
       <h2 className="petition-section-title">Start a community launch</h2>
@@ -220,6 +220,14 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
           disabled={!!imageDataUrl}
           style={{ marginTop: '0.5rem' }}
         />
+        {previewImage ? (
+          <div className="community-launch-logo-preview" style={{ marginTop: '0.75rem' }}>
+            <TokenAvatar symbol={previewSymbol} imageUrl={previewImage} size={64} priority />
+            <span className="muted" style={{ fontSize: '0.82rem' }}>
+              Logo preview
+            </span>
+          </div>
+        ) : null}
       </div>
       <label className="field-label">
         Description
@@ -333,19 +341,21 @@ function PetitionDetail({ id }: { id: string }) {
         wallet: walletAddress,
         contributionEth: amount,
       });
-      const provider = (await wallet.getEthereumProvider()) as {
-        request: (args: { method: string; params: unknown[] }) => Promise<string>;
-      };
-      const txHash = await provider.request({
-        method: 'eth_sendTransaction',
-        params: [
-          {
-            from: walletAddress,
-            to: prep.nextStep.to,
-            value: `0x${BigInt(prep.nextStep.value).toString(16)}`,
-            data: prep.nextStep.data,
-          },
-        ],
+      const provider = await wallet.getEthereumProvider();
+      await ensureRobinhoodChainInWallet(
+        provider as Parameters<typeof ensureRobinhoodChainInWallet>[0],
+      );
+      const account = getAddress(walletAddress) as Address;
+      const client = createWalletClient({
+        account,
+        chain: robinhood,
+        transport: custom(provider as Parameters<typeof custom>[0]),
+      });
+      const txHash = await client.sendTransaction({
+        account,
+        chain: robinhood,
+        to: getAddress(prep.nextStep.to),
+        value: BigInt(prep.nextStep.value),
       });
       await confirmCommunityLaunchDeposit({
         id,
@@ -356,7 +366,20 @@ function PetitionDetail({ id }: { id: string }) {
       setMessage(`Contributed ${prep.deposit.totalEth} ETH toward the launch.`);
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Deposit failed');
+      const msg = e instanceof Error ? e.message : 'Deposit failed';
+      if (/reject|denied|cancel|declined/i.test(msg)) {
+        setError('Transaction cancelled in wallet.');
+      } else if (/insufficient|funds|balance/i.test(msg)) {
+        setError(
+          `${msg} You need enough ETH on Robinhood Chain for the contribution plus network fee.`,
+        );
+      } else if (/unavailable|estimate|gas/i.test(msg)) {
+        setError(
+          'MetaMask could not estimate the network fee. Ensure Robinhood Chain is selected, you have extra ETH for gas, then try again.',
+        );
+      } else {
+        setError(msg);
+      }
     } finally {
       setBusy(false);
       setAction(null);
@@ -463,14 +486,7 @@ function PetitionDetail({ id }: { id: string }) {
           ${petition.tokenSymbol}{' '}
           <span className="muted petition-detail-name">{petition.tokenName}</span>
         </h1>
-        {petition.imageUrl ? (
-          <img
-            src={petition.imageUrl}
-            alt={`${petition.tokenSymbol} logo`}
-            className="petition-token-image"
-            style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', margin: '0.5rem 0' }}
-          />
-        ) : null}
+        <TokenAvatar symbol={petition.tokenSymbol} imageUrl={petition.imageUrl} size={64} priority />
         {petition.description ? <p className="petition-lead">{petition.description}</p> : null}
         {petition.websiteUrl || petition.tweetUrl ? (
           <div className="petition-links" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
@@ -581,6 +597,10 @@ function PetitionDetail({ id }: { id: string }) {
                 ~{estimatedShares} / 1,000 shares ({estimatedPct.toFixed(2)}% of raise at goal)
               </p>
             ) : null}
+            <p className="muted token-fee-note">
+              Keep a little extra ETH in the same wallet for Robinhood Chain network fees — not just
+              the contribution amount.
+            </p>
             <button
               type="button"
               className="btn btn-primary"
