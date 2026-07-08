@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useAccount, useAccountEffect, useDisconnect, useSignMessage } from 'wagmi';
+import { useAccount, useAccountEffect, useDisconnect } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
 import {
   clearStoredSession,
@@ -22,6 +22,7 @@ import {
   signMessageWithBankr,
   verifyWalletLogin,
 } from './walletAuthApi';
+import { isWalletUserRejection, signWalletLoginMessage } from './signWalletLoginMessage';
 
 export type WebAuthMethod = 'rainbow' | 'bankr' | null;
 
@@ -42,19 +43,20 @@ type WebAuthContextValue = {
 
 const WebAuthContext = createContext<WebAuthContextValue | null>(null);
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function isUserRejection(error: unknown): boolean {
+  return isWalletUserRejection(error);
 }
 
-function isUserRejection(error: unknown): boolean {
+function isTransientSignInError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
-  return /reject|denied|cancel|declined/i.test(msg);
+  return /connector not connected|unavailable while reconnecting|connection timed out|connector not ready/i.test(
+    msg,
+  );
 }
 
 export function WebAuthProvider({ children }: { children: ReactNode }) {
   const { address, isConnected, status } = useAccount();
   const { disconnect } = useDisconnect();
-  const { signMessageAsync } = useSignMessage();
   const { openConnectModal } = useConnectModal();
   const [session, setSession] = useState<StoredWebSession | null>(null);
   const [authMethod, setAuthMethod] = useState<WebAuthMethod>(null);
@@ -108,18 +110,24 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
   const runSignInIfNeeded = useCallback(
     async (walletAddress: string) => {
       const key = walletAddress.toLowerCase();
-      if (sessionRef.current?.walletAddress?.toLowerCase() === key) return;
+      const stored = sessionRef.current ?? readStoredSession();
+      if (stored?.walletAddress?.toLowerCase() === key) {
+        if (!sessionRef.current) {
+          setSession(stored);
+          sessionRef.current = stored;
+          setAuthMethod(stored.walletKind === 'bankr-evm' ? 'bankr' : 'rainbow');
+        }
+        return;
+      }
       if (signInFlightRef.current === key) return;
 
       signInFlightRef.current = key;
       setSigningIn(true);
       setAuthError(null);
       try {
-        await delay(300);
-        if (signInFlightRef.current !== key) return;
         await completeWalletLogin(
           walletAddress,
-          (message) => signMessageAsync({ message }),
+          (message) => signWalletLoginMessage(walletAddress, message),
           'injected',
         );
       } catch (e) {
@@ -129,7 +137,7 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
         } else {
           const msg = e instanceof Error ? e.message : 'Wallet sign-in failed.';
           setAuthError(msg);
-          if (!/challenge expired/i.test(msg)) {
+          if (!/challenge expired/i.test(msg) && !isTransientSignInError(e)) {
             disconnect();
             clearStoredSession();
             setSession(null);
@@ -144,22 +152,22 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [completeWalletLogin, signMessageAsync, disconnect],
+    [completeWalletLogin, disconnect],
   );
 
   useAccountEffect({
     onConnect({ address: connectedAddress }) {
-      if (!connectedAddress) return;
+      if (!ready || !connectedAddress) return;
       void runSignInIfNeeded(connectedAddress);
     },
   });
 
   useEffect(() => {
     if (!ready || authMethod === 'bankr') return;
-    if (!isConnected || !address) return;
+    if (status !== 'connected' || !address) return;
     if (session?.walletAddress?.toLowerCase() === address.toLowerCase()) return;
     void runSignInIfNeeded(address);
-  }, [ready, authMethod, isConnected, address, session?.walletAddress, runSignInIfNeeded]);
+  }, [ready, authMethod, status, address, session?.walletAddress, runSignInIfNeeded]);
 
   const connectWallet = useCallback(() => {
     setAuthError(null);
@@ -174,7 +182,7 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (isConnected && address) {
+    if (status === 'connected' && address) {
       if (session?.walletAddress?.toLowerCase() === address.toLowerCase()) {
         return;
       }
@@ -192,7 +200,6 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
   }, [
     openConnectModal,
     status,
-    isConnected,
     address,
     signingIn,
     session?.walletAddress,

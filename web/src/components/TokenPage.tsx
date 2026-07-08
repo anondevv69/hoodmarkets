@@ -17,7 +17,6 @@ import { TokenSocialLinks } from './TokenSocialLinks';
 import { TokenSpaceComments } from './TokenSpaceComments';
 import { TokenBrandingPanel } from './TokenBrandingPanel';
 import { TokenFractionPanel } from './TokenFractionPanel';
-import { VestingTabPanel } from './VestingTabPanel';
 
 function CopyIcon() {
   return (
@@ -283,13 +282,6 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
           factoryAddress={token.factoryAddress}
           poolId={token.poolId}
           deployBlockNumber={token.blockNumber}
-          feeRecipientAddress={token.feeRecipientAddress}
-        />
-      </div>
-
-      <div className="token-page-full-bleed">
-        <VestingTabPanel
-          tokenAddress={token.tokenAddress}
           feeRecipientAddress={token.feeRecipientAddress}
         />
       </div>

@@ -12,7 +12,7 @@ import {
   listDeploymentsByXUsername,
   type DeploymentCatalogRow,
 } from '../lib/deploymentCatalog.js';
-import { getBankrWalletForPrivyUser, getXLinkForWallet } from '../lib/hoodSocialDb.js';
+import { getBankrWalletForPrivyUser, getXLinkForWallet, getLinkedAccountsForWallet } from '../lib/hoodSocialDb.js';
 import { fetchPrivyUserRecordById, extractTwitterUsernameFromPrivyUser } from '../lib/privy.js';
 import { verifyWebSessionBearer } from '../lib/webSessionAuth.js';
 import { normalizeXUsername } from '../lib/requesterXUsername.js';
@@ -123,7 +123,7 @@ export function registerDeployerProfileRoutes(app: Express): void {
     try {
       const rawLimit = req.query.limit;
       const limit = typeof rawLimit === 'string' ? Number.parseInt(rawLimit, 10) : 50;
-      const [feeRecipientTokenCount, initiatedLaunchCount, feeRecipientDeployments, initiatedDeployments] =
+      const [feeRecipientTokenCount, initiatedLaunchCount, feeRecipientDeployments, initiatedDeployments, linkedAccounts] =
         await Promise.all([
           countDeploymentsAsFeeRecipient(wallet),
           countDeploymentsInitiatedByWallet(wallet),
@@ -137,6 +137,7 @@ export function registerDeployerProfileRoutes(app: Express): void {
             Number.isFinite(limit) ? limit : 50,
             0,
           ),
+          getLinkedAccountsForWallet(wallet),
         ]);
 
       res.json({
@@ -147,6 +148,16 @@ export function registerDeployerProfileRoutes(app: Express): void {
         profileUrl: walletProfileUrl(wallet),
         deployments: feeRecipientDeployments,
         initiatedDeployments,
+        linkedAccounts: {
+          ...linkedAccounts,
+          bankrVerified: linkedAccounts.bankrLinked,
+          telegramLinked: false,
+          telegramStatus: 'coming_soon' as const,
+        },
+        xHandle: linkedAccounts.xHandle,
+        xLinked: linkedAccounts.xLinked,
+        bankrWallet: linkedAccounts.bankrWallet,
+        bankrLinked: linkedAccounts.bankrLinked,
       });
     } catch {
       res.status(500).json({ error: 'Failed to load wallet profile.' });
@@ -192,17 +203,24 @@ export function registerDeployerProfileRoutes(app: Express): void {
       const walletXLink =
         session.kind === 'wallet' ? await getXLinkForWallet(session.walletAddress) : null;
       const xUsernameFromWallet = walletXLink?.xHandle ?? null;
-      const xVerifiedFromWallet = !!walletXLink?.verifiedAt;
       const xUsername = xUsernameFromPrivy ?? xUsernameFromWallet;
       const bankrWallet =
         session.kind === 'wallet' && session.walletKind === 'bankr-evm'
           ? session.walletAddress
           : await getBankrWalletForPrivyUser(userId);
 
-      const [accountDeployments, xDeployments, bankrDeployments] = await Promise.all([
+      const [accountDeployments, xDeployments, bankrDeployments, linkedAccounts] = await Promise.all([
         listDeploymentCatalogForUser(userId, resolvedWallet, 100, 0),
         xUsername ? listDeploymentsByXUsername(xUsername, 100, 0) : Promise.resolve([]),
         bankrWallet ? listDeploymentsInitiatedByWallet(bankrWallet, 100, 0) : Promise.resolve([]),
+        session.kind === 'wallet'
+          ? getLinkedAccountsForWallet(session.walletAddress)
+          : Promise.resolve({
+              xHandle: xUsernameFromWallet,
+              xLinked: !!xUsernameFromWallet,
+              bankrWallet,
+              bankrLinked: !!bankrWallet,
+            }),
       ]);
 
       const launchedByAccount = accountDeployments.filter((d) => d.deployedByViewer);
@@ -213,11 +231,22 @@ export function registerDeployerProfileRoutes(app: Express): void {
       res.json({
         xUsername,
         xHandle: xUsername,
-        xLinked: !!xUsername,
-        xVerified: xVerifiedFromWallet || !!xUsernameFromPrivy,
+        xLinked: !!xUsername || linkedAccounts.xLinked,
+        xVerified: false,
         xLaunchCount,
         bankrWallet,
-        bankrLinked: !!bankrWallet,
+        bankrLinked: !!bankrWallet || linkedAccounts.bankrLinked,
+        bankrVerified: !!bankrWallet,
+        linkedAccounts: {
+          ...linkedAccounts,
+          xHandle: xUsername ?? linkedAccounts.xHandle,
+          xLinked: !!(xUsername ?? linkedAccounts.xHandle),
+          bankrWallet: bankrWallet ?? linkedAccounts.bankrWallet,
+          bankrLinked: !!(bankrWallet ?? linkedAccounts.bankrWallet),
+          bankrVerified: !!(bankrWallet ?? linkedAccounts.bankrWallet),
+          telegramLinked: false,
+          telegramStatus: 'coming_soon',
+        },
         bankrLaunchCount,
         walletLaunchCount: launchedByAccount.length,
         totalLaunchCount: mergedLaunches.length,

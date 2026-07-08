@@ -7,7 +7,6 @@ export function ProfileXLink({
   onUpdated,
 }: {
   xHandle: string | null;
-  xVerified?: boolean;
   onUpdated: () => Promise<void>;
 }) {
   const { getAccessToken } = useWebAuth();
@@ -62,14 +61,17 @@ export function ProfileXLink({
       <p className="section-label">X account</p>
       {xHandle ? (
         <div className="profile-x-linked">
-          <a
-            href={`https://x.com/${xHandle}`}
-            target="_blank"
-            rel="noreferrer"
-            className="lp-mono"
-          >
-            @{xHandle}
-          </a>
+          <div className="profile-x-linked-head">
+            <a
+              href={`https://x.com/${xHandle}`}
+              target="_blank"
+              rel="noreferrer"
+              className="lp-mono"
+            >
+              @{xHandle}
+            </a>
+            <span className="profile-link-badge profile-link-badge--linked">Linked</span>
+          </div>
           <p className="muted token-fee-note">
             Launches from @{xHandle} are attributed to your profile.
           </p>
