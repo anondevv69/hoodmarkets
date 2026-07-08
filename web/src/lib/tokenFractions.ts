@@ -123,6 +123,13 @@ const FRACTION_ABI = [
   },
   {
     type: 'function',
+    name: 'buyerRewardAdmin',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+  },
+  {
+    type: 'function',
     name: 'buyerRewardSharesRemaining',
     stateMutability: 'view',
     inputs: [],
@@ -743,6 +750,20 @@ export async function fetchBuyerRewardPoolState(
     }),
   ]);
   return { cap: Number(cap), remaining: Number(remaining) };
+}
+
+export async function fetchBuyerRewardAdmin(collectionAddress: Address): Promise<Address | null> {
+  const client = publicClient();
+  try {
+    const admin = await client.readContract({
+      address: collectionAddress,
+      abi: FRACTION_ABI,
+      functionName: 'buyerRewardAdmin',
+    });
+    return admin && admin !== zeroAddress ? getAddress(admin as Address) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function fundBuyerRewardPool(

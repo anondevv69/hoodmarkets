@@ -20,6 +20,17 @@ export function isHoodMarketsV3Factory(address: string | null | undefined): bool
   return HOODMARKETS_V3_FACTORIES.some((f) => f.toLowerCase() === factory);
 }
 
+/** v0.9+ fraction contracts expose fundBuyerRewardPool / cancelBuyerRewardPool post-launch. */
+export function supportsPostLaunchBuyerRewards(factoryAddress: string | null | undefined): boolean {
+  const factory = factoryAddress?.trim().toLowerCase();
+  if (!factory) return false;
+  return [
+    HOODMARKETS_V3_FACTORY,
+    '0xf65536Eb3354Ad7e77E1b0d0F7bEBFa1C88885C9',
+    '0x3a94FD3422F50ed6cC08e547c6C697E4bb3e76c8',
+  ].some((f) => f.toLowerCase() === factory);
+}
+
 /** Catalog row is a Simple (Uniswap V3) launch — matches API `isV3CatalogDeployment`. */
 export function isSimpleLaunchDeployment(input: {
   poolId?: string | null;
