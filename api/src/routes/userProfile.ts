@@ -178,19 +178,10 @@ export function registerUserProfileRoutes(app: Express): void {
         return;
       }
       const link = await getXLinkForWallet(walletAddress);
-      const challenge = await getXLinkChallenge(walletAddress);
       res.json({
         linked: !!link?.xHandle,
         xHandle: link?.xHandle ?? null,
         verified: !!link?.verifiedAt,
-        pendingChallenge: challenge
-          ? {
-              xHandle: challenge.xHandle,
-              verifyCode: challenge.verifyCode,
-              verifyUrl: buildXLinkVerifyUrl(WEB_BASE, challenge.verifyCode),
-              expiresAtMs: challenge.expiresAtMs,
-            }
-          : null,
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unauthorized';

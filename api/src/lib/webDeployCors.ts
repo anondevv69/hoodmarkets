@@ -53,13 +53,16 @@ export function isWebDeployOriginAllowed(origin: string | undefined): boolean {
   return false;
 }
 
+const CORS_ALLOW_HEADERS =
+  'Authorization, Content-Type, X-Agent-Captcha-JWT, X-Bankr-Api-Key';
+
 /** CORS for POST /api/deploy, /api/deploy-preview, and /api/resolve-source from allowed browser origins. */
 export function webDeployCorsHeaders(origin: string | undefined): Record<string, string> {
   if (!origin || !isWebDeployOriginAllowed(origin)) return {};
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Agent-Captcha-JWT',
+    'Access-Control-Allow-Headers': CORS_ALLOW_HEADERS,
     Vary: 'Origin',
   };
 }
@@ -70,7 +73,7 @@ export function webDeployCorsHeadersRead(origin: string | undefined): Record<str
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Agent-Captcha-JWT',
+    'Access-Control-Allow-Headers': CORS_ALLOW_HEADERS,
     Vary: 'Origin',
   };
 }
@@ -92,7 +95,7 @@ function webDeployCorsHeadersAll(origin: string | undefined): Record<string, str
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Agent-Captcha-JWT',
+    'Access-Control-Allow-Headers': CORS_ALLOW_HEADERS,
     Vary: 'Origin',
   };
 }
