@@ -49,6 +49,8 @@ Pinned JSON: [`skills/hoodmarkets/known-contracts.json`](https://github.com/anon
 | POST | `/api/agent/claim` | Claim fees (fee recipient; launcher pays gas) |
 | POST | `/api/agent/claim-for-recipient` | Anyone triggers claim for catalog token |
 | POST | `/api/agent/prepare-buy` / `prepare-sell` | Pro tokens only → Bankr submit |
+| POST | `/api/agent/prepare-fund-buyer-rewards` | Escrow Holder shares for buyer rewards (fee recipient → Bankr submit) |
+| POST | `/api/agent/prepare-cancel-buyer-rewards` | Return unissued buyer-reward shares (fee recipient) |
 | GET | `/api/deployments` | Public catalog |
 
 **POST only on `https://api.hood.markets`** — not `hood.markets`.
@@ -93,7 +95,7 @@ Content-Type: application/json
 - Launch LP locked — users trade on Uniswap
 - Gasless for user (launcher wallet pays)
 
-**Web UI:** “Someone else” fee recipient = **`0x…` wallet only**. Buyer rewards on token page after launch (not at deploy).
+**Web UI:** “Someone else” fee recipient = **`0x…` wallet only**. Buyer rewards: `prepare-fund-buyer-rewards` on X/Bankr or token page after launch.
 
 ---
 
@@ -131,9 +133,9 @@ POST https://api.hood.markets/api/agent/claim-for-recipient
 | Batch airdrop | `airdropShares` — **one tx** (v0.10+; hood.markets auto-detects) |
 | List / buy / cancel | `listShares` / `buyShares` / `cancelListing` (5% on sale) |
 | Claim swap fees | `claimTradingFees()` |
-| Buyer rewards | `fundBuyerRewardPool` / `cancelBuyerRewardPool` (post-launch) |
+| Buyer rewards | `prepare-fund-buyer-rewards` / `prepare-cancel-buyer-rewards` → Bankr submit (fee recipient only) |
 
-Full reference: skill `references/HOLDER-NFTS.md`
+Full reference: skill `references/HOLDER-NFTS.md` · `references/AGENT-API.md`
 
 ---
 
@@ -160,4 +162,4 @@ GET https://api.hood.markets/api/agent/briefing?wallet=0x…
 
 ---
 
-*Skill: `skills/hoodmarkets/` v20 · Contracts: [sdk.md](https://hood.markets/sdk.md)*
+*Skill: `skills/hoodmarkets/` v21 · Contracts: [sdk.md](https://hood.markets/sdk.md)*

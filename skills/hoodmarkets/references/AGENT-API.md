@@ -335,6 +335,47 @@ POST https://api.hood.markets/api/deployments/0x…/process-buyer-rewards
 
 ---
 
+## POST /api/agent/prepare-fund-buyer-rewards
+
+Escrow Holder NFT shares for automatic first-buyer rewards (Simple / V3 launches, v0.9+ factory). **Fee recipient wallet only.**
+
+```http
+POST https://api.hood.markets/api/agent/prepare-fund-buyer-rewards
+Content-Type: application/json
+
+{
+  "wallet": "0x374D91a5674Fa7Cf86E725093b5848b97e1e13b4",
+  "tokenAddress": "0x426bB0A71fB3C49D893cA9896B0b45347AA8a004",
+  "shareAmount": 999
+}
+```
+
+`symbol` works instead of `tokenAddress` (e.g. `"NORMIES"`). `shareAmount` is how many of your **1,000 Holder shares** to escrow (not separate NFTs).
+
+**Response:** `transactions[]`, `shareAmount`, `sharesKept`, `buyerRewardStatus`, `replyHint`, `bankrWalletSubmitRequired: true`.
+
+Submit via Bankr `/wallet/submit` (`chainId` **4663**). After confirm, buyers receive one share each on their first pool buy (poller + `process-buyer-rewards`).
+
+---
+
+## POST /api/agent/prepare-cancel-buyer-rewards
+
+Return unissued escrowed buyer-reward shares to the fee recipient wallet.
+
+```http
+POST https://api.hood.markets/api/agent/prepare-cancel-buyer-rewards
+Content-Type: application/json
+
+{
+  "wallet": "0x…",
+  "tokenAddress": "0x…"
+}
+```
+
+Submit returned tx via Bankr `/wallet/submit`.
+
+---
+
 ## Bankr wallet submit
 
 After `prepare-buy` / `prepare-sell`, for each validated tx:

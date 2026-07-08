@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, claim fees, and Community Launch (petition) for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, community launch, petition, back petition, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap, community-launch, petition]
-version: 20
+version: 21
 ---
 
 # hood.markets — Bankr agent skill
@@ -36,6 +36,8 @@ POST https://api.hood.markets/api/agent/prepare-deploy
 POST https://api.hood.markets/api/agent/resolve-deploy-image
 POST https://api.hood.markets/api/agent/prepare-buy
 POST https://api.hood.markets/api/agent/prepare-sell
+POST https://api.hood.markets/api/agent/prepare-fund-buyer-rewards
+POST https://api.hood.markets/api/agent/prepare-cancel-buyer-rewards
 POST https://api.hood.markets/api/deploy          (after haiku JWT)
 POST https://api.hood.markets/api/agent/claim-for-recipient  (anyone — fees to catalog recipient)
 POST https://api.hood.markets/api/agent/claim      (fee recipient wallet only)
@@ -238,7 +240,7 @@ Use **haiku JWT** — no in-thread confirm step:
 - `launchMode`: `"simple"` (V3, DexScreener) or `"pro"` (V4, hood.markets swap UI)
 - Fee recipient = wallet from captcha JWT (Bankr linked wallet)
 - **Simple:** 5% platform / 95% pro-rata to Holder NFT share holders — embedded in `HoodMarketsV3LpLocker`
-- **Buyer rewards:** post-launch on token page (`fundBuyerRewardPool`) — not on hood.markets launch form. API deploy may accept optional `buyerRewardShareCount` (legacy).
+- **Buyer rewards:** `POST /api/agent/prepare-fund-buyer-rewards` with fee recipient `wallet`, `tokenAddress` or `symbol`, and `shareAmount` (e.g. `999`) → Bankr `/wallet/submit`. Or token page / legacy deploy `buyerRewardShareCount`.
 
 **Web UI (hood.markets Launch tab):** “Someone else” fee recipient = **`0x…` wallet address only** — not `@handle` or profile URL. Agents/API may still resolve social handles for other channels.
 
