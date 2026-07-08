@@ -399,7 +399,7 @@ export function TokensTab({ onNavigateToLaunch }: { onNavigateToLaunch?: () => v
               <ExploreCoinCard
                 key={item.deployment.tokenAddress}
                 item={item}
-                imagePriority={i < 12}
+                imagePriority={i < 16}
               />
             ))}
           </ul>
