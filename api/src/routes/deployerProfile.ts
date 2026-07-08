@@ -12,7 +12,7 @@ import {
   listDeploymentsByXUsername,
   type DeploymentCatalogRow,
 } from '../lib/deploymentCatalog.js';
-import { getBankrWalletForPrivyUser } from '../lib/hoodSocialDb.js';
+import { getBankrWalletForPrivyUser, getXHandleForWallet } from '../lib/hoodSocialDb.js';
 import { fetchPrivyUserRecordById, extractTwitterUsernameFromPrivyUser } from '../lib/privy.js';
 import { verifyWebSessionBearer } from '../lib/webSessionAuth.js';
 import { normalizeXUsername } from '../lib/requesterXUsername.js';
@@ -188,7 +188,10 @@ export function registerDeployerProfileRoutes(app: Express): void {
 
       const userRecord =
         session.kind === 'privy' ? await fetchPrivyUserRecordById(userId) : null;
-      const xUsername = userRecord ? extractTwitterUsernameFromPrivyUser(userRecord) : null;
+      const xUsernameFromPrivy = userRecord ? extractTwitterUsernameFromPrivyUser(userRecord) : null;
+      const xUsernameFromWallet =
+        session.kind === 'wallet' ? await getXHandleForWallet(session.walletAddress) : null;
+      const xUsername = xUsernameFromPrivy ?? xUsernameFromWallet;
       const bankrWallet =
         session.kind === 'wallet' && session.walletKind === 'bankr-evm'
           ? session.walletAddress
@@ -207,6 +210,7 @@ export function registerDeployerProfileRoutes(app: Express): void {
 
       res.json({
         xUsername,
+        xHandle: xUsername,
         xLinked: !!xUsername,
         xLaunchCount,
         bankrWallet,

@@ -4,6 +4,9 @@ import {
   getBankrWalletForPrivyUser,
   linkBankrWalletForPrivyUser,
   unlinkBankrWalletForPrivyUser,
+  getXHandleForWallet,
+  linkXHandleForWallet,
+  unlinkXHandleForWallet,
 } from '../lib/hoodSocialDb.js';
 import {
   buildLinkBankrWalletMessage,
@@ -130,6 +133,69 @@ export function registerUserProfileRoutes(app: Express): void {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unauthorized';
       res.status(/authorization|bearer|privy/i.test(msg) ? 401 : 500).json({ error: msg });
+    }
+  });
+
+  const xPaths = ['/api/my-profile/x', '/api/my-profile/link-x'];
+  for (const path of xPaths) {
+    app.options(path, (req, res) => {
+      setCors(req, res);
+      res.status(204).end();
+    });
+  }
+
+  app.get('/api/my-profile/x', async (req: Request, res: Response) => {
+    setCors(req, res);
+    try {
+      const session = await verifyWebSessionBearer(req.headers.authorization);
+      const walletAddress = session.kind === 'wallet' ? session.walletAddress : null;
+      if (!walletAddress) {
+        res.json({ linked: false, xHandle: null });
+        return;
+      }
+      const xHandle = await getXHandleForWallet(walletAddress);
+      res.json({ linked: !!xHandle, xHandle });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unauthorized';
+      res.status(/authorization|bearer/i.test(msg) ? 401 : 500).json({ error: msg });
+    }
+  });
+
+  app.post('/api/my-profile/link-x', async (req: Request, res: Response) => {
+    setCors(req, res);
+    try {
+      const session = await verifyWebSessionBearer(req.headers.authorization);
+      if (session.kind !== 'wallet') {
+        res.status(400).json({ error: 'X linking requires wallet sign-in.' });
+        return;
+      }
+      const rawHandle =
+        typeof req.body?.xHandle === 'string' ? req.body.xHandle.trim().replace(/^@/, '') : '';
+      if (!rawHandle || !/^[a-zA-Z0-9_]{1,50}$/.test(rawHandle)) {
+        res.status(400).json({ error: 'xHandle must be a valid X username (letters, numbers, underscores, max 50 chars).' });
+        return;
+      }
+      await linkXHandleForWallet(session.walletAddress, rawHandle);
+      res.json({ ok: true, xHandle: rawHandle });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Link failed';
+      res.status(/authorization|bearer/i.test(msg) ? 401 : 500).json({ error: msg });
+    }
+  });
+
+  app.delete('/api/my-profile/link-x', async (req: Request, res: Response) => {
+    setCors(req, res);
+    try {
+      const session = await verifyWebSessionBearer(req.headers.authorization);
+      if (session.kind !== 'wallet') {
+        res.status(400).json({ error: 'X linking requires wallet sign-in.' });
+        return;
+      }
+      await unlinkXHandleForWallet(session.walletAddress);
+      res.json({ ok: true });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unauthorized';
+      res.status(/authorization|bearer/i.test(msg) ? 401 : 500).json({ error: msg });
     }
   });
 }
