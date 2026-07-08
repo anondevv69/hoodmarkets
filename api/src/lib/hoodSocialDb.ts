@@ -147,6 +147,43 @@ export async function unlinkBankrWalletForPrivyUser(privyUserId: string): Promis
   await run(`DELETE FROM user_bankr_links WHERE privy_user_id = ?`, [privyUserId]);
 }
 
+export type WalletLinkedAccounts = {
+  xHandle: string | null;
+  xLinked: boolean;
+  bankrWallet: string | null;
+  bankrLinked: boolean;
+};
+
+/** Public linked-account flags for a hood.markets wallet profile. */
+export async function getLinkedAccountsForWallet(
+  walletAddress: string,
+): Promise<WalletLinkedAccounts> {
+  const wallet = getAddress(walletAddress);
+  const xLink = await getXLinkForWallet(wallet);
+  const { webWalletDeployerId } = await import('./webWalletMessages.js');
+  const sessionBankr = await getBankrWalletForPrivyUser(
+    webWalletDeployerId(wallet as `0x${string}`),
+  );
+  const registeredBankr = await get<{ bankr_wallet: string }>(
+    `SELECT bankr_wallet FROM user_bankr_links WHERE LOWER(bankr_wallet) = ?`,
+    [wallet.toLowerCase()],
+  );
+  let bankrWallet: string | null = sessionBankr;
+  if (!bankrWallet && registeredBankr?.bankr_wallet) {
+    try {
+      bankrWallet = getAddress(registeredBankr.bankr_wallet);
+    } catch {
+      bankrWallet = null;
+    }
+  }
+  return {
+    xHandle: xLink?.xHandle ?? null,
+    xLinked: !!xLink?.xHandle,
+    bankrWallet,
+    bankrLinked: !!bankrWallet,
+  };
+}
+
 export async function listTokenSpacePosts(
   tokenAddress: string,
   limit = 50,

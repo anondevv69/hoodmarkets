@@ -153,7 +153,10 @@ export function ProfileBankrLink({
       <p className="section-label">Bankr wallet</p>
       {bankrLinked && bankrWallet ? (
         <div className="profile-x-linked">
-          <span className="lp-mono">{shortenAddress(bankrWallet)}</span>
+          <div className="profile-x-linked-head">
+            <span className="lp-mono">{shortenAddress(bankrWallet)}</span>
+            <span className="profile-link-badge profile-link-badge--verified">Verified</span>
+          </div>
           <p className="muted token-fee-note">
             {bankrLaunchCount === 1
               ? '1 @bankrbot launch attributed to this wallet'

@@ -5,8 +5,6 @@ import {
   linkBankrWalletForPrivyUser,
   unlinkBankrWalletForPrivyUser,
   getXLinkForWallet,
-  getXLinkChallenge,
-  upsertXLinkChallenge,
   deleteXLinkChallenge,
   linkXHandleForWallet,
   unlinkXHandleForWallet,
@@ -16,13 +14,6 @@ import {
   linkBankrWalletExpiresAt,
   verifyLinkBankrWalletSignature,
 } from '../lib/linkBankrWallet.js';
-import {
-  buildXLinkVerifyUrl,
-  generateXLinkVerifyCode,
-  xLinkVerifyExpiresAt,
-  xProfileContainsVerification,
-} from '../lib/linkXVerify.js';
-import { fetchXUserProfileByUsername } from '../lib/xUserLookup.js';
 import { fetchPrivyUserRecordById } from '../lib/privy.js';
 import { verifyWebSessionBearer } from '../lib/webSessionAuth.js';
 import { webDeployCorsHeadersRead } from '../lib/webDeployCors.js';
@@ -33,8 +24,6 @@ function normalizeXHandle(raw: unknown): string | null {
   if (!handle || !/^[a-z0-9_]{1,50}$/.test(handle)) return null;
   return handle;
 }
-
-const WEB_BASE = (process.env.LAUNCHER_WEB_URL || 'https://hood.markets').replace(/\/$/, '');
 
 function setCors(req: Request, res: Response): void {
   const h = webDeployCorsHeadersRead(req.headers.origin);
@@ -181,7 +170,7 @@ export function registerUserProfileRoutes(app: Express): void {
       res.json({
         linked: !!link?.xHandle,
         xHandle: link?.xHandle ?? null,
-        verified: !!link?.verifiedAt,
+        verified: false,
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unauthorized';
@@ -191,83 +180,16 @@ export function registerUserProfileRoutes(app: Express): void {
 
   app.post('/api/my-profile/link-x/challenge', async (req: Request, res: Response) => {
     setCors(req, res);
-    try {
-      const session = await verifyWebSessionBearer(req.headers.authorization);
-      if (session.kind !== 'wallet') {
-        res.status(400).json({ error: 'X linking requires wallet sign-in.' });
-        return;
-      }
-      const handle = normalizeXHandle(req.body?.xHandle);
-      if (!handle) {
-        res.status(400).json({
-          error: 'xHandle must be a valid X username (letters, numbers, underscores, max 50 chars).',
-        });
-        return;
-      }
-      const verifyCode = generateXLinkVerifyCode();
-      const expiresAtMs = xLinkVerifyExpiresAt();
-      await upsertXLinkChallenge(session.walletAddress, handle, verifyCode, expiresAtMs);
-      const verifyUrl = buildXLinkVerifyUrl(WEB_BASE, verifyCode);
-      res.json({
-        ok: true,
-        xHandle: handle,
-        verifyCode,
-        verifyUrl,
-        expiresAtMs,
-        instructions: [
-          `Open your X profile settings for @${handle}.`,
-          `Set Website to ${WEB_BASE} or ${verifyUrl}.`,
-          `Or add this code to your bio: ${verifyCode}`,
-          'Save, then click "Check verification" below.',
-        ],
-      });
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Challenge failed';
-      res.status(/authorization|bearer/i.test(msg) ? 401 : 500).json({ error: msg });
-    }
+    res.status(410).json({
+      error: 'X profile verification is disabled. Use POST /api/my-profile/link-x to link your handle.',
+    });
   });
 
   app.post('/api/my-profile/link-x/verify', async (req: Request, res: Response) => {
     setCors(req, res);
-    try {
-      const session = await verifyWebSessionBearer(req.headers.authorization);
-      if (session.kind !== 'wallet') {
-        res.status(400).json({ error: 'X linking requires wallet sign-in.' });
-        return;
-      }
-      const handle = normalizeXHandle(req.body?.xHandle);
-      if (!handle) {
-        res.status(400).json({ error: 'xHandle is required.' });
-        return;
-      }
-      const challenge = await getXLinkChallenge(session.walletAddress);
-      if (!challenge || challenge.xHandle !== handle) {
-        res.status(400).json({
-          error: 'Start verification first — enter your @handle and click "Start verification".',
-        });
-        return;
-      }
-      const profile = await fetchXUserProfileByUsername(handle);
-      if (!profile) {
-        res.status(400).json({
-          error: 'Could not load that X profile. Check the username or try again in a minute.',
-        });
-        return;
-      }
-      const ok = xProfileContainsVerification(profile, handle, challenge.verifyCode);
-      if (!ok) {
-        res.status(400).json({
-          error: `Verification not found on @${handle}. Add ${WEB_BASE} or code ${challenge.verifyCode} to your X website or bio, save, then try again.`,
-        });
-        return;
-      }
-      await linkXHandleForWallet(session.walletAddress, handle, true);
-      await deleteXLinkChallenge(session.walletAddress);
-      res.json({ ok: true, xHandle: handle, verified: true });
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Verification failed';
-      res.status(/authorization|bearer/i.test(msg) ? 401 : 500).json({ error: msg });
-    }
+    res.status(410).json({
+      error: 'X profile verification is disabled. Use POST /api/my-profile/link-x to link your handle.',
+    });
   });
 
   app.post('/api/my-profile/link-x', async (req: Request, res: Response) => {
