@@ -25,6 +25,7 @@ import { registerDeploymentCatalogRoutes } from './routes/deploymentCatalog.js';
 import { registerDeploymentFeedRoutes } from './routes/deploymentFeed.js';
 import { registerTokenSwapRoutes } from './routes/tokenSwap.js';
 import { registerTokenTradesRoutes } from './routes/tokenTrades.js';
+import { registerVestingProxyRoutes } from './routes/vestingProxy.js';
 import { registerMyDeploymentsRoutes } from './routes/myDeployments.js';
 import { registerDeployerProfileRoutes } from './routes/deployerProfile.js';
 import { registerUserProfileRoutes } from './routes/userProfile.js';
@@ -239,6 +240,7 @@ async function main() {
     registerFractionMetadataRoutes(app);
     registerTokenSwapRoutes(app);
     registerTokenTradesRoutes(app);
+    registerVestingProxyRoutes(app);
     registerMyDeploymentsRoutes(app);
     registerDeployerProfileRoutes(app);
     registerUserProfileRoutes(app);
