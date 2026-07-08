@@ -281,10 +281,25 @@ export function registerUserProfileRoutes(app: Express): void {
 
   app.post('/api/my-profile/link-x', async (req: Request, res: Response) => {
     setCors(req, res);
-    res.status(400).json({
-      error:
-        'X accounts must be verified. Use POST /api/my-profile/link-x/challenge then /verify after updating your X profile.',
-    });
+    try {
+      const session = await verifyWebSessionBearer(req.headers.authorization);
+      if (session.kind !== 'wallet') {
+        res.status(400).json({ error: 'X linking requires wallet sign-in.' });
+        return;
+      }
+      const handle = normalizeXHandle(req.body?.xHandle);
+      if (!handle) {
+        res.status(400).json({
+          error: 'xHandle must be a valid X username (letters, numbers, underscores, max 50 chars).',
+        });
+        return;
+      }
+      await linkXHandleForWallet(session.walletAddress, handle, false);
+      res.json({ ok: true, xHandle: handle, verified: false });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Link failed';
+      res.status(/authorization|bearer/i.test(msg) ? 401 : 500).json({ error: msg });
+    }
   });
 
   app.delete('/api/my-profile/link-x', async (req: Request, res: Response) => {
