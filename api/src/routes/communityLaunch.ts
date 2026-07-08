@@ -41,6 +41,11 @@ import {
   summarizePetition,
 } from '../lib/petitionSummarize.js';
 import { resolveLaunchImageForStorage } from '../lib/webDeployArtifacts.js';
+import {
+  formatDeployCooldownConflictMessage,
+  getGlobalNameCooldownConflict,
+  getGlobalTickerCooldownConflict,
+} from '../lib/globalTickerCooldown.js';
 
 function petitionCors(): Record<string, string> {
   return {
@@ -229,6 +234,26 @@ export function registerCommunityLaunchRoutes(app: Express): void {
         ok: false,
         error: formatCommunityLaunchCreateBlockMessage(conflict),
         communityLaunch: conflict,
+      });
+      return;
+    }
+
+    const tickerCooldown = await getGlobalTickerCooldownConflict(symbol);
+    if (tickerCooldown) {
+      res.status(409).json({
+        ok: false,
+        error: formatDeployCooldownConflictMessage(tickerCooldown),
+        deployCooldown: tickerCooldown,
+      });
+      return;
+    }
+
+    const nameCooldown = await getGlobalNameCooldownConflict(tokenName);
+    if (nameCooldown) {
+      res.status(409).json({
+        ok: false,
+        error: formatDeployCooldownConflictMessage(nameCooldown),
+        deployCooldown: nameCooldown,
       });
       return;
     }
@@ -433,10 +458,14 @@ export function registerCommunityLaunchRoutes(app: Express): void {
       return;
     }
     petition = await refreshPetitionExpiryStatus(petition);
-    if (petition.status !== 'open' && petition.status !== 'expired') {
+    if (
+      petition.status !== 'open' &&
+      petition.status !== 'expired' &&
+      petition.status !== 'failed'
+    ) {
       res.status(400).json({
         ok: false,
-        error: 'Refunds only while petition is open or expired.',
+        error: 'Refunds only while the launch is open, expired, or failed after finalization.',
       });
       return;
     }

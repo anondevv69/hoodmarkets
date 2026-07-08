@@ -457,7 +457,10 @@ function PetitionDetail({ id }: { id: string }) {
   if (loading && !petition) return <p className="muted">Loading community launch…</p>;
   if (!petition) return <p className="error">{error ?? 'Community launch not found'}</p>;
 
-  const canRefund = petition.status === 'open' || petition.status === 'expired';
+  const canRefund =
+    petition.status === 'open' ||
+    petition.status === 'expired' ||
+    petition.status === 'failed';
   const canDeposit = petition.status === 'open';
   const isCreator = walletsMatch(walletAddress, petition.starterWallet);
   const myOrder = petition.orders?.find(

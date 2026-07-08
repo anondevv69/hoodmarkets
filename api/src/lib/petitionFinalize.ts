@@ -25,6 +25,24 @@ import {
 import { privateKeyToAccount } from 'viem/accounts';
 import { robinhood } from './robinhoodChain.js';
 import { HOODMARKETS_V3_FRACTION_ABI } from './hoodmarketsV3FractionAbi.js';
+import { refundAllActivePetitionOrders } from './petitionRefunds.js';
+
+async function refundBackersAfterFailedFinalize(petitionId: number): Promise<void> {
+  try {
+    const { listPetitionOrders } = await import('./petitionDb.js');
+    const orders = await listPetitionOrders(petitionId);
+    const results = await refundAllActivePetitionOrders(petitionId, orders);
+    logger.info('Community launch failure refunds sent', {
+      petitionId,
+      refundCount: results.length,
+    });
+  } catch (err: unknown) {
+    logger.error('Community launch failure refund error', {
+      petitionId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
 
 function buildAirdropLists(
   petition: PetitionRow,
@@ -100,6 +118,7 @@ export async function finalizePetition(petitionId: number): Promise<{
       ? formatDeployCooldownConflictMessage(conflict)
       : `Ticker $${petition.token_symbol} was deployed while this Community Launch was open.`;
     await markPetitionFailed(petitionId, msg);
+    await refundBackersAfterFailedFinalize(petitionId);
     return { ok: false, error: msg };
   }
 
@@ -109,6 +128,7 @@ export async function finalizePetition(petitionId: number): Promise<{
       ? formatDeployCooldownConflictMessage(conflict)
       : `Token name "${petition.token_name}" was deployed while this Community Launch was open.`;
     await markPetitionFailed(petitionId, msg);
+    await refundBackersAfterFailedFinalize(petitionId);
     return { ok: false, error: msg };
   }
 
@@ -225,6 +245,7 @@ export async function finalizePetition(petitionId: number): Promise<{
     const msg = err instanceof Error ? err.message : String(err);
     logger.error('Community launch finalize failed', { petitionId, error: msg });
     await markPetitionFailed(petitionId, msg);
+    await refundBackersAfterFailedFinalize(petitionId);
     return { ok: false, error: msg };
   }
 }

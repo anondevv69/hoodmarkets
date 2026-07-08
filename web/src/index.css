@@ -247,6 +247,20 @@ a:hover {
   font-weight: 600;
 }
 
+.sidebar-nav-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+a.sidebar-nav-item {
+  text-decoration: none;
+}
+
+.sidebar-nav-item--external span {
+  font-size: 0.82rem;
+}
+
 /* ── Main area ── */
 .app-main {
   flex: 1;
