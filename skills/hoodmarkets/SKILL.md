@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, claim fees, and Community Launch (petition) for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, community launch, petition, back petition, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap, community-launch, petition]
-version: 19
+version: 20
 ---
 
 # hood.markets — Bankr agent skill
@@ -96,7 +96,12 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
   11. Claim **for someone else**: token-info verify first → POST /api/agent/claim-for-recipient — references/CLAIM-BANKR.md
   12. **Claim success:** `ok: true` → post `replyHint` if schema-valid. **Never** `/wallet/submit`. **Never** say "I didn't submit a transaction"
   13. **Holder NFTs:** claim fees via API only — no airdrop/list/buyShares/rewards via agent — references/HOLDER-NFTS.md
-  14. **Community Launch / petition:** references/COMMUNITY-LAUNCH.md — create: preflight → POST /create; back: prepare-deposit → Bankr submit (native ETH to API escrow) → confirm. Not POST /api/deploy
+  14. **Community Launch / petition (WRITE — not read-only):**
+      Opening this skill file is NOT enough. You MUST HTTP-call api.hood.markets.
+      Create: GET /api/community-launch/preflight → POST /api/community-launch/create → reply with petition.shareUrl
+      Create needs NO Bankr /wallet/submit and NO haiku JWT.
+      Back: prepare-deposit → Bankr /wallet/submit → confirm. See references/COMMUNITY-LAUNCH.md
+      If you only "use_skill" and stop, you FAILED — tell the user nothing was created.
 ```
 
 **Tweet = DM** — same pipeline on `@bankrbot` intake.
@@ -333,15 +338,41 @@ Response includes `feeRecipientAddress`, `txHash`, `explorerUrl`, `feeModel` / `
 
 ---
 
-## Community Launch (petition)
+## Community Launch (petition) — MUST EXECUTE HTTP
 
-24h ETH raise → simple V3 deploy + pro-rata Holder NFT airdrop. Full flow: `references/COMMUNITY-LAUNCH.md`.
+**CRITICAL:** `use_skill("hoodmarkets")` alone does **nothing**. Bankr often marks skill load READ-ONLY — that only means loading docs, **not** that create is forbidden.
 
-1. **Create:** `GET /api/community-launch/preflight` → `POST /api/community-launch/create` → reply with `petition.shareUrl`
-2. **Back:** `GET /prepare-deposit` → Bankr `/wallet/submit` with API `nextStep` (chain 4663, `data: "0x"`) → `POST /confirm` with tx hash
-3. **Refund / cancel:** `POST /refund` (backer) · `POST /cancel` (creator `starterWallet` only)
+| Action | Tools you MUST call | Bankr `/wallet/submit`? |
+|--------|---------------------|-------------------------|
+| **Create petition** | HTTP `GET …/preflight` then HTTP `POST …/create` | **No** |
+| **Back / deposit** | HTTP `GET …/prepare-deposit` → `/wallet/submit` → HTTP `POST …/confirm` | **Yes** |
+| List / status | HTTP GET | No |
 
-Escrow `to` always comes from the API — never hardcode. Web UI: https://hood.markets/community-launch
+If the user asks to create a petition and you have not called `POST https://api.hood.markets/api/community-launch/create`, **you did not create it**. Do not invent a success message. Do not stop after reading this file.
+
+### Create now (X / DM — name + ticker + raise given)
+
+Example: *create a petition for "price john" ticker Prince raise 0.05 eth*
+
+1. Resolve linked Bankr wallet → use as `starterWallet`
+2. `GET https://api.hood.markets/api/community-launch/preflight?tokenName=price%20john&tokenSymbol=PRINCE&targetRaiseEth=0.05`
+3. If **409** → reply with error / existing `shareUrl`. Stop.
+4. `POST https://api.hood.markets/api/community-launch/create` with JSON (no JWT):
+
+```json
+{
+  "tokenName": "price john",
+  "tokenSymbol": "PRINCE",
+  "targetRaiseEth": "0.05",
+  "starterWallet": "0xYOUR_LINKED_WALLET",
+  "tweetUrl": "https://x.com/…/status/…"
+}
+```
+
+5. On `ok: true` → reply with **`petition.shareUrl`**, id, raise goal, expiresAt (chain 4663).
+6. If HTTP fails → post `error` only. Never claim success.
+
+Full: `references/COMMUNITY-LAUNCH.md` · UI: https://hood.markets/community-launch
 
 ---
 
@@ -363,9 +394,9 @@ Escrow `to` always comes from the API — never hardcode. Web UI: https://hood.m
 
 → captcha JWT or X wallet → POST /api/agent/claim — if `ok: true`, reply with **`replyHint`**
 
-> start a community launch for Hoodrich $HOODRICK raise 5 ETH
+> start / create a petition for "price john" ticker Prince raise 0.05 ETH
 
-→ community-launch preflight → create → reply with `shareUrl`
+→ **HTTP** preflight → **HTTP** POST `/api/community-launch/create` → reply with `shareUrl` (no wallet submit). Skill load alone = fail.
 
 > back petition #1 with 0.1 ETH
 
