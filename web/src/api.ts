@@ -1015,6 +1015,27 @@ export async function fetchCommunityLaunchList(): Promise<{
   return communityLaunchJson(res);
 }
 
+export async function fetchCommunityLaunchPreflight(params: {
+  tokenName: string;
+  tokenSymbol: string;
+  targetRaiseEth?: string;
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  deployCooldown?: {
+    kind: 'ticker' | 'name';
+    existing?: { tokenName: string; tokenSymbol: string; tokenAddress: string };
+  };
+}> {
+  const q = new URLSearchParams({
+    tokenName: params.tokenName.trim(),
+    tokenSymbol: params.tokenSymbol.trim().replace(/^\$/, ''),
+  });
+  if (params.targetRaiseEth?.trim()) q.set('targetRaiseEth', params.targetRaiseEth.trim());
+  const res = await fetch(`${COMMUNITY_LAUNCH_API}/preflight?${q}`);
+  return communityLaunchJson(res);
+}
+
 export async function fetchCommunityLaunchStatus(
   id: string,
 ): Promise<{ ok: boolean; petition: CommunityLaunchSummary }> {

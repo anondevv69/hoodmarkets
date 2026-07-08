@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from 'express';
 import { getAddress } from 'viem';
 import { fetchGeckoTokenTrades } from '../lib/geckoTerminalTrades.js';
+import { fetchBlockscoutTokenTrades } from '../lib/blockscoutTokenTrades.js';
 import { webDeployCorsHeadersRead } from '../lib/webDeployCors.js';
 
 function corsRead(req: Request, res: Response): void {
@@ -35,8 +36,12 @@ export function registerTokenTradesRoutes(app: Express): void {
     }
 
     try {
-      const trades = await fetchGeckoTokenTrades(tokenAddress);
-      res.json({ tokenAddress, trades });
+      const [blockscoutTrades, geckoTrades] = await Promise.all([
+        fetchBlockscoutTokenTrades(tokenAddress),
+        fetchGeckoTokenTrades(tokenAddress),
+      ]);
+      const trades = blockscoutTrades.length > 0 ? blockscoutTrades : geckoTrades;
+      res.json({ tokenAddress, trades, source: blockscoutTrades.length > 0 ? 'blockscout' : 'gecko' });
     } catch (err: unknown) {
       res.status(502).json({
         error: err instanceof Error ? err.message : 'Failed to load trades',

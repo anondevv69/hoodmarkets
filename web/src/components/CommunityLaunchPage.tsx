@@ -6,6 +6,7 @@ import {
   createCommunityLaunch,
   fetchCommunityLaunchConfig,
   fetchCommunityLaunchList,
+  fetchCommunityLaunchPreflight,
   fetchCommunityLaunchStatus,
   prepareCommunityLaunchDeposit,
   confirmCommunityLaunchDeposit,
@@ -94,8 +95,42 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
   const [supporterSlots, setSupporterSlots] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preflightError, setPreflightError] = useState<string | null>(null);
+  const [preflightChecking, setPreflightChecking] = useState(false);
 
   const creatorWallet = wallet?.address ?? walletAddress ?? undefined;
+
+  useEffect(() => {
+    const name = tokenName.trim();
+    const symbol = tokenSymbol.trim().replace(/^\$/, '');
+    if (name.length < 2 || symbol.length < 1) {
+      setPreflightError(null);
+      return;
+    }
+    let cancelled = false;
+    setPreflightChecking(true);
+    const timer = window.setTimeout(() => {
+      void fetchCommunityLaunchPreflight({
+        tokenName: name,
+        tokenSymbol: symbol,
+        targetRaiseEth: targetRaiseEth.trim() || undefined,
+      })
+        .then((result) => {
+          if (cancelled) return;
+          setPreflightError(result.ok ? null : result.error ?? 'This name or ticker is not available.');
+        })
+        .catch(() => {
+          if (!cancelled) setPreflightError(null);
+        })
+        .finally(() => {
+          if (!cancelled) setPreflightChecking(false);
+        });
+    }, 350);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [tokenName, tokenSymbol, targetRaiseEth]);
 
   async function onPickLogo(file: File | null) {
     if (!file) return;
@@ -114,6 +149,10 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (preflightError) {
+      setError(preflightError);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -279,8 +318,19 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
         </p>
         {slotHint ? <p className="petition-slot-hint">{slotHint} with your current goal.</p> : null}
       </div>
+      {preflightChecking ? (
+        <p className="muted petition-preflight-note">Checking name and ticker…</p>
+      ) : preflightError ? (
+        <p className="error petition-preflight-note">{preflightError}</p>
+      ) : tokenName.trim().length >= 2 && tokenSymbol.trim().length >= 1 ? (
+        <p className="muted petition-preflight-note">Name and ticker are available.</p>
+      ) : null}
       {error ? <p className="error">{error}</p> : null}
-      <button type="submit" className="btn btn-primary" disabled={loading}>
+      <button
+        type="submit"
+        className="btn btn-primary"
+        disabled={loading || preflightChecking || !!preflightError}
+      >
         {loading ? 'Creating…' : 'Create community launch'}
       </button>
     </form>

@@ -8,6 +8,7 @@ import {
   getMostRecentThirdPartyFeeRecipientDeploymentInRollingHours,
   hasGlobalNameDeploymentInRollingHours,
   hasGlobalTickerDeploymentInRollingHours,
+  listRecentDeployedNamesInRollingHours,
   normalizeCatalogTickerSymbol,
   normalizeCatalogTokenName,
 } from './deploymentCatalog.js';
@@ -88,6 +89,60 @@ export async function getGlobalNameCooldownConflict(
       tokenAddress: existing.tokenAddress,
     },
   };
+}
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  return dp[m][n];
+}
+
+function namesAreConfusinglySimilar(a: string, b: string): boolean {
+  const na = normalizeCatalogTokenName(a);
+  const nb = normalizeCatalogTokenName(b);
+  if (!na || !nb || na === nb) return na === nb && na.length >= 2;
+  if (na.includes(nb) || nb.includes(na)) return true;
+  const maxLen = Math.max(na.length, nb.length);
+  if (maxLen < 4) return false;
+  const distance = levenshtein(na, nb);
+  const threshold = maxLen >= 8 ? 2 : 1;
+  return distance <= threshold;
+}
+
+/** Fuzzy name match against recent deploys when exact name differs slightly (e.g. hoorich vs Hoodrich). */
+export async function getGlobalSimilarNameCooldownConflict(
+  name: string,
+): Promise<DeployCooldownConflict | null> {
+  const exact = await getGlobalNameCooldownConflict(name);
+  if (exact) return exact;
+  const h = globalTickerCooldownHours();
+  if (h <= 0) return null;
+  const recent = await listRecentDeployedNamesInRollingHours(h);
+  for (const row of recent) {
+    if (!namesAreConfusinglySimilar(name, row.tokenName)) continue;
+    return {
+      kind: 'name',
+      cooldownHours: h,
+      requestedName: name.trim(),
+      existing: {
+        tokenName: row.tokenName,
+        tokenSymbol: row.tokenSymbol,
+        tokenAddress: row.tokenAddress,
+      },
+    };
+  }
+  return null;
 }
 
 export function formatDeployCooldownConflictMessage(conflict: DeployCooldownConflict): string {

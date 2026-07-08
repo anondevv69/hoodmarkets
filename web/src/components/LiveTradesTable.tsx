@@ -105,7 +105,7 @@ export function LiveTradesTable({
             <h3 id="live-trades-heading" className="section-label">
               Recent trades
             </h3>
-            <p className="muted token-dex-section-sub">Buys and sells on Robinhood Chain</p>
+            <p className="muted token-dex-section-sub">Buys and sells on Robinhood Chain via Blockscout</p>
           </div>
           <label className="live-trades-filter">
             <input

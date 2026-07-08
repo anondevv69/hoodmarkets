@@ -11,7 +11,7 @@ export function parseTargetRaiseWei(raw: unknown): bigint | null {
   const trimmed = String(raw ?? '').trim();
   if (!trimmed) return null;
   try {
-    const wei = trimmed.includes('.') ? parseEther(trimmed) : BigInt(trimmed);
+    const wei = parseEther(trimmed);
     if (wei < PETITION_MIN_TARGET_RAISE_ETH || wei > PETITION_MAX_TARGET_RAISE_ETH) return null;
     return wei;
   } catch {
@@ -23,7 +23,7 @@ export function parseContributionWei(raw: unknown): bigint | null {
   const trimmed = String(raw ?? '').trim();
   if (!trimmed) return null;
   try {
-    const wei = trimmed.includes('.') ? parseEther(trimmed) : BigInt(trimmed);
+    const wei = parseEther(trimmed);
     if (wei < PETITION_MIN_CONTRIBUTION_ETH || wei > PETITION_MAX_CONTRIBUTION_ETH) return null;
     return wei;
   } catch {
