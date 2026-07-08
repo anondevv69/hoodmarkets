@@ -276,7 +276,7 @@ export function LaunchTab() {
       return;
     }
 
-    const defaultBuyEth = config?.initialBuyDefaultEth ?? '0.005';
+    const defaultBuyEth = config?.initialBuyDefaultEth ?? '0.1';
     const buyEth = initialBuyEth.trim() || defaultBuyEth;
     const needsWallet = Boolean(config?.walletDeployEnabled);
     const minBuyEth = Number.parseFloat(config?.initialBuyMinEth ?? '0.001');
@@ -364,7 +364,7 @@ export function LaunchTab() {
       setXUrl('');
       setFeeTarget('self');
       setFeeRecipient('');
-      setInitialBuyEth(config?.initialBuyDefaultEth ?? '0.005');
+      setInitialBuyEth(config?.initialBuyDefaultEth ?? '0.1');
       setRateLimitNotice(null);
       setLiveTickerConflict(null);
       setLiveNameConflict(null);
@@ -653,7 +653,8 @@ export function LaunchTab() {
                 <p className="section-label">Pool seed</p>
                 <p className="muted" style={{ fontSize: '0.82rem', margin: '0 0 0.75rem' }}>
                   You pay ~{config.initialBuyDefaultEth} ETH plus gas from your connected wallet to
-                  deploy and seed the pool. hood.markets does not cover website deployment costs.
+                  deploy and seed the pool. More ETH here means deeper starting liquidity relative
+                  to market cap. hood.markets does not cover website deployment costs.
                   {feeTarget === 'other'
                     ? ' Trading fees still go to the recipient you choose below.'
                     : null}
@@ -666,7 +667,7 @@ export function LaunchTab() {
                   >
                     {config.initialBuyDefaultEth} ETH
                   </button>
-                  {(config.initialBuyPresetsEth ?? ['0.005', '0.01', '0.05'])
+                  {(config.initialBuyPresetsEth ?? ['0.1', '0.25', '0.5'])
                     .filter((preset) => preset !== config.initialBuyDefaultEth)
                     .map((preset) => (
                     <button

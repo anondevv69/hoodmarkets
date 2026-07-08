@@ -23,8 +23,7 @@ import {
   vanityParamsFromDeploymentConfig,
 } from './hoodmarketsV3Create2.js';
 
-/** ~$10k FDV at ~$40k ETH — same starting price family as upstream v3.1 WETH launches. */
-const DEFAULT_INITIAL_TICK = -230400;
+import { DEFAULT_LAUNCH_TICK } from './launchDefaults.js';
 const POOL_FEE = 10_000; // 1%
 
 export type HoodMarketsV3DeployInput = {
@@ -147,7 +146,7 @@ export function buildHoodMarketsV3DeploymentConfig(input: {
     },
     poolConfig: {
       pairedToken: ROBINHOOD_WETH,
-      tickIfToken0IsNewToken: DEFAULT_INITIAL_TICK,
+      tickIfToken0IsNewToken: DEFAULT_LAUNCH_TICK,
     },
     initialBuyConfig: {
       pairedTokenPoolFee: POOL_FEE,

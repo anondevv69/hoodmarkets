@@ -30,7 +30,7 @@ export interface TokenDeploymentParams {
   walletAddress: string;
   /**
    * ETH (wei) for the Univ4EthDevBuy extension: launch-time swap into the new pool so explorers
-   * show activity. Defaults match `DEPLOY_BOND_ETH` / `config.deployBondWei` (e.g. 0.0001 ETH).
+   * show activity. Defaults match `DEPLOY_BOND_ETH` / `config.deployBondWei` (e.g. 0.05 ETH).
    * Set to 0 to skip (not recommended for visibility).
    */
   devBuyAmount: bigint;

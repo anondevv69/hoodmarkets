@@ -1,9 +1,19 @@
 import { parseEther } from 'viem';
-export const DEFAULT_DEPLOY_BOND_ETH = '0.005';
+import {
+  DEFAULT_DEPLOY_BOND_ETH,
+  WEB_INITIAL_BUY_DEFAULT_ETH,
+  WEB_INITIAL_BUY_MAX_ETH,
+  WEB_INITIAL_BUY_MIN_ETH,
+  WEB_INITIAL_BUY_PRESETS_ETH,
+} from './launchDefaults.js';
 
-export const WEB_INITIAL_BUY_MIN_ETH = '0.001';
-export const WEB_INITIAL_BUY_MAX_ETH = '0.1';
-export const WEB_INITIAL_BUY_PRESETS_ETH = ['0.005', '0.01', '0.05'] as const;
+export {
+  DEFAULT_DEPLOY_BOND_ETH,
+  WEB_INITIAL_BUY_DEFAULT_ETH,
+  WEB_INITIAL_BUY_MAX_ETH,
+  WEB_INITIAL_BUY_MIN_ETH,
+  WEB_INITIAL_BUY_PRESETS_ETH,
+};
 
 function parseEthAmountString(raw: string): number {
   const t = raw.trim();
@@ -47,9 +57,9 @@ export function webInitialBuyMaxEth(): string {
 }
 
 export function webInitialBuyDefaultEth(): string {
-  const fromEnv = process.env.DEPLOY_BOND_ETH?.trim();
+  const fromEnv = process.env.WEB_INITIAL_BUY_DEFAULT_ETH?.trim();
   if (fromEnv && fromEnv !== '0') return fromEnv;
-  return DEFAULT_DEPLOY_BOND_ETH;
+  return WEB_INITIAL_BUY_DEFAULT_ETH;
 }
 
 /** Parse optional `initialBuyEth` from web deploy body; clamp to configured min/max. */
