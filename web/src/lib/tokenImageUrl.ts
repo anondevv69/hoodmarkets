@@ -3,16 +3,28 @@ const IPFS_PROTO = /^ipfs:\/\/([^/?#]+)/i;
 const LIGHTHOUSE_VIEW_FILE = /\/viewFile\/([^/?#]+)/i;
 const RAW_CID = /^(bafkrei[a-z0-9]{52,}|Qm[1-9A-HJ-NP-Za-km-z]{44,})$/i;
 
-/** Public Pinata gateway first (fast CDN); dedicated subdomain + cold gateways as fallbacks. */
-const GATEWAY_FALLBACKS = [
-  (import.meta.env.VITE_IPFS_GATEWAY_URL as string | undefined)?.trim().replace(/\/$/, ''),
+/** Public gateways work from the browser without Pinata gateway tokens. */
+const PUBLIC_IPFS_GATEWAYS = [
   'https://gateway.pinata.cloud/ipfs',
   'https://dweb.link/ipfs',
-  'https://alternative-sparrow-qk8yx.lighthouseweb3.xyz/ipfs',
   'https://ipfs.io/ipfs',
+  'https://alternative-sparrow-qk8yx.lighthouseweb3.xyz/ipfs',
+];
+
+const DEDICATED_GATEWAY = (import.meta.env.VITE_IPFS_GATEWAY_URL as string | undefined)
+  ?.trim()
+  .replace(/\/$/, '');
+
+const GATEWAY_FALLBACKS = [
+  ...PUBLIC_IPFS_GATEWAYS,
+  DEDICATED_GATEWAY,
 ].filter((g): g is string => !!g);
 
 const DIRECT_IMAGE = /\.(png|jpe?g|gif|webp|svg)(\?|$)/i;
+
+function isDedicatedPinataGateway(url: string): boolean {
+  return /mypinata\.cloud/i.test(url);
+}
 
 /** Extract a CID from common IPFS / Lighthouse URL shapes. */
 export function extractIpfsCid(url: string): string | undefined {
@@ -40,18 +52,23 @@ export function looksLikeDirectImageUrl(url: string | undefined | null): boolean
   return false;
 }
 
-/** Ordered URLs to try when rendering a token logo (fast gateways first). */
+/** Ordered URLs to try when rendering a token logo (public gateways before dedicated Pinata). */
 export function buildTokenImageCandidates(imageUrl: string | undefined | null): string[] {
   const raw = imageUrl?.trim();
   if (!raw) return [];
   const cid = extractIpfsCid(raw);
   if (!cid) return [raw];
-  const gateways = gatewayUrlsForCid(cid).slice(0, 3);
-  if (raw.startsWith('http://') || raw.startsWith('https://')) {
-    const ordered = [raw, ...gateways.filter((g) => g !== raw)];
-    return [...new Set(ordered)].slice(0, 4);
+
+  const gateways = gatewayUrlsForCid(cid);
+  if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+    return gateways.slice(0, 5);
   }
-  return gateways;
+
+  if (isDedicatedPinataGateway(raw)) {
+    return [...new Set([...gateways.filter((g) => g !== raw), raw])].slice(0, 5);
+  }
+
+  return [...new Set([...gateways.filter((g) => g !== raw), raw])].slice(0, 5);
 }
 
 /** Primary resolved logo URL (first candidate). */
