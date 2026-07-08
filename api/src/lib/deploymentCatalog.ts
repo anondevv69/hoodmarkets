@@ -2486,6 +2486,54 @@ export async function getMostRecentGlobalNameDeploymentInRollingHours(
   });
 }
 
+/** Distinct token names deployed in the rolling cooldown window (for fuzzy name checks). */
+export async function listRecentDeployedNamesInRollingHours(
+  hours: number,
+  limit = 200,
+): Promise<Array<{ tokenName: string; tokenSymbol: string; tokenAddress: string }>> {
+  if (!db) return [];
+  const h = Math.min(Math.max(1, Math.floor(hours)), 168);
+  const lim = Math.min(Math.max(1, limit), 500);
+  const timeMod = `-${h} hours`;
+
+  return new Promise((resolve) => {
+    db!.all(
+      `SELECT token_address AS tokenAddress, token_name AS tokenName, token_symbol AS tokenSymbol
+       FROM deployment_catalog
+       WHERE datetime(created_at) >= datetime('now', ?)
+         AND TRIM(COALESCE(factory_address, '')) != ''
+         AND lower(factory_address) != lower(?)
+         AND length(trim(token_name)) >= 2
+       ORDER BY datetime(created_at) DESC
+       LIMIT ?`,
+      [timeMod, visibleCatalogParam(), lim],
+      (err, rows: Array<{ tokenAddress?: string; tokenName?: string; tokenSymbol?: string }>) => {
+        if (err) {
+          logger.warn('deploymentCatalog recent names lookup failed:', err.message);
+          resolve([]);
+          return;
+        }
+        const out: Array<{ tokenName: string; tokenSymbol: string; tokenAddress: string }> = [];
+        for (const row of rows ?? []) {
+          const raw = row.tokenAddress?.trim();
+          const tokenName = (row.tokenName ?? '').trim();
+          if (!raw || tokenName.length < 2) continue;
+          try {
+            out.push({
+              tokenAddress: getAddress(raw),
+              tokenName,
+              tokenSymbol: normalizeCatalogTickerSymbol(row.tokenSymbol ?? '') || '?',
+            });
+          } catch {
+            /* skip */
+          }
+        }
+        resolve(out);
+      },
+    );
+  });
+}
+
 export interface FeeRecipientToken {
   tokenName: string;
   tokenSymbol: string;

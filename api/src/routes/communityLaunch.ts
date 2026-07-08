@@ -5,13 +5,7 @@
 import type { Express, Request, Response } from 'express';
 import { getAddress, isAddress, parseEther } from 'viem';
 import {
-  formatCommunityLaunchCreateBlockMessage,
-  communityLaunchRowToConflict,
-} from '../lib/communityLaunchLock.js';
-import {
   createPetition,
-  findActiveCommunityLaunchByName,
-  findActiveCommunityLaunchBySymbol,
   findOpenPetitionBySymbol,
   getPetitionById,
   getPetitionOrder,
@@ -23,6 +17,7 @@ import {
   sumActiveRaisedWei,
   updatePetitionSoldUnits,
 } from '../lib/petitionDb.js';
+import { runCommunityLaunchPreflight } from '../lib/communityLaunchPreflight.js';
 import { petitionEscrowConfigured } from '../lib/petitionConfig.js';
 import {
   parseContributionWei,
@@ -41,11 +36,6 @@ import {
   summarizePetition,
 } from '../lib/petitionSummarize.js';
 import { resolveLaunchImageForStorage } from '../lib/webDeployArtifacts.js';
-import {
-  formatDeployCooldownConflictMessage,
-  getGlobalNameCooldownConflict,
-  getGlobalTickerCooldownConflict,
-} from '../lib/globalTickerCooldown.js';
 
 function petitionCors(): Record<string, string> {
   return {
@@ -114,6 +104,7 @@ export function registerCommunityLaunchRoutes(app: Express): void {
   const paths = [
     `${API_PREFIX}/config`,
     `${API_PREFIX}/list`,
+    `${API_PREFIX}/preflight`,
     `${API_PREFIX}/create`,
     `${API_PREFIX}/status`,
     `${API_PREFIX}/prepare-deposit`,
@@ -147,6 +138,18 @@ export function registerCommunityLaunchRoutes(app: Express): void {
       }),
     );
     res.json({ ok: true, petitions });
+  });
+
+  app.get('/api/community-launch/preflight', async (req, res) => {
+    applyCors(res);
+    const result = await runCommunityLaunchPreflight({
+      tokenName: req.query.tokenName,
+      tokenSymbol: req.query.tokenSymbol,
+      targetRaiseEth: req.query.targetRaiseEth,
+      supporterSlots: req.query.supporterSlots,
+      appOrigin: appOrigin(req),
+    });
+    res.status(result.ok ? 200 : 409).json(result);
   });
 
   app.get('/api/community-launch/status', async (req, res) => {
@@ -209,51 +212,17 @@ export function registerCommunityLaunchRoutes(app: Express): void {
       return;
     }
 
-    const origin = appOrigin(req);
-    const activeBySymbol = await findActiveCommunityLaunchBySymbol(symbol);
-    if (activeBySymbol) {
-      const conflict = {
-        ...communityLaunchRowToConflict(activeBySymbol, 'ticker'),
-        shareUrl: `${origin}/community-launch?id=${activeBySymbol.id}`,
-      };
+    const preflight = await runCommunityLaunchPreflight({
+      tokenName,
+      tokenSymbol: symbol,
+      appOrigin: appOrigin(req),
+    });
+    if (!preflight.ok) {
       res.status(409).json({
         ok: false,
-        error: formatCommunityLaunchCreateBlockMessage(conflict),
-        communityLaunch: conflict,
-      });
-      return;
-    }
-
-    const activeByName = await findActiveCommunityLaunchByName(tokenName);
-    if (activeByName) {
-      const conflict = {
-        ...communityLaunchRowToConflict(activeByName, 'name'),
-        shareUrl: `${origin}/community-launch?id=${activeByName.id}`,
-      };
-      res.status(409).json({
-        ok: false,
-        error: formatCommunityLaunchCreateBlockMessage(conflict),
-        communityLaunch: conflict,
-      });
-      return;
-    }
-
-    const tickerCooldown = await getGlobalTickerCooldownConflict(symbol);
-    if (tickerCooldown) {
-      res.status(409).json({
-        ok: false,
-        error: formatDeployCooldownConflictMessage(tickerCooldown),
-        deployCooldown: tickerCooldown,
-      });
-      return;
-    }
-
-    const nameCooldown = await getGlobalNameCooldownConflict(tokenName);
-    if (nameCooldown) {
-      res.status(409).json({
-        ok: false,
-        error: formatDeployCooldownConflictMessage(nameCooldown),
-        deployCooldown: nameCooldown,
+        error: preflight.error,
+        communityLaunch: preflight.communityLaunch,
+        deployCooldown: preflight.deployCooldown,
       });
       return;
     }
