@@ -343,6 +343,15 @@ export async function updatePetitionSoldUnits(petitionId: number, soldUnits: num
   await run(`UPDATE petitions SET sold_units = ? WHERE id = ?`, [soldUnits, petitionId]);
 }
 
+export async function updatePetitionImageUrl(petitionId: number, imageUrl: string): Promise<void> {
+  const url = imageUrl.trim().slice(0, 1024);
+  if (!url) return;
+  await run(
+    `UPDATE petitions SET image_url = ? WHERE id = ? AND (image_url IS NULL OR image_url = '')`,
+    [url, petitionId],
+  );
+}
+
 export async function markPetitionLocked(petitionId: number): Promise<void> {
   await run(`UPDATE petitions SET status = 'locked' WHERE id = ? AND status = 'open'`, [petitionId]);
 }
