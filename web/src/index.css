@@ -5267,30 +5267,14 @@ label {
   text-overflow: ellipsis;
 }
 
-.explore-coin-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.35rem;
-  margin-top: 0.2rem;
-  font-size: 0.68rem;
-  color: var(--muted-faint);
-  min-width: 0;
-}
-
-.explore-coin-creator {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
 .explore-coin-age {
   display: inline-flex;
   align-items: center;
   gap: 0.28rem;
   flex-shrink: 0;
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
+  color: var(--muted-faint);
 }
 
 .explore-coin-age-dot {
