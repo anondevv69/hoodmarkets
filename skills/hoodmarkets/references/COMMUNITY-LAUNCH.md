@@ -47,15 +47,19 @@ Escrow address is **dynamic** — always read `config.robinhood.escrowWallet` or
 
 ---
 
-## Agent routing
+## Agent routing (WRITE — execute, do not only read)
 
-| User intent | Agent action |
-|-------------|--------------|
-| Start / create petition / community launch | Preflight → create → share `petition.shareUrl` |
-| Back / join / contribute ETH | List or status → prepare-deposit → Bankr submit → confirm |
-| Status of round #N | `GET /status?id=N` |
-| Refund my deposit | `POST /refund` |
-| Cancel my round | `POST /cancel` as `starterWallet` |
+**Bankr trap:** `use_skill` / opening this file often returns `READ-ONLY`. That means *docs loaded* — **not** “skip create.”
+
+| User intent | You MUST call | Wallet submit? |
+|-------------|---------------|----------------|
+| Start / create petition | HTTP GET preflight + HTTP POST create | **No** |
+| Back / join / contribute ETH | prepare-deposit → Bankr submit → confirm | **Yes** |
+| Status of round #N | `GET /status?id=N` | No |
+| Refund my deposit | `POST /refund` | No (API refunds) |
+| Cancel my round | `POST /cancel` as `starterWallet` | No |
+
+**Create = server API write.** No on-chain Bankr transfer is required to open a petition. Saying “READ-ONLY — no transaction” after only loading the skill is a **failure** if the user asked to create.
 
 **Do not** treat Community Launch as normal `POST /api/deploy`. Do **not** promise fixed seat counts unless `supporterSlots` was set. Do **not** invent escrow addresses.
 
@@ -66,22 +70,22 @@ Escrow address is **dynamic** — always read `config.robinhood.escrowWallet` or
 ### Preflight (required before create)
 
 ```http
-GET https://api.hood.markets/api/community-launch/preflight?tokenName=Hoodrich&tokenSymbol=HOODRICK&targetRaiseEth=5
+GET https://api.hood.markets/api/community-launch/preflight?tokenName=price%20john&tokenSymbol=PRINCE&targetRaiseEth=0.05
 ```
 
 - **200** `ok: true` → safe to create  
 - **409** → name/ticker conflict (open community launch or deploy cooldown). Reply with API error / `communityLaunch.shareUrl` if present. **Do not create.**
 
-### Create
+### Create (required — this is the action that opens the round)
 
 ```http
 POST https://api.hood.markets/api/community-launch/create
 Content-Type: application/json
 
 {
-  "tokenName": "Hoodrich",
-  "tokenSymbol": "HOODRICK",
-  "targetRaiseEth": "5",
+  "tokenName": "price john",
+  "tokenSymbol": "PRINCE",
+  "targetRaiseEth": "0.05",
   "starterWallet": "0x…",
   "description": "optional",
   "imageUrl": "https://…",
@@ -95,18 +99,20 @@ Content-Type: application/json
 | Field | Required | Notes |
 |-------|----------|--------|
 | `tokenName` | Yes | ≥ 2 chars |
-| `tokenSymbol` | Yes | Max 10 |
-| `targetRaiseEth` | Yes | Also accepts `raiseEth` / `goalEth` |
-| `starterWallet` | Strongly preferred | Creator; needed for cancel. Alias `creatorWallet` |
+| `tokenSymbol` | Yes | Max 10 — normalize like `Prince` → `PRINCE` |
+| `targetRaiseEth` | Yes | Also accepts `raiseEth` / `goalEth` (min **0.05**) |
+| `starterWallet` | Strongly preferred | Bankr linked wallet; needed for cancel. Alias `creatorWallet` |
 | `supporterSlots` | No | Equal ETH per slot if set |
-| `imageUrl` / `websiteUrl` / `tweetUrl` | No | `xUrl` also accepted for tweet |
+| `imageUrl` / `websiteUrl` / `tweetUrl` | No | On X, pass source tweet as `tweetUrl` |
+
+**No JWT. No haiku. No `/wallet/submit`.** Only HTTP POST.
 
 **Response:** `petition.id`, `petition.shareUrl` (`https://hood.markets/community-launch?id=…`), `targetRaiseEth`, `expiresAt`, `escrowWallet`.
 
 If an open petition already exists for the same symbol (+ starter), API may return `reused: true` with that petition — share that URL; do not open a duplicate.
 
-**Reply with** the `shareUrl` and raise goal / expiry. Point users to chain **4663**.
-
+**After success:** post `shareUrl`, id, raise, expiry. Point backers to chain **4663**.  
+**After skill-only load with no POST:** say create was not executed — then run the HTTP calls above.
 ---
 
 ## 2) Participate (back a petition)

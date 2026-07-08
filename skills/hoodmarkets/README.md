@@ -1,4 +1,4 @@
-# hood.markets Bankr skill (v19)
+# hood.markets Bankr skill (v20)
 
 Bankr-compatible agent skill for [hood.markets](https://hood.markets) on Robinhood Chain **4663**.
 

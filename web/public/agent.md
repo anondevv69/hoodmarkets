@@ -4,7 +4,7 @@
 
 > Robinhood Chain (4663) · API: `https://api.hood.markets` · Web: `https://hood.markets`
 
-Bankr: install skill from [anondevv69/hoodmarkets/skills/hoodmarkets](https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets) (v19) or [BankrBot/skills](https://github.com/BankrBot/skills).
+Bankr: install skill from [anondevv69/hoodmarkets/skills/hoodmarkets](https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets) (v20) or [BankrBot/skills](https://github.com/BankrBot/skills).
 
 ---
 
@@ -160,4 +160,4 @@ GET https://api.hood.markets/api/agent/briefing?wallet=0x…
 
 ---
 
-*Skill: `skills/hoodmarkets/` v19 · Contracts: [sdk.md](https://hood.markets/sdk.md)*
+*Skill: `skills/hoodmarkets/` v20 · Contracts: [sdk.md](https://hood.markets/sdk.md)*
