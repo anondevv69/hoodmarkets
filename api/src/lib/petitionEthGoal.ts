@@ -2,7 +2,7 @@ import { parseEther } from 'viem';
 import { HOOD_CLAIM_RESERVE_UNITS, PETITION_GOAL_UNITS } from './petitionConfig.js';
 import type { PetitionOrderRow, PetitionRow } from './petitionDb.js';
 
-export const PETITION_MIN_TARGET_RAISE_ETH = parseEther('0.05');
+export const PETITION_MIN_TARGET_RAISE_ETH = parseEther('0.1');
 export const PETITION_MAX_TARGET_RAISE_ETH = parseEther('50');
 export const PETITION_MIN_CONTRIBUTION_ETH = parseEther('0.001');
 export const PETITION_MAX_CONTRIBUTION_ETH = parseEther('10');
