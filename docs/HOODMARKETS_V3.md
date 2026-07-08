@@ -28,6 +28,33 @@ Every token launched through **HoodMarkets V3 v0.5.0+** automatically:
 | **Share marketplace** | `listShares` / `buyShares` / `cancelListing` — on-chain escrow; buyer pays listed price; **5% platform fee** + 95% to seller |
 | **Pool** | Remaining **90%** seeds the Uniswap V3 pool |
 
+### What Holder NFT shares represent
+
+Holder NFTs are **not** LP tokens. Each simple launch splits supply like this:
+
+| Piece | What it is |
+|-------|------------|
+| **1,000 ERC-1155 shares** | Rights to **10% of token supply** held in the fraction vault + **pro-rata rights to 95%** of Uniswap swap fees (after the 5% platform cut in the locker) |
+| **Locked Uniswap V3 LP** | The other **90%** of supply — fees accrue here, but LP NFT stays locked; shares are how you participate in the fee stream |
+| **Per share** | `1/1000` of vault tokens (via `redeem`) + `1/1000` of the post-platform trading-fee payout on each `claimTradingFees()` |
+
+At launch, all shares mint to the **fee recipient**. **Community Launch** backers receive shares proportional to ETH contributed when the round finalizes.
+
+### What you can do with shares
+
+| Action | Function | Notes |
+|--------|----------|--------|
+| Send | `safeTransferFrom` | No platform fee on sends (v0.11+) |
+| Batch airdrop | `airdropShares(recipients[], amounts[])` | One tx, full amounts (v0.10+ bytecode) |
+| List for sale | `listShares(amount, paymentToken, price)` | Shares escrow in contract |
+| Buy listing | `buyShares(listingId)` | **5%** platform on sale price |
+| Cancel listing | `cancelListing(listingId)` | Escrow returns to seller |
+| Redeem vault | `redeem(amount)` | Burn shares → withdraw underlying launch tokens |
+| Buyer rewards | `fundBuyerRewardPool` / `cancelBuyerRewardPool` | Fee recipient only — post-launch opt-in |
+| Claim swap fees | `claimTradingFees()` | Permissionless — see below |
+
+hood.markets token page: **Holder NFTs** panel for send, airdrop, list, redeem, buyer rewards, and claim.
+
 ## Buyer reward pool (opt-in, post-launch preferred)
 
 Buyer rewards are **never on by default**. The fee recipient chooses how many shares to escrow:
@@ -166,7 +193,22 @@ HOODMARKETS_DEFAULT_LAUNCH_MODE=simple
 
 ## Claiming V3 fees
 
-Anyone triggers **`claimTradingFees()`** on the token’s Holder NFT contract (`fractionCollectionForToken`). One transaction pulls swap fees from the LP and pays every share holder pro-rata. The hood.markets site and `POST /api/deployments/:token/claim-fees` broadcast this from the launcher wallet.
+### Flow
+
+1. Swaps on the token’s Uniswap V3 pool generate trading fees inside the **locked LP position** (`HoodMarketsV3LpLocker`).
+2. Anyone calls **`claimTradingFees()`** on the token’s Holder NFT / fraction contract (`factory.fractionCollectionForToken(tokenAddress)`). No special role required to trigger the tx.
+3. The locker collects accrued fees from the LP, sends **5%** to the hood.markets platform wallet, and forwards **95%** to the fraction contract.
+4. The fraction contract credits **every current share holder pro-rata** by ERC-1155 balance. Holders do not each need to claim separately — one tx pays everyone.
+
+### Where to claim
+
+| Path | How |
+|------|-----|
+| **Token page** | **Claim trading fees** in the Holder NFTs section or sidebar — any connected wallet can submit the tx |
+| **API (gasless)** | `POST /api/deployments/:token/claim-fees`, `POST /api/agent/claim`, or `POST /api/agent/claim-for-recipient` — launcher wallet pays gas |
+| **On-chain** | `wallet.writeContract({ address: fraction, functionName: 'claimTradingFees' })` |
+
+**Legacy v0.6** tokens without the fraction marketplace use `HoodMarketsV3.claimRewards(token)` on the factory — **fee recipient wallet only**, not pro-rata.
 
 ## Redeploy V3 (v0.7+)
 

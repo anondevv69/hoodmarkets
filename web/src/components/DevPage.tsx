@@ -102,6 +102,7 @@ const COMMUNITY_LAUNCH_ENDPOINTS = [
 const SIDEBAR: { id: DevSection; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'fees', label: 'Platform fees' },
+  { id: 'holder-nfts', label: 'Holder NFTs' },
   { id: 'contracts', label: 'Contracts' },
   { id: 'sdk', label: 'SDK' },
   { id: 'agents', label: 'Agents' },
@@ -130,6 +131,14 @@ const FAQ = [
   {
     q: 'Are older factory versions still valid?',
     a: 'Yes. Legacy V3 factories (v0.10, v0.9, v0.8, …) remain valid for existing catalog tokens. See known-contracts.json for the full list.',
+  },
+  {
+    q: 'What do Holder NFT shares represent?',
+    a: 'Each simple launch vaults 10% of token supply and mints 1,000 ERC-1155 shares. One share = 1/1,000 of the vault (redeemable via redeem) plus a pro-rata slice of the 95% Uniswap trading-fee stream. The other 90% seeds a locked launch LP — shares are not LP tokens.',
+  },
+  {
+    q: 'How does claiming trading fees work?',
+    a: 'Anyone can call claimTradingFees() on the token’s Holder NFT contract (or use Claim trading fees on the token page). One transaction pulls accrued swap fees from the locked LP, the locker keeps 5% for hood.markets, and the remaining 95% is split pro-rata to all current share holders. You do not need to be the fee recipient to trigger a claim — but you need shares to receive a payout.',
   },
 ] as const;
 
@@ -264,6 +273,149 @@ export function DevPage() {
             <p className="docs-foot">
               Web launch “Someone else” fee recipient = <code>0x…</code> wallet only. Buyer rewards are
               funded post-launch on the token page.
+            </p>
+          </section>
+
+          <section id="holder-nfts" className="docs-section">
+            <p className="docs-section-eyebrow">Shares</p>
+            <h2 className="docs-section-title">Holder NFTs</h2>
+            <p className="docs-lead">
+              Every <strong>simple (V3)</strong> launch automatically creates a <strong>1,000-share</strong>{' '}
+              ERC-1155 collection — often called Holder NFTs on hood.markets. They bundle two rights:
+              a slice of the vaulted token supply and a pro-rata cut of Uniswap trading fees.
+            </p>
+
+            <h3 className="docs-subtitle">What they represent</h3>
+            <div className="docs-table-wrap">
+              <table className="docs-table">
+                <thead>
+                  <tr>
+                    <th>At launch</th>
+                    <th>Meaning</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>10% of supply</td>
+                    <td>
+                      Locked in the fraction vault — <strong>1,000 shares</strong> minted (ERC-1155 id{' '}
+                      <code>#0</code>)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>90% of supply</td>
+                    <td>
+                      Seeds the Uniswap V3 pool in a <strong>locked LP position</strong> — not the same
+                      as Holder NFT shares
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Per share</td>
+                    <td>
+                      <code>1 / 1,000</code> of the vault (redeemable) + <code>1 / 1,000</code> of the{' '}
+                      <strong>95%</strong> trading-fee stream after the 5% platform cut
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Initial holder</td>
+                    <td>
+                      All 1,000 shares go to the <strong>fee recipient</strong> wallet at deploy.
+                      Community Launch backers receive shares pro-rata when the round finalizes.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 className="docs-subtitle">What you can do</h3>
+            <p className="docs-lead">
+              On the token page <strong>Holder NFTs</strong> panel (or directly on-chain via the
+              fraction contract):
+            </p>
+            <div className="docs-table-wrap">
+              <table className="docs-table">
+                <thead>
+                  <tr>
+                    <th>Action</th>
+                    <th>On-chain</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Send shares</td>
+                    <td>
+                      <code>safeTransferFrom</code>
+                    </td>
+                    <td>No platform fee on sends (v0.11+)</td>
+                  </tr>
+                  <tr>
+                    <td>Airdrop to many</td>
+                    <td>
+                      <code>airdropShares</code>
+                    </td>
+                    <td>One transaction when bytecode supports it (v0.10+)</td>
+                  </tr>
+                  <tr>
+                    <td>List / buy / cancel</td>
+                    <td>
+                      <code>listShares</code> / <code>buyShares</code> / <code>cancelListing</code>
+                    </td>
+                    <td>On-chain marketplace — 5% platform fee on sale price only</td>
+                  </tr>
+                  <tr>
+                    <td>Redeem vault</td>
+                    <td>
+                      <code>redeem</code>
+                    </td>
+                    <td>Burn shares → withdraw underlying launch tokens from the vault</td>
+                  </tr>
+                  <tr>
+                    <td>Buyer rewards</td>
+                    <td>
+                      <code>fundBuyerRewardPool</code>
+                    </td>
+                    <td>
+                      Fee recipient only — escrow shares for first buyers (post-launch on token page)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Claim trading fees</td>
+                    <td>
+                      <code>claimTradingFees</code>
+                    </td>
+                    <td>Permissionless — pays all share holders in one tx (see below)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 className="docs-subtitle">How claiming works</h3>
+            <ol className="docs-steps">
+              <li>
+                Traders swap the token on Uniswap — swap fees accrue inside the <strong>locked LP</strong>{' '}
+                position managed by <code>HoodMarketsV3LpLocker</code>.
+              </li>
+              <li>
+                Anyone calls <code>claimTradingFees()</code> on the token’s fraction contract (lookup via{' '}
+                <code>factory.fractionCollectionForToken(token)</code>).
+              </li>
+              <li>
+                The locker collects fees from the LP, sends <strong>5%</strong> to the hood.markets
+                platform wallet, and forwards <strong>95%</strong> to the fraction contract.
+              </li>
+              <li>
+                The fraction contract credits every current share holder <strong>pro-rata</strong> by
+                share balance — you do not need to be the fee recipient to trigger the claim.
+              </li>
+            </ol>
+            <p className="docs-foot">
+              On hood.markets: open a token page → <strong>Claim trading fees</strong> in the Holder NFTs
+              section or sidebar. Via API (launcher pays gas):{' '}
+              <code>POST /api/deployments/:token/claim-fees</code>,{' '}
+              <code>POST /api/agent/claim</code>, or <code>POST /api/agent/claim-for-recipient</code>.
+              Legacy v0.6 tokens without fractions use <code>factory.claimRewards(token)</code> (fee
+              wallet only).
             </p>
           </section>
 
