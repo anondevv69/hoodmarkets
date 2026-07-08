@@ -276,6 +276,7 @@ async function main() {
         logger.info(`Agent claim calldata: POST http://localhost:${port}/api/agent/claim-calldata`);
         logger.info(`Agent Bankr briefing: GET http://localhost:${port}/api/agent/briefing`);
         logger.info(`Agent prepare deploy/buy/sell: POST http://localhost:${port}/api/agent/prepare-deploy|prepare-buy|prepare-sell`);
+        logger.info(`Agent buyer rewards: POST http://localhost:${port}/api/agent/prepare-fund-buyer-rewards|prepare-cancel-buyer-rewards`);
         logger.info(`Resolve source (prefill): POST http://localhost:${port}/api/resolve-source`);
         logger.info(`My deployments: GET http://localhost:${port}/api/my-deployments (auth)`);
         logger.info(`My deployment claim: POST http://localhost:${port}/api/my-deployments/claim (auth)`);

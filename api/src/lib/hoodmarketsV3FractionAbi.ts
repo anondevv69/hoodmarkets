@@ -114,4 +114,18 @@ export const HOODMARKETS_V3_FRACTION_ABI = [
     ],
     outputs: [{ name: '', type: 'uint256' }],
   },
+  {
+    type: 'function',
+    name: 'fundBuyerRewardPool',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'shareAmount', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'cancelBuyerRewardPool',
+    stateMutability: 'nonpayable',
+    inputs: [],
+    outputs: [],
+  },
 ] as const;

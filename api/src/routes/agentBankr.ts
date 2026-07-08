@@ -8,6 +8,10 @@ import {
 } from '../lib/deploymentCatalog.js';
 import { prepareAgentBuy, prepareAgentSell } from '../lib/agentSwapPrepare.js';
 import {
+  prepareAgentCancelBuyerRewards,
+  prepareAgentFundBuyerRewards,
+} from '../lib/agentBuyerRewardPrepare.js';
+import {
   resolveAgentTokenLookup,
   runAgentDeployPreflight,
 } from '../lib/agentDeployPreflight.js';
@@ -596,6 +600,91 @@ export function registerAgentBankrRoutes(app: Express): void {
       wallet,
       bankrSubmitUrl: 'https://api.bankr.bot/wallet/submit',
       confirmHint: 'Submit approve (if present) then sell via Bankr /wallet/submit.',
+    });
+  });
+
+  app.options('/api/agent/prepare-fund-buyer-rewards', (req, res) => {
+    cors(req, res);
+    res.status(204).end();
+  });
+
+  app.post('/api/agent/prepare-fund-buyer-rewards', async (req: Request, res: Response) => {
+    cors(req, res);
+    const wallet = walletFromBody(req.body) ?? walletFromReq(req);
+    if (!wallet) {
+      res.status(400).json({ ok: false, error: 'wallet required.' });
+      return;
+    }
+    const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const tokenAddress =
+      typeof body.tokenAddress === 'string'
+        ? body.tokenAddress.trim()
+        : typeof body.token === 'string'
+          ? body.token.trim()
+          : typeof body.symbol === 'string'
+            ? body.symbol.trim()
+            : '';
+
+    if (!tokenAddress) {
+      res.status(400).json({ ok: false, error: 'tokenAddress, token, or symbol is required.' });
+      return;
+    }
+
+    const shareAmount = body.shareAmount ?? body.shares ?? body.amount;
+    const result = await prepareAgentFundBuyerRewards({
+      wallet,
+      tokenAddress,
+      shareAmount,
+    });
+    if (!result.ok) {
+      res.status(400).json(result);
+      return;
+    }
+    res.json({
+      ...result,
+      wallet,
+      bankrSubmitUrl: 'https://api.bankr.bot/wallet/submit',
+      bankrWalletSubmitRequired: true,
+    });
+  });
+
+  app.options('/api/agent/prepare-cancel-buyer-rewards', (req, res) => {
+    cors(req, res);
+    res.status(204).end();
+  });
+
+  app.post('/api/agent/prepare-cancel-buyer-rewards', async (req: Request, res: Response) => {
+    cors(req, res);
+    const wallet = walletFromBody(req.body) ?? walletFromReq(req);
+    if (!wallet) {
+      res.status(400).json({ ok: false, error: 'wallet required.' });
+      return;
+    }
+    const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const tokenAddress =
+      typeof body.tokenAddress === 'string'
+        ? body.tokenAddress.trim()
+        : typeof body.token === 'string'
+          ? body.token.trim()
+          : typeof body.symbol === 'string'
+            ? body.symbol.trim()
+            : '';
+
+    if (!tokenAddress) {
+      res.status(400).json({ ok: false, error: 'tokenAddress, token, or symbol is required.' });
+      return;
+    }
+
+    const result = await prepareAgentCancelBuyerRewards({ wallet, tokenAddress });
+    if (!result.ok) {
+      res.status(400).json(result);
+      return;
+    }
+    res.json({
+      ...result,
+      wallet,
+      bankrSubmitUrl: 'https://api.bankr.bot/wallet/submit',
+      bankrWalletSubmitRequired: true,
     });
   });
 }

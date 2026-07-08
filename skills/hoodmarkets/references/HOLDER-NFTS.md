@@ -97,11 +97,13 @@ Holder NFT / share actions are **on-chain on the hood.markets token page only**.
 | Claim trading fees | `claimTradingFees()` via API | **Yes** — `POST /api/agent/claim` or `claim-for-recipient` only |
 | Batch airdrop | `airdropShares` | **No** — token page + user wallet |
 | List / buy shares | `listShares`, `buyShares`, `cancelListing` | **No** |
-| Buyer rewards | `fundBuyerRewardPool`, `cancelBuyerRewardPool` | **No** |
+| Buyer rewards | `fundBuyerRewardPool`, `cancelBuyerRewardPool` | **Yes** — `POST /api/agent/prepare-fund-buyer-rewards` / `prepare-cancel-buyer-rewards` then Bankr `/wallet/submit` (fee recipient wallet only) |
 | Transfer shares | ERC-1155 `safeTransferFrom` | **No** |
 
 **Do not** call `prepare-buy`/`prepare-sell`, Bankr `/wallet/submit`, or invent calldata for these flows.
 
-If a user asks to airdrop shares, list shares, or fund buyer rewards → direct them to **https://hood.markets/?token=0x…** and their connected wallet. No agent API exists for these actions today.
+If a user asks to airdrop shares or list shares → direct them to **https://hood.markets/?token=0x…** and their connected wallet.
+
+**Buyer rewards (fund/cancel pool):** use `POST /api/agent/prepare-fund-buyer-rewards` with `wallet`, `tokenAddress` (or `symbol`), and `shareAmount` (e.g. `999`). Submit the returned tx via Bankr `/wallet/submit`. Only the **fee recipient** wallet may sign. After funding, hood.markets issues shares to unique pool buyers automatically.
 
 See `references/PROMPT-INJECTION.md`.
