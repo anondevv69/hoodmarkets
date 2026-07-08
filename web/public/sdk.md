@@ -39,6 +39,21 @@ No platform fee on sends, batch airdrops (`airdropShares`), list/cancel escrow, 
 
 Each token gets **1,000 ERC-1155 shares** = **10% of supply** vaulted at launch. All shares mint to the **fee recipient** wallet.
 
+#### What shares represent
+
+Holder NFTs are **not** Uniswap LP tokens. They bundle two rights:
+
+| Right | Meaning |
+|-------|---------|
+| **Vault slice** | `1/1,000` of the **10%** token supply locked in the fraction contract — withdraw via `redeem` (burn shares) |
+| **Fee slice** | `1/1,000` of the **95%** Uniswap trading-fee stream (after hood.markets takes 5% in the locker on each claim) |
+
+The other **90%** of supply seeds a **locked** Uniswap V3 LP at launch. Trading fees accrue in that LP; `claimTradingFees()` pulls them and pays share holders. You cannot “deposit into launch LP” on hood.markets — buy the token on Uniswap or buy shares on listings instead.
+
+Community Launch backers receive shares **pro-rata** to ETH contributed when the round finalizes.
+
+#### What you can do
+
 | Action | On-chain | Notes |
 |--------|----------|--------|
 | **Send shares** | `safeTransferFrom` | Full amount — no platform fee (v0.11+) |
@@ -56,6 +71,21 @@ Each token gets **1,000 ERC-1155 shares** = **10% of supply** vaulted at launch.
 - **Buyer rewards:** token page after launch — not at deploy.
 
 Lookup fraction contract: `factory.fractionCollectionForToken(tokenAddress)`
+
+#### How claiming works
+
+1. Swaps on the token’s Uniswap pool accrue fees in the **locked LP** (`HoodMarketsV3LpLocker`).
+2. Anyone calls **`claimTradingFees()`** on the fraction contract — permissionless.
+3. Locker sends **5%** → platform wallet, **95%** → fraction contract.
+4. Fraction contract credits **all share holders pro-rata** in one transaction.
+
+| Where | How |
+|-------|-----|
+| Token page | **Claim trading fees** in Holder NFTs panel or sidebar |
+| API | `POST /api/deployments/:token/claim-fees`, `POST /api/agent/claim`, `POST /api/agent/claim-for-recipient` (launcher pays gas) |
+| SDK / wallet | `writeContract` on fraction with `claimTradingFees` |
+
+You do **not** need to be the fee recipient to trigger a claim — but you need shares to receive a payout. Legacy **v0.6** tokens: `factory.claimRewards(token)` (fee wallet only).
 
 ### Agents & automation
 
