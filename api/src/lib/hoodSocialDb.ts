@@ -85,6 +85,16 @@ export function initHoodSocialDb(): void {
     db!.run(
       `CREATE INDEX IF NOT EXISTS idx_token_space_posts_token ON token_space_posts(token_address, created_at DESC)`,
     );
+    db!.run(
+      `CREATE TABLE IF NOT EXISTS user_x_links (
+        wallet_address TEXT PRIMARY KEY,
+        x_handle TEXT NOT NULL,
+        linked_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+    );
+    db!.run(
+      `CREATE INDEX IF NOT EXISTS idx_user_x_handle ON user_x_links(x_handle)`,
+    );
   });
 }
 
@@ -171,4 +181,32 @@ export async function insertTokenSpacePost(
   );
   const row = await get<{ id: number }>(`SELECT last_insert_rowid() AS id`);
   return row?.id ?? 0;
+}
+
+export async function getXHandleForWallet(walletAddress: string): Promise<string | null> {
+  const wallet = getAddress(walletAddress).toLowerCase();
+  const row = await get<{ x_handle: string }>(
+    `SELECT x_handle FROM user_x_links WHERE wallet_address = ?`,
+    [wallet],
+  );
+  return row?.x_handle ?? null;
+}
+
+export async function linkXHandleForWallet(walletAddress: string, xHandle: string): Promise<void> {
+  const wallet = getAddress(walletAddress).toLowerCase();
+  const handle = xHandle.trim().replace(/^@/, '').toLowerCase().slice(0, 64);
+  if (!handle) throw new Error('xHandle is required.');
+  await run(
+    `INSERT INTO user_x_links (wallet_address, x_handle, linked_at)
+     VALUES (?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(wallet_address) DO UPDATE SET
+       x_handle = excluded.x_handle,
+       linked_at = CURRENT_TIMESTAMP`,
+    [wallet, handle],
+  );
+}
+
+export async function unlinkXHandleForWallet(walletAddress: string): Promise<void> {
+  const wallet = getAddress(walletAddress).toLowerCase();
+  await run(`DELETE FROM user_x_links WHERE wallet_address = ?`, [wallet]);
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useWebAuth } from '../auth/WebAuthContext';
 import { useActiveWallet } from '../hooks/useActiveWallet';
 import {
@@ -12,6 +12,7 @@ import {
   cancelCommunityLaunch,
   type CommunityLaunchSummary,
 } from '../api';
+import { readImageFileAsDataUrl, resolveLaunchImagePayload } from '../lib/imageUpload';
 import {
   closeCommunityLaunchPage,
   migrateCommunityLaunchPath,
@@ -58,6 +59,13 @@ function PetitionCard({
   return (
     <button type="button" className="petition-card lp-card" onClick={() => onOpen(petition.id)}>
       <div className="petition-card-head">
+        {petition.imageUrl ? (
+          <img
+            src={petition.imageUrl}
+            alt={`${petition.tokenSymbol} logo`}
+            style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+          />
+        ) : null}
         <strong>${petition.tokenSymbol}</strong>
         <span className="muted">{petition.tokenName}</span>
       </div>
@@ -79,6 +87,12 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
   const [tokenName, setTokenName] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [imageFileName, setImageFileName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [xUrl, setXUrl] = useState('');
   const [targetRaiseEth, setTargetRaiseEth] = useState('5');
   const [supporterSlots, setSupporterSlots] = useState('');
   const [loading, setLoading] = useState(false);
@@ -86,15 +100,34 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
 
   const creatorWallet = wallet?.address ?? walletAddress ?? undefined;
 
+  async function onPickLogo(file: File | null) {
+    if (!file) return;
+    setError(null);
+    try {
+      const dataUrl = await readImageFileAsDataUrl(file);
+      setImageDataUrl(dataUrl);
+      setImageFileName(file.name);
+      setImageUrl('');
+    } catch (e) {
+      setImageDataUrl(null);
+      setImageFileName('');
+      setError(e instanceof Error ? e.message : 'Could not read logo');
+    }
+  }
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
+      const resolvedImage = resolveLaunchImagePayload(imageDataUrl, imageUrl);
       const res = await createCommunityLaunch({
         tokenName: tokenName.trim(),
         tokenSymbol: tokenSymbol.trim().replace(/^\$/, ''),
         description: description.trim() || undefined,
+        imageUrl: resolvedImage,
+        websiteUrl: websiteUrl.trim() || undefined,
+        xUrl: xUrl.trim() || undefined,
         starterWallet: creatorWallet,
         targetRaiseEth: targetRaiseEth.trim(),
         supporterSlots: supporterSlots ? Number.parseInt(supporterSlots, 10) : undefined,
@@ -151,10 +184,68 @@ function CreatePetitionForm({ onCreated }: { onCreated: (id: string) => void }) 
           placeholder="5"
         />
       </label>
+      <div className="field-label">
+        Logo
+        <div className="logo-upload-row">
+          <button
+            type="button"
+            className="logo-upload-btn"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {imageFileName || imageDataUrl ? 'Change logo' : 'Upload logo'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => void onPickLogo(e.target.files?.[0] ?? null)}
+          />
+          <span className="muted logo-upload-hint">
+            {imageFileName ? imageFileName : 'PNG, JPG, GIF, or WebP · max 2 MB'}
+          </span>
+        </div>
+        <input
+          className="lp-input"
+          value={imageUrl}
+          onChange={(e) => {
+            setImageUrl(e.target.value);
+            if (e.target.value.trim()) {
+              setImageDataUrl(null);
+              setImageFileName('');
+            }
+          }}
+          placeholder="Or paste image URL (https://…)"
+          type="url"
+          disabled={!!imageDataUrl}
+          style={{ marginTop: '0.5rem' }}
+        />
+      </div>
       <label className="field-label">
         Description
         <textarea className="lp-input" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
       </label>
+      <div className="name-symbol-row">
+        <label className="field-label">
+          Website
+          <input
+            className="lp-input"
+            value={websiteUrl}
+            onChange={(e) => setWebsiteUrl(e.target.value)}
+            placeholder="https://yourproject.com"
+            type="url"
+          />
+        </label>
+        <label className="field-label">
+          X
+          <input
+            className="lp-input"
+            value={xUrl}
+            onChange={(e) => setXUrl(e.target.value)}
+            placeholder="@handle or https://x.com/…"
+          />
+        </label>
+      </div>
       <label className="field-label">
         Supporter slots (optional)
         <input
@@ -372,7 +463,29 @@ function PetitionDetail({ id }: { id: string }) {
           ${petition.tokenSymbol}{' '}
           <span className="muted petition-detail-name">{petition.tokenName}</span>
         </h1>
+        {petition.imageUrl ? (
+          <img
+            src={petition.imageUrl}
+            alt={`${petition.tokenSymbol} logo`}
+            className="petition-token-image"
+            style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', margin: '0.5rem 0' }}
+          />
+        ) : null}
         {petition.description ? <p className="petition-lead">{petition.description}</p> : null}
+        {petition.websiteUrl || petition.tweetUrl ? (
+          <div className="petition-links" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+            {petition.websiteUrl ? (
+              <a href={petition.websiteUrl} target="_blank" rel="noreferrer" className="muted" style={{ fontSize: '0.85rem' }}>
+                🌐 Website
+              </a>
+            ) : null}
+            {petition.tweetUrl ? (
+              <a href={petition.tweetUrl.startsWith('http') ? petition.tweetUrl : `https://x.com/${petition.tweetUrl.replace(/^@/, '')}`} target="_blank" rel="noreferrer" className="muted" style={{ fontSize: '0.85rem' }}>
+                𝕏 {petition.tweetUrl.startsWith('http') ? 'X' : petition.tweetUrl}
+              </a>
+            ) : null}
+          </div>
+        ) : null}
         <RaiseProgressBar
           raisedEth={petition.raisedEth}
           targetRaiseEth={petition.targetRaiseEth}

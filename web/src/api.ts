@@ -298,6 +298,7 @@ export interface DeployerProfileResponse {
 
 export interface MyDeployerProfileResponse {
   xUsername: string | null;
+  xHandle: string | null;
   xLinked: boolean;
   xLaunchCount: number;
   bankrWallet: string | null;
@@ -388,6 +389,26 @@ export async function linkBankrWallet(
 
 export async function unlinkBankrWallet(token: string): Promise<{ ok: boolean }> {
   const res = await fetch(`${API_BASE}/api/my-profile/link-bankr`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return parseJson(res);
+}
+
+export async function linkXHandle(
+  token: string,
+  xHandle: string,
+): Promise<{ ok: boolean; xHandle: string }> {
+  const res = await fetch(`${API_BASE}/api/my-profile/link-x`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ xHandle }),
+  });
+  return parseJson(res);
+}
+
+export async function unlinkXHandle(token: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`${API_BASE}/api/my-profile/link-x`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -920,6 +941,9 @@ export interface CommunityLaunchSummary {
   tokenName: string;
   tokenSymbol: string;
   description: string;
+  imageUrl?: string;
+  websiteUrl?: string;
+  tweetUrl?: string;
   shareSupply: number;
   targetRaiseEth: string;
   targetRaiseWei: string;
@@ -1003,6 +1027,9 @@ export async function createCommunityLaunch(body: {
   tokenName: string;
   tokenSymbol: string;
   description?: string;
+  imageUrl?: string;
+  websiteUrl?: string;
+  xUrl?: string;
   starterWallet?: string;
   targetRaiseEth: string;
   supporterSlots?: number;
