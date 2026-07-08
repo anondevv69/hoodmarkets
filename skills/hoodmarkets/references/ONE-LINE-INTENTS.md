@@ -15,6 +15,12 @@
 | list hoodmarkets tokens | GET /api/deployments |
 | simple launch on hood | deploy with `"launchMode": "simple"` |
 | pro launch hoodmarkets | deploy with `"launchMode": "pro"` |
+| start community launch / open petition / crowdfund $SYM | `GET /api/community-launch/preflight` → `POST /api/community-launch/create` → share `petition.shareUrl` (`COMMUNITY-LAUNCH.md`) |
+| back / join / contribute to petition #N | `GET …/prepare-deposit` → Bankr submit → `POST …/confirm` |
+| status of community launch / petition N | `GET /api/community-launch/status?id=N` |
+| list open community launches | `GET /api/community-launch/list` |
+| refund my community launch deposit | `POST /api/community-launch/refund` |
+| cancel my community launch | `POST /api/community-launch/cancel` (creator wallet) |
 
 Tweet/DM to `@bankrbot` uses the same mapping.
 

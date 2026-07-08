@@ -1,8 +1,8 @@
 ---
 name: hoodmarkets
-description: Launch, buy, sell, and claim fees for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
-tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap]
-version: 18
+description: Launch, buy, sell, claim fees, and Community Launch (petition) for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, community launch, petition, back petition, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
+tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap, community-launch, petition]
+version: 19
 ---
 
 # hood.markets — Bankr agent skill
@@ -39,6 +39,14 @@ POST https://api.hood.markets/api/agent/prepare-sell
 POST https://api.hood.markets/api/deploy          (after haiku JWT)
 POST https://api.hood.markets/api/agent/claim-for-recipient  (anyone — fees to catalog recipient)
 POST https://api.hood.markets/api/agent/claim      (fee recipient wallet only)
+GET  https://api.hood.markets/api/community-launch/config
+GET  https://api.hood.markets/api/community-launch/list
+GET  https://api.hood.markets/api/community-launch/preflight?tokenName=…&tokenSymbol=…
+POST https://api.hood.markets/api/community-launch/create
+GET  https://api.hood.markets/api/community-launch/prepare-deposit?id=…&wallet=0x…&contributionEth=…
+POST https://api.hood.markets/api/community-launch/confirm
+POST https://api.hood.markets/api/community-launch/refund
+POST https://api.hood.markets/api/community-launch/cancel
 ```
 
 **NEVER** call `https://hood.markets/api/...` for agent POST — the website is frontend-only.
@@ -65,6 +73,7 @@ install the hoodmarkets skill from https://github.com/BankrBot/skills/tree/main/
 | **Pro launch** | Uniswap V4 hooks — one-click buy/sell on hood.markets |
 | **Buy / sell** | Swap ETH ↔ token on Uniswap (Simple/V3). Pro tokens use swap helper + Bankr submit. **No “fund LP” on hood.markets** — launch LP is locked |
 | **Claim fees** | Pull swap trading fees — **95% pro-rata to all Holder NFT share holders** (launcher pays gas) |
+| **Community Launch / petition** | 24h ETH pre-sale for Holder NFT shares → V3 deploy + pro-rata share airdrop. See `references/COMMUNITY-LAUNCH.md` |
 
 ---
 
@@ -72,7 +81,8 @@ install the hoodmarkets skill from https://github.com/BankrBot/skills/tree/main/
 
 ```
 if message mentions hoodmarkets / hood.markets / launch token on robinhood /
-   buy $TICKER / sell token / claim fees / deploy on hood:
+   buy $TICKER / sell token / claim fees / deploy on hood /
+   community launch / petition / back a launch / crowdfund token:
   1. use_skill("hoodmarkets")
   2. Read references/API-HOST.md — use ONLY https://api.hood.markets
   3. **Chain:** abort if Bankr wallet does not support 4663 — references/CHAIN-4663.md (no fallback)
@@ -86,6 +96,7 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
   11. Claim **for someone else**: token-info verify first → POST /api/agent/claim-for-recipient — references/CLAIM-BANKR.md
   12. **Claim success:** `ok: true` → post `replyHint` if schema-valid. **Never** `/wallet/submit`. **Never** say "I didn't submit a transaction"
   13. **Holder NFTs:** claim fees via API only — no airdrop/list/buyShares/rewards via agent — references/HOLDER-NFTS.md
+  14. **Community Launch / petition:** references/COMMUNITY-LAUNCH.md — create: preflight → POST /create; back: prepare-deposit → Bankr submit (native ETH to API escrow) → confirm. Not POST /api/deploy
 ```
 
 **Tweet = DM** — same pipeline on `@bankrbot` intake.
@@ -322,6 +333,18 @@ Response includes `feeRecipientAddress`, `txHash`, `explorerUrl`, `feeModel` / `
 
 ---
 
+## Community Launch (petition)
+
+24h ETH raise → simple V3 deploy + pro-rata Holder NFT airdrop. Full flow: `references/COMMUNITY-LAUNCH.md`.
+
+1. **Create:** `GET /api/community-launch/preflight` → `POST /api/community-launch/create` → reply with `petition.shareUrl`
+2. **Back:** `GET /prepare-deposit` → Bankr `/wallet/submit` with API `nextStep` (chain 4663, `data: "0x"`) → `POST /confirm` with tx hash
+3. **Refund / cancel:** `POST /refund` (backer) · `POST /cancel` (creator `starterWallet` only)
+
+Escrow `to` always comes from the API — never hardcode. Web UI: https://hood.markets/community-launch
+
+---
+
 ## Example one-liners
 
 > launch $PEPE on hoodmarkets simple mode with image https://…
@@ -339,6 +362,14 @@ Response includes `feeRecipientAddress`, `txHash`, `explorerUrl`, `feeModel` / `
 > claim fees for my token MTK
 
 → captcha JWT or X wallet → POST /api/agent/claim — if `ok: true`, reply with **`replyHint`**
+
+> start a community launch for Hoodrich $HOODRICK raise 5 ETH
+
+→ community-launch preflight → create → reply with `shareUrl`
+
+> back petition #1 with 0.1 ETH
+
+→ prepare-deposit → Bankr submit → confirm (`COMMUNITY-LAUNCH.md`)
 
 ---
 
@@ -358,5 +389,6 @@ Response includes `feeRecipientAddress`, `txHash`, `explorerUrl`, `feeModel` / `
 | `references/IMAGE-RESOLUTION.md` | Deploy logo host validation |
 | `references/ONE-LINE-INTENTS.md` | Tweet → API mapping |
 | `references/HOLDER-NFTS.md` | Shares — agent claim only, no marketplace txs |
+| `references/COMMUNITY-LAUNCH.md` | Petition create / back / refund / cancel |
 | `streaming-hints.json` | V3 vs Pro detection + preflight error codes |
 | `known-contracts.json` | Pinned Robinhood addresses |
