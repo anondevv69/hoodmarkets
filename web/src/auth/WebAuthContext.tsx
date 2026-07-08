@@ -16,15 +16,10 @@ import {
   writeStoredSession,
   type StoredWebSession,
 } from './session';
-import {
-  fetchBankrWalletAddress,
-  fetchWalletLoginChallenge,
-  signMessageWithBankr,
-  verifyWalletLogin,
-} from './walletAuthApi';
+import { fetchWalletLoginChallenge, verifyWalletLogin } from './walletAuthApi';
 import { isWalletUserRejection, signWalletLoginMessage } from './signWalletLoginMessage';
 
-export type WebAuthMethod = 'rainbow' | 'bankr' | null;
+export type WebAuthMethod = 'rainbow' | null;
 
 type WebAuthContextValue = {
   ready: boolean;
@@ -35,7 +30,6 @@ type WebAuthContextValue = {
   authMethod: WebAuthMethod;
   getAccessToken: () => Promise<string | null>;
   connectWallet: () => void;
-  loginWithBankr: (apiKey: string) => Promise<void>;
   logout: () => void;
   authError: string | null;
   clearAuthError: () => void;
@@ -72,11 +66,15 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = readStoredSession();
-    setSession(stored);
-    sessionRef.current = stored;
+    // Site login is wallet-only. Drop legacy Bankr API-key sessions.
     if (stored?.walletKind === 'bankr-evm') {
-      setAuthMethod('bankr');
+      clearStoredSession();
+      setSession(null);
+      sessionRef.current = null;
+      setAuthMethod(null);
     } else if (stored?.token) {
+      setSession(stored);
+      sessionRef.current = stored;
       setAuthMethod('rainbow');
     }
     setReady(true);
@@ -101,7 +99,7 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
       writeStoredSession(stored);
       setSession(stored);
       sessionRef.current = stored;
-      setAuthMethod(walletKind === 'bankr-evm' ? 'bankr' : 'rainbow');
+      setAuthMethod('rainbow');
       setAuthError(null);
     },
     [],
@@ -111,11 +109,16 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
     async (walletAddress: string) => {
       const key = walletAddress.toLowerCase();
       const stored = sessionRef.current ?? readStoredSession();
-      if (stored?.walletAddress?.toLowerCase() === key) {
+      if (stored?.walletKind === 'bankr-evm') {
+        clearStoredSession();
+        setSession(null);
+        sessionRef.current = null;
+        setAuthMethod(null);
+      } else if (stored?.walletAddress?.toLowerCase() === key) {
         if (!sessionRef.current) {
           setSession(stored);
           sessionRef.current = stored;
-          setAuthMethod(stored.walletKind === 'bankr-evm' ? 'bankr' : 'rainbow');
+          setAuthMethod('rainbow');
         }
         return;
       }
@@ -163,11 +166,11 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    if (!ready || authMethod === 'bankr') return;
+    if (!ready) return;
     if (status !== 'connected' || !address) return;
     if (session?.walletAddress?.toLowerCase() === address.toLowerCase()) return;
     void runSignInIfNeeded(address);
-  }, [ready, authMethod, status, address, session?.walletAddress, runSignInIfNeeded]);
+  }, [ready, status, address, session?.walletAddress, runSignInIfNeeded]);
 
   const connectWallet = useCallback(() => {
     setAuthError(null);
@@ -197,32 +200,7 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
     }
 
     setAuthError('Wallet connect is loading… refresh if this persists.');
-  }, [
-    openConnectModal,
-    status,
-    address,
-    signingIn,
-    session?.walletAddress,
-    runSignInIfNeeded,
-  ]);
-
-  const loginWithBankr = useCallback(
-    async (apiKey: string) => {
-      setAuthError(null);
-      const trimmed = apiKey.trim();
-      if (!trimmed.startsWith('bk_')) {
-        throw new Error('Bankr API key must start with bk_');
-      }
-      const walletAddress = await fetchBankrWalletAddress(trimmed);
-      await completeWalletLogin(
-        walletAddress,
-        (message) => signMessageWithBankr(trimmed, message),
-        'bankr-evm',
-      );
-      if (isConnected) disconnect();
-    },
-    [completeWalletLogin, disconnect, isConnected],
-  );
+  }, [openConnectModal, status, address, signingIn, session?.walletAddress, runSignInIfNeeded]);
 
   const logout = useCallback(() => {
     signInFlightRef.current = null;
@@ -237,35 +215,25 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
 
   const getAccessToken = useCallback(async () => {
     const s = session ?? readStoredSession();
+    if (s?.walletKind === 'bankr-evm') return null;
     return s?.token ?? null;
   }, [session]);
 
   const value = useMemo<WebAuthContextValue>(
     () => ({
       ready,
-      authenticated: !!session?.token,
+      authenticated: !!session?.token && session.walletKind !== 'bankr-evm',
       signingIn,
-      walletAddress: session?.walletAddress ?? null,
-      walletKind: session?.walletKind ?? null,
+      walletAddress: session?.walletKind === 'bankr-evm' ? null : (session?.walletAddress ?? null),
+      walletKind: session?.walletKind === 'bankr-evm' ? null : (session?.walletKind ?? null),
       authMethod,
       getAccessToken,
       connectWallet,
-      loginWithBankr,
       logout,
       authError,
       clearAuthError: () => setAuthError(null),
     }),
-    [
-      ready,
-      session,
-      signingIn,
-      authMethod,
-      getAccessToken,
-      connectWallet,
-      loginWithBankr,
-      logout,
-      authError,
-    ],
+    [ready, session, signingIn, authMethod, getAccessToken, connectWallet, logout, authError],
   );
 
   return <WebAuthContext.Provider value={value}>{children}</WebAuthContext.Provider>;

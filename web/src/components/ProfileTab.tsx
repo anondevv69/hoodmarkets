@@ -114,8 +114,8 @@ export function ProfileTab() {
         </div>
         <p className="empty-state-title">Connect to see your launches</p>
         <p className="muted empty-state-sub">
-          Your deployed tokens and fee wallets appear here after you connect a wallet or sign in
-          with Bankr.
+          Connect your wallet to see launches here. Use @bankrbot with the hoodmarkets skill for
+          agent actions, or link your Bankr wallet on this profile after you sign in.
         </p>
         <button
           type="button"
