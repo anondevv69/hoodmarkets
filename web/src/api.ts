@@ -268,6 +268,52 @@ export async function fetchTokenMarketStats(
   return data.stats ?? null;
 }
 
+export type TokenVestingGrant = {
+  repoFullName: string;
+  githubOwner: string;
+  token: string;
+  status: string;
+  totalLockedFormatted: string;
+  progress: {
+    verifiedPushCount: number;
+    totalPushesRequired: number;
+    summary?: string;
+  };
+  progressPct: number;
+  lockUrl: string;
+  devUrl: string;
+  githubUrl: string;
+  streaming?: boolean;
+  matchType?: 'token' | 'recipient';
+  createdAt: string;
+};
+
+export type TokenVestingResponse = {
+  ok: boolean;
+  tokenAddress: string;
+  count: number;
+  activeCount: number;
+  uniqueDevs: number;
+  createLockUrl: string;
+  exploreUrl: string;
+  grants: TokenVestingGrant[];
+  sources?: { byToken: number; byRecipient: number };
+};
+
+export async function fetchTokenVesting(
+  tokenAddress: string,
+  feeRecipientAddress?: string | null,
+): Promise<TokenVestingResponse | null> {
+  const params = new URLSearchParams();
+  if (feeRecipientAddress?.trim()) params.set('recipient', feeRecipientAddress.trim());
+  const qs = params.toString();
+  const res = await fetch(
+    `${API_BASE}/api/tokens/${encodeURIComponent(tokenAddress)}/vesting${qs ? `?${qs}` : ''}`,
+  );
+  if (!res.ok) return null;
+  return parseJson<TokenVestingResponse>(res);
+}
+
 export async function fetchDeploymentByAddress(tokenAddress: string): Promise<TokenDetail> {
   const addr = tokenAddress.trim();
   const res = await fetch(`${API_BASE}/api/deployments/${addr}`);
@@ -300,6 +346,7 @@ export interface MyDeployerProfileResponse {
   xUsername: string | null;
   xHandle: string | null;
   xLinked: boolean;
+  xVerified: boolean;
   xLaunchCount: number;
   bankrWallet: string | null;
   bankrLinked: boolean;
@@ -400,6 +447,39 @@ export async function linkXHandle(
   xHandle: string,
 ): Promise<{ ok: boolean; xHandle: string }> {
   const res = await fetch(`${API_BASE}/api/my-profile/link-x`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ xHandle }),
+  });
+  return parseJson(res);
+}
+
+export interface XLinkChallengeResponse {
+  ok: boolean;
+  xHandle: string;
+  verifyCode: string;
+  verifyUrl: string;
+  expiresAtMs: number;
+  instructions: string[];
+}
+
+export async function startXLinkChallenge(
+  token: string,
+  xHandle: string,
+): Promise<XLinkChallengeResponse> {
+  const res = await fetch(`${API_BASE}/api/my-profile/link-x/challenge`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ xHandle }),
+  });
+  return parseJson(res);
+}
+
+export async function verifyXLink(
+  token: string,
+  xHandle: string,
+): Promise<{ ok: boolean; xHandle: string; verified: boolean }> {
+  const res = await fetch(`${API_BASE}/api/my-profile/link-x/verify`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ xHandle }),

@@ -2413,7 +2413,8 @@ label {
 }
 
 .token-page-full-bleed .tp-discussion-zone,
-.token-page-full-bleed .tp-fraction-zone {
+.token-page-full-bleed .tp-fraction-zone,
+.token-page-full-bleed .tp-vesting-zone {
   margin-top: 0;
 }
 
@@ -4088,6 +4089,153 @@ label {
   margin-top: 0;
 }
 
+.tp-vesting-zone {
+  margin-top: 0;
+}
+
+.token-vesting-head {
+  margin-bottom: 0.75rem;
+}
+
+.token-vesting-sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.token-vesting-note,
+.token-vesting-empty {
+  font-size: 0.875rem;
+}
+
+.token-vesting-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.token-vesting-cta {
+  display: inline-flex;
+  padding: 0.5rem 0.85rem;
+  border-radius: 8px;
+  background: var(--accent, #00c805);
+  color: #000;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.token-vesting-cta:hover {
+  opacity: 0.92;
+  text-decoration: none;
+}
+
+.token-vesting-summary-line {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.token-vesting-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.token-vesting-card {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+}
+
+.token-vesting-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.token-vesting-repo {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.token-vesting-repo:hover {
+  color: var(--accent, #00c805);
+}
+
+.token-vesting-meta {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.token-vesting-status {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.token-vesting-status--active {
+  color: var(--accent, #00c805);
+  border-color: color-mix(in srgb, var(--accent, #00c805) 35%, var(--border));
+}
+
+.token-vesting-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.token-vesting-bar-fill {
+  height: 100%;
+  background: var(--accent, #00c805);
+  border-radius: 999px;
+}
+
+.token-vesting-progress,
+.token-vesting-summary {
+  margin: 0.45rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.token-vesting-links {
+  margin-top: 0.55rem;
+}
+
+.token-vesting-link {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent, #00c805);
+  text-decoration: none;
+}
+
+.token-vesting-link:hover {
+  text-decoration: underline;
+}
+
+.token-vesting-explore {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  text-decoration: none;
+}
+
+.token-vesting-explore:hover {
+  color: var(--text);
+}
+
 .token-fraction-layout {
   display: flex;
   flex-direction: column;
@@ -4622,6 +4770,44 @@ label {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.profile-x-linked-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.profile-x-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+}
+
+.profile-x-badge--verified {
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.profile-x-badge--pending {
+  color: var(--muted);
+  border: 1px solid color-mix(in srgb, var(--muted) 40%, transparent);
+}
+
+.profile-x-verify-list {
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.15rem;
+  font-size: 0.85rem;
+}
+
+.profile-x-verify-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
 }
 
