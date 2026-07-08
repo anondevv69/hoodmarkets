@@ -33,7 +33,7 @@ export function ProfileBankrLink({
   > | null;
   onUpdated: () => Promise<void>;
 }) {
-  const { getAccessToken, authMethod } = useWebAuth();
+  const { getAccessToken } = useWebAuth();
   const wallet = useActiveWallet();
 
   const [linkMode, setLinkMode] = useState<LinkMode>('wallet');
@@ -182,13 +182,10 @@ export function ProfileBankrLink({
       ) : (
         <div className="profile-x-unlinked">
           <p className="muted">
-            Link the wallet you use with @bankrbot to see Bankr launches on your profile.
+            Connect with your browser wallet first, then link the address you use with @bankrbot so
+            agent launches show on this profile. Automations still go through the Bankr skill — this
+            only associates wallets.
           </p>
-          {authMethod === 'bankr' ? (
-            <p className="muted token-fee-note">
-              You signed in with Bankr — your Bankr wallet should link automatically after refresh.
-            </p>
-          ) : null}
           <div className="launch-mode-row" role="radiogroup" aria-label="Bankr link method">
             <label className={`launch-mode-option${linkMode === 'wallet' ? ' active' : ''}`}>
               <span className="launch-mode-title">

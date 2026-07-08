@@ -49,7 +49,7 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 export function LaunchTab() {
-  const { ready, authenticated, authMethod, connectWallet, getAccessToken } = useWebAuth();
+  const { ready, authenticated, connectWallet, getAccessToken } = useWebAuth();
   const { isConnected, address: connectedAddress } = useAccount();
   const wallet = useActiveWallet();
   const [launchPhase, setLaunchPhase] = useState<DeployProgress | null>(null);
@@ -285,11 +285,6 @@ export function LaunchTab() {
 
     if (needsWallet && (!Number.isFinite(buyEthNum) || buyEthNum < minBuyEth || buyEthNum > maxBuyEth)) {
       setError(`Pool seed must be between ${config?.initialBuyMinEth ?? '0.001'} and ${config?.initialBuyMaxEth ?? '0.1'} ETH.`);
-      return;
-    }
-
-    if (needsWallet && authMethod === 'bankr') {
-      setError('Bankr sign-in cannot sign launch transactions. Use Connect wallet (Rainbow) to deploy.');
       return;
     }
 
