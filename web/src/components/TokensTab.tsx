@@ -23,24 +23,6 @@ function buildPageList(current: number, total: number): (number | 'gap')[] {
   return out;
 }
 
-/** Decorative sparkline from 24h change — visual cue, not historical ticks. */
-function ChangeSparkline({ changePct }: { changePct: number | null }) {
-  const up = changePct == null ? true : changePct >= 0;
-  const path = up
-    ? 'M0 28 C12 26 18 22 28 16 C38 10 46 12 56 8 C66 4 72 6 80 3'
-    : 'M0 6 C12 8 18 14 28 18 C38 22 46 20 56 24 C66 28 72 26 80 30';
-  return (
-    <svg
-      className={`explore-coin-spark${up ? ' is-up' : ' is-down'}`}
-      viewBox="0 0 80 32"
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <path d={path} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function ExploreCoinMedia({
   symbol,
   imageUrl,
@@ -120,7 +102,6 @@ function ExploreCoinCard({
 }) {
   const d = item.deployment;
   const sym = d.tokenSymbol.replace(/^\$/, '');
-  const change = item.stats.change24hPct;
   const age = formatTickerAge(d.createdAt);
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | undefined>(d.tokenImageUrl);
 
