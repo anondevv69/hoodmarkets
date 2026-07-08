@@ -120,14 +120,8 @@ function ExploreCoinCard({
 }) {
   const d = item.deployment;
   const sym = d.tokenSymbol.replace(/^\$/, '');
-  const mcap = item.stats.mcapUsd;
   const change = item.stats.change24hPct;
   const age = formatTickerAge(d.createdAt);
-  const creator =
-    d.feeRecipientLabel?.replace(/^@/, '').trim() ||
-    d.deployerLabel?.replace(/^@/, '').trim() ||
-    (d.feeRecipientAddress ? shortenAddress(d.feeRecipientAddress) : null) ||
-    (d.deployerWalletAddress ? shortenAddress(d.deployerWalletAddress) : null);
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | undefined>(d.tokenImageUrl);
 
   useEffect(() => {
@@ -176,22 +170,12 @@ function ExploreCoinCard({
         <div className="explore-coin-body">
           <div className="explore-coin-title-row">
             <span className="explore-coin-name lp-display">{d.tokenName}</span>
-            <span className="explore-coin-mcap">{formatUsdVol(mcap)} MC</span>
-          </div>
-          <div className="explore-coin-ticker">${sym}</div>
-          <div className="explore-coin-meta">
-            {creator ? (
-              <span className="explore-coin-creator" title={creator}>
-                {creator}
-              </span>
-            ) : (
-              <span className="explore-coin-creator muted">{shortenAddress(d.tokenAddress)}</span>
-            )}
             <span className="explore-coin-age">
               <span className="explore-coin-age-dot" aria-hidden />
               {age}
             </span>
           </div>
+          <div className="explore-coin-ticker">${sym}</div>
         </div>
       </button>
     </li>
