@@ -30,12 +30,21 @@ import { maybeStartFinalization } from '../lib/petitionFinalize.js';
 import { parsePetitionIdFromInput } from '../lib/petitionParse.js';
 import { createPetitionPublicClient, verifyPetitionDeposit } from '../lib/petitionRobinhoodEscrow.js';
 import { refundAllActivePetitionOrders, refundPetitionOrder, createPetitionRefundClients } from '../lib/petitionRefunds.js';
+import { enrichPetitionImage, resolvePetitionLogoForCreate } from '../lib/petitionImage.js';
 import {
   buildPrepareDepositNextStep,
   petitionConfigPayload,
   summarizePetition,
 } from '../lib/petitionSummarize.js';
-import { resolveLaunchImageForStorage } from '../lib/webDeployArtifacts.js';
+
+async function loadPetitionSummary(id: number, req: Request) {
+  let petition = await getPetitionById(id);
+  if (!petition) return null;
+  petition = await refreshPetitionExpiryStatus(petition);
+  petition = await enrichPetitionImage(petition);
+  const orders = await listPetitionOrders(id);
+  return summarizePetition(petition, orders, appOrigin(req));
+}
 
 function petitionCors(): Record<string, string> {
   return {
@@ -90,14 +99,6 @@ function appOrigin(req: Request): string {
   return 'https://hood.markets';
 }
 
-async function loadPetitionSummary(id: number, req: Request) {
-  let petition = await getPetitionById(id);
-  if (!petition) return null;
-  petition = await refreshPetitionExpiryStatus(petition);
-  const orders = await listPetitionOrders(id);
-  return summarizePetition(petition, orders, appOrigin(req));
-}
-
 const API_PREFIX = '/api/community-launch';
 
 export function registerCommunityLaunchRoutes(app: Express): void {
@@ -132,7 +133,8 @@ export function registerCommunityLaunchRoutes(app: Express): void {
     const rows = await listOpenPetitions(limit, offset);
     const petitions = await Promise.all(
       rows.map(async (row) => {
-        const refreshed = await refreshPetitionExpiryStatus(row);
+        let refreshed = await refreshPetitionExpiryStatus(row);
+        refreshed = await enrichPetitionImage(refreshed);
         const orders = await listPetitionOrders(refreshed.id);
         return summarizePetition(refreshed, orders, appOrigin(req));
       }),
@@ -203,11 +205,11 @@ export function registerCommunityLaunchRoutes(app: Express): void {
 
     const existing = await findOpenPetitionBySymbol(symbol, starterWallet || undefined);
     if (existing) {
-      const orders = await listPetitionOrders(existing.id);
+      const summary = await loadPetitionSummary(existing.id, req);
       res.json({
         ok: true,
         reused: true,
-        petition: summarizePetition(existing, orders, appOrigin(req)),
+        petition: summary,
       });
       return;
     }
@@ -227,9 +229,15 @@ export function registerCommunityLaunchRoutes(app: Express): void {
       return;
     }
 
+    const tweetUrl = cleanString(b.tweetUrl ?? b.xUrl ?? b.promoTweetUrl ?? b.sourceTweetUrl, 1024);
+
     let storedImageUrl = '';
     try {
-      storedImageUrl = await resolveLaunchImageForStorage(b.imageUrl, tokenName);
+      storedImageUrl = await resolvePetitionLogoForCreate({
+        imageUrl: b.imageUrl,
+        tweetUrl,
+        tokenName,
+      });
     } catch (e: unknown) {
       res.status(400).json({
         ok: false,
@@ -244,7 +252,7 @@ export function registerCommunityLaunchRoutes(app: Express): void {
       description: cleanString(b.description, 2000),
       imageUrl: storedImageUrl,
       websiteUrl: cleanString(b.websiteUrl, 1024),
-      tweetUrl: cleanString(b.tweetUrl ?? b.xUrl ?? b.promoTweetUrl ?? b.sourceTweetUrl, 1024),
+      tweetUrl,
       starterWallet,
       maxUnitsPerWallet: 1,
       supporterSlots: raise.supporterSlots,
@@ -254,7 +262,7 @@ export function registerCommunityLaunchRoutes(app: Express): void {
 
     res.json({
       ok: true,
-      petition: summarizePetition(row, [], appOrigin(req)),
+      petition: await loadPetitionSummary(row.id, req),
     });
   });
 
