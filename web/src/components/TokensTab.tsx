@@ -3,13 +3,11 @@ import { fetchDeploymentByAddress, type ExploreFeedItem, type ExploreFilter, typ
 import { shortenAddress } from '../chain';
 import { formatUsdVol } from '../lib/dexscreenerVolume';
 import { extractContractAddressFromSearch, looksLikeAddressSearch } from '../lib/exploreSearch';
+import { formatTickerAge } from '../lib/exploreTokens';
 import { EXPLORE_PAGE_SIZE, useExploreTokens } from '../hooks/useExploreTokens';
-import { formatLaunchTimeEastern } from '../lib/launchTime';
 import { navigateToAppTab, openTokenPage } from '../lib/tokenRoute';
+import { buildTokenImageCandidates } from '../lib/tokenImageUrl';
 import { resolveExploreTokenImageUrl } from '../lib/resolveTokenImage';
-import { CopyButton } from './CopyButton';
-import { TokenAvatar } from './TokenAvatar';
-import { TokenSocialLinks } from './TokenSocialLinks';
 
 function buildPageList(current: number, total: number): (number | 'gap')[] {
   if (total <= 7) {
@@ -25,7 +23,95 @@ function buildPageList(current: number, total: number): (number | 'gap')[] {
   return out;
 }
 
-function ExploreRow({
+/** Decorative sparkline from 24h change — visual cue, not historical ticks. */
+function ChangeSparkline({ changePct }: { changePct: number | null }) {
+  const up = changePct == null ? true : changePct >= 0;
+  const path = up
+    ? 'M0 28 C12 26 18 22 28 16 C38 10 46 12 56 8 C66 4 72 6 80 3'
+    : 'M0 6 C12 8 18 14 28 18 C38 22 46 20 56 24 C66 28 72 26 80 30';
+  return (
+    <svg
+      className={`explore-coin-spark${up ? ' is-up' : ' is-down'}`}
+      viewBox="0 0 80 32"
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      <path d={path} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ExploreCoinMedia({
+  symbol,
+  imageUrl,
+  priority,
+}: {
+  symbol: string;
+  imageUrl?: string;
+  priority?: boolean;
+}) {
+  const candidates = useMemo(() => buildTokenImageCandidates(imageUrl), [imageUrl]);
+  const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setSrc(null);
+    setFailed(false);
+    if (!candidates.length) {
+      setFailed(true);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      for (const url of candidates) {
+        if (cancelled) return;
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve();
+            img.onerror = () => reject();
+            img.src = url;
+          });
+          if (!cancelled) {
+            setSrc(url);
+            return;
+          }
+        } catch {
+          /* try next */
+        }
+      }
+      if (!cancelled) setFailed(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [candidates]);
+
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        className="explore-coin-img"
+        loading={priority ? 'eager' : 'lazy'}
+        fetchPriority={priority ? 'high' : 'auto'}
+        decoding="async"
+        onError={() => {
+          setSrc(null);
+          setFailed(true);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="explore-coin-placeholder" aria-hidden>
+      {failed || !candidates.length ? 'no image' : symbol.slice(0, 2).toUpperCase()}
+    </div>
+  );
+}
+
+function ExploreCoinCard({
   item,
   imagePriority = false,
 }: {
@@ -35,7 +121,13 @@ function ExploreRow({
   const d = item.deployment;
   const sym = d.tokenSymbol.replace(/^\$/, '');
   const mcap = item.stats.mcapUsd;
-  const volume = item.stats.volume24hUsd;
+  const change = item.stats.change24hPct;
+  const age = formatTickerAge(d.createdAt);
+  const creator =
+    d.feeRecipientLabel?.replace(/^@/, '').trim() ||
+    d.deployerLabel?.replace(/^@/, '').trim() ||
+    (d.feeRecipientAddress ? shortenAddress(d.feeRecipientAddress) : null) ||
+    (d.deployerWalletAddress ? shortenAddress(d.deployerWalletAddress) : null);
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | undefined>(d.tokenImageUrl);
 
   useEffect(() => {
@@ -58,53 +150,50 @@ function ExploreRow({
     openTokenPage(d.tokenAddress);
   }
 
-  function onRowKeyDown(e: React.KeyboardEvent) {
+  function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       openDetails();
     }
   }
 
-  function stopRowClick(e: React.MouseEvent | React.KeyboardEvent) {
-    e.stopPropagation();
-  }
-
   return (
-    <li
-      className="explore-row explore-row-clickable"
-      role="button"
-      tabIndex={0}
-      onClick={openDetails}
-      onKeyDown={onRowKeyDown}
-      aria-label={`${d.tokenName} ${sym} — view token details`}
-    >
-      <div className="explore-token-main">
-        <TokenAvatar symbol={sym} imageUrl={resolvedImageUrl} size={44} priority={imagePriority} />
-        <div className="explore-token-title">
-          <div className="explore-token-link name lp-display">
-            {d.tokenName} <span className="lp-mono muted">${sym}</span>
+    <li>
+      <button
+        type="button"
+        className="explore-coin-card"
+        onClick={openDetails}
+        onKeyDown={onKeyDown}
+        aria-label={`${d.tokenName} $${sym} — view token details`}
+      >
+        <div className="explore-coin-media">
+          <ExploreCoinMedia symbol={sym} imageUrl={resolvedImageUrl} priority={imagePriority} />
+          <ChangeSparkline changePct={change} />
+          {item.stats.lastTradeAt ? (
+            <span className="explore-coin-badge">Live</span>
+          ) : null}
+        </div>
+        <div className="explore-coin-body">
+          <div className="explore-coin-title-row">
+            <span className="explore-coin-name lp-display">{d.tokenName}</span>
+            <span className="explore-coin-mcap">{formatUsdVol(mcap)} MC</span>
           </div>
-          <div className="explore-metrics">
-            <span className="token-address-row">
-              <span className="lp-mono">{shortenAddress(d.tokenAddress)}</span>
-              <span onClick={stopRowClick} onKeyDown={stopRowClick}>
-                <CopyButton text={d.tokenAddress} />
+          <div className="explore-coin-ticker">${sym}</div>
+          <div className="explore-coin-meta">
+            {creator ? (
+              <span className="explore-coin-creator" title={creator}>
+                {creator}
               </span>
+            ) : (
+              <span className="explore-coin-creator muted">{shortenAddress(d.tokenAddress)}</span>
+            )}
+            <span className="explore-coin-age">
+              <span className="explore-coin-age-dot" aria-hidden />
+              {age}
             </span>
-            {' · '}
-            {formatLaunchTimeEastern(d.createdAt)}
-          </div>
-          <div className="explore-social-slot" onClick={stopRowClick} onKeyDown={stopRowClick}>
-            <TokenSocialLinks websiteUrl={d.tokenWebsiteUrl} xUrl={d.tokenXUrl} />
           </div>
         </div>
-      </div>
-      <div className="explore-market-cell">
-        <span className="lp-mono explore-vol">{formatUsdVol(volume)}</span>
-      </div>
-      <div className="explore-market-cell">
-        <span className="lp-mono explore-mcap">{formatUsdVol(mcap)}</span>
-      </div>
+      </button>
     </li>
   );
 }
@@ -123,7 +212,7 @@ const SORT_OPTIONS: { id: ExploreSort; label: string }[] = [
   { id: 'lastTrade', label: 'Last trade' },
   { id: 'launch', label: 'New' },
   { id: 'volume', label: 'Top volume' },
-  { id: 'mcap', label: 'Top mcap' },
+  { id: 'mcap', label: 'Market cap' },
 ];
 
 const FILTER_OPTIONS: { id: ExploreFilter; label: string }[] = [
@@ -320,19 +409,18 @@ export function TokensTab({ onNavigateToLaunch }: { onNavigateToLaunch?: () => v
           ) : null}
         </div>
       ) : (
-        <div className="lp-card explore-card">
-          <div className="explore-head explore-head--metrics">
-            <span>Token</span>
-            <span>Volume</span>
-            <span>Mcap</span>
-          </div>
-          <ul className="token-list">
+        <div className="explore-grid-wrap">
+          <ul className="explore-coin-grid">
             {items.map((item, i) => (
-              <ExploreRow key={item.deployment.tokenAddress} item={item} imagePriority={i < 6} />
+              <ExploreCoinCard
+                key={item.deployment.tokenAddress}
+                item={item}
+                imagePriority={i < 12}
+              />
             ))}
           </ul>
           {showPagination ? (
-            <nav className="explore-pagination" aria-label="Explore pages">
+            <nav className="explore-pagination explore-pagination--grid" aria-label="Explore pages">
               <button
                 type="button"
                 className="explore-page-btn"
