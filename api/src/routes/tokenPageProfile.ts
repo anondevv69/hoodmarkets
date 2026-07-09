@@ -6,7 +6,7 @@ import {
   verifyTokenPageForWallet,
 } from '../lib/tokenPageProfile.js';
 import { verifyWebSessionBearer } from '../lib/webSessionAuth.js';
-import { webDeployCorsHeaders, webDeployCorsHeadersRead } from '../lib/webDeployCors.js';
+import { webDeployCorsHeadersRead } from '../lib/webDeployCors.js';
 
 function parseToken(raw: string): string | null {
   const t = raw.trim();
@@ -16,11 +16,6 @@ function parseToken(raw: string): string | null {
 
 function setCorsRead(req: Request, res: Response): void {
   const h = webDeployCorsHeadersRead(req.headers.origin);
-  for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
-}
-
-function setCorsWrite(req: Request, res: Response): void {
-  const h = webDeployCorsHeaders(req.headers.origin);
   for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
 }
 
@@ -73,7 +68,7 @@ export function registerTokenPageProfileRoutes(app: Express): void {
   });
 
   app.patch('/api/tokens/:token/profile', async (req: Request, res: Response) => {
-    setCorsWrite(req, res);
+    setCorsRead(req, res);
     const token = parseToken(typeof req.params.token === 'string' ? req.params.token : '');
     if (!token) {
       res.status(400).json({ error: 'Invalid token address.' });
@@ -117,12 +112,12 @@ export function registerTokenPageProfileRoutes(app: Express): void {
   });
 
   app.options('/api/tokens/:token/verify', (req, res) => {
-    setCorsWrite(req, res);
+    setCorsRead(req, res);
     res.status(204).end();
   });
 
   app.post('/api/tokens/:token/verify', async (req: Request, res: Response) => {
-    setCorsWrite(req, res);
+    setCorsRead(req, res);
     const token = parseToken(typeof req.params.token === 'string' ? req.params.token : '');
     if (!token) {
       res.status(400).json({ error: 'Invalid token address.' });

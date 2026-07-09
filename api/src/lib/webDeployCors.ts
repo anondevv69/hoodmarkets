@@ -72,7 +72,7 @@ export function webDeployCorsHeadersRead(origin: string | undefined): Record<str
   if (!origin || !isWebDeployOriginAllowed(origin)) return {};
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': CORS_ALLOW_HEADERS,
     Vary: 'Origin',
   };
@@ -89,12 +89,12 @@ export function webDeployCorsHeadersSwap0x(origin: string | undefined): Record<s
   };
 }
 
-/** Combined CORS headers for any /api/* route (GET + POST + DELETE + preflight). */
+/** Combined CORS headers for any /api/* route (GET + POST + PATCH + DELETE + preflight). */
 function webDeployCorsHeadersAll(origin: string | undefined): Record<string, string> {
   if (!origin || !isWebDeployOriginAllowed(origin)) return {};
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': CORS_ALLOW_HEADERS,
     Vary: 'Origin',
   };
