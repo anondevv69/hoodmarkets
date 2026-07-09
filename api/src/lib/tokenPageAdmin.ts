@@ -1,7 +1,9 @@
 import { getAddress } from 'viem';
 import type { DeploymentCatalogRow } from './deploymentCatalog.js';
 import { resolveDeployerWalletAddress } from './deploymentPartyEnrichment.js';
+import { getBankrWalletForPrivyUser } from './hoodSocialDb.js';
 import { fetchTopShareHolder } from './tokenFractionHolders.js';
+import { webWalletDeployerId } from './webWalletMessages.js';
 
 export type TokenPageAdminInfo = {
   adminWallet: string;
@@ -83,6 +85,20 @@ export function walletCanBuildTokenWebsite(wallet: string, admin: TokenPageAdmin
     return false;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Resolve the Bankr wallet linked to a hood.markets connected wallet (if any).
+ * When a user deploys via Bankr on X and later connects a different wallet on hood.markets,
+ * they link the two via the Link Bankr flow. This lookup bridges that gap so the connected
+ * wallet inherits the Bankr wallet's admin rights.
+ */
+export async function resolveLinkedBankrWallet(connectedWallet: string): Promise<string | null> {
+  try {
+    return await getBankrWalletForPrivyUser(webWalletDeployerId(getAddress(connectedWallet) as `0x${string}`));
+  } catch {
+    return null;
   }
 }
 
