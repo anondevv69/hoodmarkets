@@ -1,7 +1,7 @@
 import { ROBINHOOD_CHAIN_ID } from './robinhoodChain.js';
+import { DEXSCREENER_CHAIN_SLUG } from './dexscreenerChain.js';
 
 const DEXSCREENER_BASE = 'https://api.dexscreener.com';
-const CHAIN_KEY = String(ROBINHOOD_CHAIN_ID);
 
 type DexPair = {
   url?: string;
@@ -59,10 +59,10 @@ export async function fetchDexBrandingProfile(tokenAddress: string): Promise<Dex
   };
 
   const [pairsRes, ordersRes] = await Promise.all([
-    fetch(`${DEXSCREENER_BASE}/token-pairs/v1/${CHAIN_KEY}/${address}`, {
+    fetch(`${DEXSCREENER_BASE}/token-pairs/v1/${DEXSCREENER_CHAIN_SLUG}/${address}`, {
       signal: AbortSignal.timeout(12_000),
     }).catch(() => null),
-    fetch(`${DEXSCREENER_BASE}/orders/v1/${CHAIN_KEY}/${address}`, {
+    fetch(`${DEXSCREENER_BASE}/orders/v1/${DEXSCREENER_CHAIN_SLUG}/${address}`, {
       signal: AbortSignal.timeout(12_000),
     }).catch(() => null),
   ]);

@@ -376,6 +376,24 @@ Submit returned tx via Bankr `/wallet/submit`.
 
 ---
 
+## POST /api/agent/import-dex-branding
+
+Pull DexScreener Enhanced Token Info **icon + banner** into the hood.markets catalog (persists on token page). Requires Dex **paid** (`tokenProfile` order `approved` or `processing`). **Fee recipient, top Holder share holder, or deployer** — no Bankr wallet submit (server-side catalog update).
+
+```http
+POST https://api.hood.markets/api/agent/import-dex-branding
+Content-Type: application/json
+
+{
+  "wallet": "0x374D91a5674Fa7Cf86E725093b5848b97e1e13b4",
+  "symbol": "NORMIES"
+}
+```
+
+When Dex is paid but not yet imported, the token page still **previews** Dex banner/icon live from DexScreener CDN. Import pins them in the catalog for explore cards and faster loads.
+
+---
+
 ## Bankr wallet submit
 
 After `prepare-buy` / `prepare-sell`, for each validated tx:

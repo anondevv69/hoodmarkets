@@ -1,23 +1,13 @@
 import type { Express, Request, Response } from 'express';
-import { getAddress } from 'viem';
-import {
-  getDeploymentByTokenAddress,
-  updateDeploymentCatalogBranding,
-} from '../lib/deploymentCatalog.js';
-import { enrichDeploymentForPublicApi } from '../lib/deploymentPartyEnrichment.js';
-import { fetchDexBrandingProfile } from '../lib/dexscreenerProfile.js';
-import { resolveTokenPageAdmin, walletIsTokenPageAdmin } from '../lib/tokenPageAdmin.js';
-import { verifyWebSessionBearer } from '../lib/webSessionAuth.js';
+import { getDeploymentByTokenAddress } from '../lib/deploymentCatalog.js';
+import { importDexBrandingForToken, loadDexBrandingView } from '../lib/importDexBranding.js';
 import { webDeployCorsHeaders, webDeployCorsHeadersRead } from '../lib/webDeployCors.js';
+import { verifyWebSessionBearer } from '../lib/webSessionAuth.js';
 
 function parseToken(raw: string): string | null {
   const t = raw.trim();
   if (!/^0x[a-fA-F0-9]{40}$/.test(t)) return null;
-  try {
-    return getAddress(t);
-  } catch {
-    return null;
-  }
+  return t;
 }
 
 function setCorsRead(req: Request, res: Response): void {
@@ -51,33 +41,9 @@ export function registerTokenPageBrandingRoutes(app: Express): void {
         return;
       }
 
-      const [dex, admin] = await Promise.all([
-        fetchDexBrandingProfile(token),
-        resolveTokenPageAdmin(row),
-      ]);
-
       const wallet =
         typeof req.query.wallet === 'string' ? req.query.wallet.trim() : '';
-      const isAdmin = wallet && /^0x[a-fA-F0-9]{40}$/.test(wallet)
-        ? walletIsTokenPageAdmin(wallet, admin)
-        : false;
-
-      res.json({
-        tokenAddress: token,
-        catalogImageUrl: row.tokenImageUrl || null,
-        catalogBannerUrl: row.tokenBannerUrl || null,
-        dex,
-        displayImageUrl:
-          row.tokenImageUrl?.trim() ||
-          (dex.enhancedInfoPaid ? dex.iconUrl : null) ||
-          null,
-        displayBannerUrl:
-          row.tokenBannerUrl?.trim() ||
-          (dex.enhancedInfoPaid ? dex.bannerUrl : null) ||
-          null,
-        admin,
-        isAdmin,
-      });
+      res.json(await loadDexBrandingView(row, wallet));
     } catch {
       res.status(500).json({ error: 'Failed to load Dex branding.' });
     }
@@ -110,54 +76,23 @@ export function registerTokenPageBrandingRoutes(app: Express): void {
         return;
       }
 
-      const row = await getDeploymentByTokenAddress(token);
-      if (!row) {
-        res.status(404).json({ error: 'Token not found in hood.markets catalog.' });
-        return;
-      }
-
-      const admin = await resolveTokenPageAdmin(row);
-      if (!walletIsTokenPageAdmin(walletAddress, admin)) {
-        res.status(403).json({
-          error: 'Only the token page admin can import Dex branding.',
-          adminWallet: admin.adminWallet,
-          adminRole: admin.adminRole,
+      const result = await importDexBrandingForToken({ tokenAddress: token, walletAddress });
+      if (!result.ok) {
+        res.status(result.status).json({
+          error: result.error,
+          ...(result.enhancedInfoStatus !== undefined
+            ? { enhancedInfoStatus: result.enhancedInfoStatus }
+            : {}),
+          ...(result.adminWallet ? { adminWallet: result.adminWallet, adminRole: result.adminRole } : {}),
         });
         return;
       }
 
-      const dex = await fetchDexBrandingProfile(token);
-      if (!dex.enhancedInfoPaid) {
-        res.status(400).json({
-          error: 'DexScreener Enhanced Token Info is not paid for this token yet.',
-          enhancedInfoStatus: dex.enhancedInfoStatus,
-        });
-        return;
-      }
-
-      const patch: { tokenImageUrl?: string; tokenBannerUrl?: string } = {};
-      if (dex.iconUrl) patch.tokenImageUrl = dex.iconUrl;
-      if (dex.bannerUrl) patch.tokenBannerUrl = dex.bannerUrl;
-
-      if (!patch.tokenImageUrl && !patch.tokenBannerUrl) {
-        res.status(400).json({
-          error: 'DexScreener has no icon or banner available for this token yet.',
-        });
-        return;
-      }
-
-      const ok = await updateDeploymentCatalogBranding(token, patch);
-      if (!ok) {
-        res.status(500).json({ error: 'Failed to save branding to catalog.' });
-        return;
-      }
-
-      const updated = await enrichDeploymentForPublicApi(await getDeploymentByTokenAddress(token));
       res.json({
         ok: true,
-        imported: patch,
-        token: updated,
-        dex,
+        imported: result.imported,
+        token: result.token,
+        dex: result.dex,
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Import failed';

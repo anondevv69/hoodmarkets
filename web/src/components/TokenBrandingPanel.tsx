@@ -85,8 +85,8 @@ export function TokenBrandingPanel({
       </div>
 
       <p className="muted token-space-note">
-        When Dex Enhanced Token Info is paid, the banner appears above the token header and the icon
-        can be pulled from DexScreener. Only the page admin can import into hood.markets.
+        When Dex Enhanced Token Info is paid, the banner can show above the token header and the icon
+        can be pulled from DexScreener. Fee recipient, top Holder share holder, or deployer can import.
       </p>
 
       {!dex?.enhancedInfoPaid ? (

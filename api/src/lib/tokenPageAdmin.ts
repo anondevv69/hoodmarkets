@@ -62,10 +62,19 @@ export async function resolveTokenPageAdmin(row: DeploymentCatalogRow): Promise<
   };
 }
 
-export function walletIsTokenPageAdmin(wallet: string, admin: TokenPageAdminInfo): boolean {
+export function walletCanManageTokenPage(wallet: string, admin: TokenPageAdminInfo): boolean {
   try {
-    return getAddress(wallet).toLowerCase() === getAddress(admin.adminWallet).toLowerCase();
+    const w = getAddress(wallet).toLowerCase();
+    if (w === getAddress(admin.adminWallet).toLowerCase()) return true;
+    if (w === getAddress(admin.feeRecipientAddress).toLowerCase()) return true;
+    if (admin.deployerWallet && w === getAddress(admin.deployerWallet).toLowerCase()) return true;
+    return false;
   } catch {
     return false;
   }
+}
+
+/** @deprecated use walletCanManageTokenPage — kept for callers that only checked top holder */
+export function walletIsTokenPageAdmin(wallet: string, admin: TokenPageAdminInfo): boolean {
+  return walletCanManageTokenPage(wallet, admin);
 }

@@ -4,6 +4,8 @@ import { ROBINHOOD_CHAIN_ID } from '../chain';
 
 const CHUNK = 30;
 const CHAIN_KEY = String(ROBINHOOD_CHAIN_ID);
+/** DexScreener orders/token-pairs APIs use `robinhood`, not numeric chain id. */
+const DEXSCREENER_CHAIN_SLUG = 'robinhood';
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
@@ -164,7 +166,7 @@ async function fetchDexEnhancedInfo(
 ): Promise<{ enhancedInfoPaid: boolean; enhancedInfoStatus: string | null }> {
   try {
     const res = await fetch(
-      `https://api.dexscreener.com/orders/v1/${CHAIN_KEY}/${tokenAddress.trim().toLowerCase()}`,
+      `https://api.dexscreener.com/orders/v1/${DEXSCREENER_CHAIN_SLUG}/${tokenAddress.trim().toLowerCase()}`,
     );
     if (!res.ok) return { enhancedInfoPaid: false, enhancedInfoStatus: null };
     const data = (await res.json()) as { orders?: DexOrder[] };

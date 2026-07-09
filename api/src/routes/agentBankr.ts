@@ -11,6 +11,7 @@ import {
   prepareAgentCancelBuyerRewards,
   prepareAgentFundBuyerRewards,
 } from '../lib/agentBuyerRewardPrepare.js';
+import { importDexBrandingForToken } from '../lib/importDexBranding.js';
 import {
   resolveAgentTokenLookup,
   runAgentDeployPreflight,
@@ -685,6 +686,76 @@ export function registerAgentBankrRoutes(app: Express): void {
       wallet,
       bankrSubmitUrl: 'https://api.bankr.bot/wallet/submit',
       bankrWalletSubmitRequired: true,
+    });
+  });
+
+  app.options('/api/agent/import-dex-branding', (req, res) => {
+    cors(req, res);
+    res.status(204).end();
+  });
+
+  app.post('/api/agent/import-dex-branding', async (req: Request, res: Response) => {
+    cors(req, res);
+    const wallet = walletFromBody(req.body) ?? walletFromReq(req);
+    if (!wallet) {
+      res.status(400).json({ ok: false, error: 'wallet required.' });
+      return;
+    }
+    const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const tokenAddress =
+      typeof body.tokenAddress === 'string'
+        ? body.tokenAddress.trim()
+        : typeof body.token === 'string'
+          ? body.token.trim()
+          : typeof body.symbol === 'string'
+            ? body.symbol.trim()
+            : '';
+
+    if (!tokenAddress) {
+      res.status(400).json({ ok: false, error: 'tokenAddress, token, or symbol is required.' });
+      return;
+    }
+
+    let resolvedToken = tokenAddress;
+    if (!/^0x[a-fA-F0-9]{40}$/.test(tokenAddress)) {
+      const deployment = await getNewestDeploymentByTickerSymbol(tokenAddress.toUpperCase());
+      if (!deployment) {
+        res.status(404).json({ ok: false, error: 'Token symbol not found in catalog.' });
+        return;
+      }
+      resolvedToken = deployment.tokenAddress;
+    }
+
+    const result = await importDexBrandingForToken({
+      tokenAddress: resolvedToken,
+      walletAddress: wallet,
+    });
+    if (!result.ok) {
+      res.status(result.status).json({
+        ok: false,
+        error: result.error,
+        ...(result.enhancedInfoStatus !== undefined
+          ? { enhancedInfoStatus: result.enhancedInfoStatus }
+          : {}),
+        ...(result.adminWallet
+          ? {
+              adminWallet: result.adminWallet,
+              adminRole: result.adminRole,
+              feeRecipientAddress: result.feeRecipientAddress,
+            }
+          : {}),
+      });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      wallet,
+      imported: result.imported,
+      token: result.token,
+      dex: result.dex,
+      replyHint: `Imported DexScreener icon and banner for ${result.token?.tokenSymbol ?? 'token'} onto hood.markets.`,
+      tokenPageUrl: `${WEB_BASE}/?token=${resolvedToken}`,
     });
   });
 }
