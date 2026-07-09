@@ -13,7 +13,10 @@ export const DEFAULT_LAUNCH_TICK = -238400;
 export const DEFAULT_DEPLOY_BOND_ETH = '0.05';
 
 /** Web deploy default initial buy (user wallet pays). */
-export const WEB_INITIAL_BUY_DEFAULT_ETH = '0.1';
+export const WEB_INITIAL_BUY_DEFAULT_ETH = '0.005';
+
+/** Suggested pool seed for healthier starting liquidity (not required). */
+export const WEB_INITIAL_BUY_RECOMMENDED_ETH = '0.1';
 
 /** Hard floor for wallet-paid pool seed (lower = thinner starting liquidity). */
 export const WEB_INITIAL_BUY_MIN_ETH = '0.005';

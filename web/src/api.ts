@@ -119,6 +119,7 @@ export interface WebDeployConfig {
   initialBuyMinEth: string;
   initialBuyMaxEth: string;
   initialBuyDefaultEth: string;
+  initialBuyRecommendedEth: string;
   initialBuyPresetsEth: string[];
   walletDeployEnabled: boolean;
   feeClaimContracts?: {

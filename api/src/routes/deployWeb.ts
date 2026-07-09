@@ -59,6 +59,7 @@ import { resolveAgentWalletAuth, normalizeAgentChannel } from '../lib/agentWalle
 import { agentDeploySuccessReplyHint, resolveLaunchTweetUrl } from '../lib/agentDeployImage.js';
 import {
   webInitialBuyDefaultEth,
+  webInitialBuyRecommendedEth,
   parseWebInitialBuyWei,
   webInitialBuyMinEth,
   webInitialBuyMaxEth,
@@ -487,6 +488,7 @@ export function registerWebDeployRoutes(
       initialBuyMinEth: webInitialBuyMinEth(),
       initialBuyMaxEth: webInitialBuyMaxEth(),
       initialBuyDefaultEth: webInitialBuyDefaultEth(),
+      initialBuyRecommendedEth: webInitialBuyRecommendedEth(),
       initialBuyPresetsEth: [...WEB_INITIAL_BUY_PRESETS_ETH],
       walletDeployEnabled: true,
       feeClaimContracts: {

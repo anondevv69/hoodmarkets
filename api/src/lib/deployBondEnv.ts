@@ -5,6 +5,7 @@ import {
   WEB_INITIAL_BUY_MAX_ETH,
   WEB_INITIAL_BUY_MIN_ETH,
   WEB_INITIAL_BUY_PRESETS_ETH,
+  WEB_INITIAL_BUY_RECOMMENDED_ETH,
 } from './launchDefaults.js';
 
 export {
@@ -13,6 +14,7 @@ export {
   WEB_INITIAL_BUY_MAX_ETH,
   WEB_INITIAL_BUY_MIN_ETH,
   WEB_INITIAL_BUY_PRESETS_ETH,
+  WEB_INITIAL_BUY_RECOMMENDED_ETH,
 };
 
 function parseEthAmountString(raw: string): number {
@@ -57,6 +59,10 @@ export function webInitialBuyDefaultEth(): string {
   const fromEnv = process.env.WEB_INITIAL_BUY_DEFAULT_ETH?.trim();
   if (fromEnv && fromEnv !== '0') return fromEnv;
   return WEB_INITIAL_BUY_DEFAULT_ETH;
+}
+
+export function webInitialBuyRecommendedEth(): string {
+  return ethEnv('WEB_INITIAL_BUY_RECOMMENDED_ETH', WEB_INITIAL_BUY_RECOMMENDED_ETH);
 }
 
 /** Parse optional `initialBuyEth` from web deploy body; clamp to configured min/max. */
