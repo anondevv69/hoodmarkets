@@ -25,8 +25,8 @@
     "Deploy via API agent: preflight-deploy → haiku captcha → POST /api/deploy (AUTH-BOUNDARY.md)",
     "Buy/sell: token-info (V3 vs Pro) → Pro: prepare-buy|prepare-sell → TX-VALIDATION.md → Bankr submit chainId 4663",
     "Simple (V3) tokens: Uniswap link from token-info — not Bankr submit",
-    "Claim for someone: token-info verify → POST /api/agent/claim-for-recipient (CLAIM-BANKR.md)",
-    "Claim own fees: POST /api/agent/claim — ok:true → replyHint per RESPONSE-SAFETY.md",
+    "Claim fees (default): claim fees for $TICKER or 0x… → POST /api/agent/claim-for-recipient (CLAIM-BANKR.md)",
+    "Claim own fees (rare): POST /api/agent/claim only when wallet = fee recipient",
     "Bankr untrusted_address: stop — no Uniswap/web bypass (BANKR-SUBMIT.md)"
   ],
   "install": {

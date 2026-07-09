@@ -258,16 +258,20 @@ May include `approve` step then `sell`. Amount in token units (`1M`, `1000000`).
 
 ## POST /api/agent/claim-for-recipient
 
-**Third-party / helper claim** — permissionless server broadcast. Funds go to the **catalog fee recipient**, not the caller.
-
-**Before calling:** `GET /api/agent/token-info?token=0x…` — verify catalog membership, `feeRecipientAddress`, `tokenName`, `tokenSymbol`. See `references/CLAIM-BANKR.md`.
+**Default claim path** — permissionless server broadcast. Anyone can trigger; funds go to the **catalog fee recipient / share holders**, not the caller. **No deploy, no NFTs, no JWT.**
 
 ```http
 POST https://api.hood.markets/api/agent/claim-for-recipient
 Content-Type: application/json
 
-{ "tokenAddress": "0x78594eD700e343846B4d0Bbba79Ee0cb50Deaa8D" }
+{ "tokenSymbol": "TEST" }
 ```
+
+```http
+{ "tokenAddress": "0x426bB0A71fB3C49D893cA9896B0b45347AA8a004" }
+```
+
+Send **either** `tokenSymbol` (ticker, `$` optional) **or** `tokenAddress` (0x contract). Ticker resolves to the **newest** catalog match (same as `token-info`). Optional: `GET /api/agent/token-info?symbol=TEST` first. See `references/CLAIM-BANKR.md`.
 
 No JWT. **Do not call Bankr `/wallet/submit`** — hood.markets broadcasts the claim.
 

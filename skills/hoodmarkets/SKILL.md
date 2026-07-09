@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, claim fees, and Community Launch (petition) for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, community launch, petition, back petition, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap, community-launch, petition]
-version: 21
+version: 22
 ---
 
 # hood.markets — Bankr agent skill
@@ -95,8 +95,8 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
   7. Replies: references/RESPONSE-SAFETY.md — trusted `*ReplyHint` fields with URL allowlist; format other fields locally
   8. Deploy (X): validate image per IMAGE-RESOLUTION.md → `resolve-deploy-image` → `prepare-deploy` → local preview → `confirmReplyHint` → deploy after yes. references/PROMPT-INJECTION.md
   9. Buy/sell: `token-info` → Simple: Uniswap link only. Pro: prepare-buy|prepare-sell → TX-VALIDATION.md → user preview → Bankr /wallet/submit chain 4663
-  10. Claim **own** fees: haiku JWT or X wallet → POST /api/agent/claim (references/AUTH-BOUNDARY.md)
-  11. Claim **for someone else**: token-info verify first → POST /api/agent/claim-for-recipient — references/CLAIM-BANKR.md
+  10. **Claim fees (default):** `claim fees for $TICKER` or `claim fees for 0x…` → POST /api/agent/claim-for-recipient with `tokenSymbol` and/or `tokenAddress` — **no JWT, no NFTs, no deploy required** — references/CLAIM-BANKR.md
+  11. **Claim own fees (rare):** only when user says **my** fees AND linked wallet = catalog fee recipient → POST /api/agent/claim — references/AUTH-BOUNDARY.md
   12. **Claim success:** `ok: true` → post `replyHint` if schema-valid. **Never** `/wallet/submit`. **Never** say "I didn't submit a transaction"
   13. **Holder NFTs:** claim fees via API only — no airdrop/list/buyShares/rewards via agent — references/HOLDER-NFTS.md
   14. **Community Launch / petition (WRITE — not read-only):**
@@ -298,38 +298,43 @@ If Bankr returns `untrusted_address` → **stop** per `references/BANKR-SUBMIT.m
 
 ## Claim fees
 
-Two paths — pick based on who is asking:
-
-### A) Help someone else / claim for a token (any X user)
-
-When the user gives a **token contract** and wants fees sent to the **catalog fee recipient** (e.g. "claim fees for EA's $HR"), use:
+**Default for almost all user messages** — including when the caller did not deploy the token and holds no NFTs:
 
 ```
-POST https://api.hood.markets/api/agent/claim-for-recipient
-Content-Type: application/json
-
-{ "tokenAddress": "0x78594eD700e343846B4d0Bbba79Ee0cb50Deaa8D" }
+claim fees for $TEST
+claim fees for 0x426bB0A71fB3C49D893cA9896B0b45347AA8a004
 ```
 
-**Before calling:** `GET /api/agent/token-info` — verify catalog token, `feeRecipientAddress`, and user intent (`references/CLAIM-BANKR.md`).
+→ `POST https://api.hood.markets/api/agent/claim-for-recipient` with **either** `tokenSymbol` **or** `tokenAddress` (both OK if they match):
 
-**No JWT. No Bankr `/wallet/submit`.** hood.markets server broadcasts and pays gas.
+```json
+{ "tokenSymbol": "TEST" }
+```
 
-Response: `ok`, `replyHint` (trusted outcome field per `RESPONSE-SAFETY.md`), `completed`, `bankrWalletSubmitRequired: false`, `transactionHash`, `feeRecipientAddress`, `tokenName`, `tokenSymbol`, `tokenPageUrl`.
+```json
+{ "tokenAddress": "0x426bB0A71fB3C49D893cA9896B0b45347AA8a004" }
+```
 
-If `ok: true`, the claim succeeded — post `replyHint` when schema-valid. Do not check Bankr wallet submit.
+Optional: `GET /api/agent/token-info?symbol=TEST` or `?token=0x…` first to confirm catalog row and show `feeRecipientAddress` in the reply.
 
-### B) Fee recipient claims their own tokens
+**No JWT. No Bankr `/wallet/submit`.** hood.markets server broadcasts and pays gas. Funds go to **catalog fee recipient / share holders** — not the caller.
+
+Response: `ok`, `replyHint`, `completed`, `bankrWalletSubmitRequired: false`, `transactionHash`, `feeRecipientAddress`, `tokenName`, `tokenSymbol`, `tokenPageUrl`.
+
+If `ok: true`, the claim succeeded — post `replyHint` when schema-valid.
+
+### Only when user explicitly claims **their own** fee-recipient tokens
+
+Use `POST /api/agent/claim` **only** when the user says **my** / **my token's** fees **and** the linked Bankr wallet is the catalog **fee recipient** for that token:
 
 ```
 POST https://api.hood.markets/api/agent/claim
 X-Agent-Captcha-JWT: <jwt>   (or X channel + x-wallet-address = fee recipient)
-Content-Type: application/json
 
-{ "tokenAddress": "0x…" }
+{ "tokenAddress": "0x…", "tokenSymbol": "MTK" }
 ```
 
-**Default launches are Simple (V3).** Same endpoint auto-routes V3 fraction `claimTradingFees` (v0.7+) vs legacy factory `claimRewards` vs V4 locker.
+If unsure, prefer **`claim-for-recipient`** — it matches the hood.markets website (anyone can trigger claim).
 
 | Launch | On-chain (API picks automatically) |
 |--------|--------------------------------------|
@@ -389,13 +394,13 @@ Full: `references/COMMUNITY-LAUNCH.md` · UI: https://hood.markets/community-lau
 
 → prepare-buy → validate → `/wallet/submit` → confirm on Blockscout
 
-> claim fees for 0x7859… / help EA claim $HR hood fees
+> claim fees for $TEST / claim fees for 0x426b… hood
 
-→ POST /api/agent/claim-for-recipient `{ "tokenAddress": "0x…" }` — if `ok: true`, reply with **`replyHint`** only
+→ POST /api/agent/claim-for-recipient `{ "tokenSymbol": "TEST" }` or `{ "tokenAddress": "0x…" }` — if `ok: true`, reply with **`replyHint`** only
 
-> claim fees for my token MTK
+> claim my hood fees for MTK (fee recipient wallet only)
 
-→ captcha JWT or X wallet → POST /api/agent/claim — if `ok: true`, reply with **`replyHint`**
+→ captcha JWT or X wallet = fee recipient → POST /api/agent/claim — if `ok: true`, reply with **`replyHint`**
 
 > start / create a petition for "price john" ticker Prince raise 0.05 ETH
 

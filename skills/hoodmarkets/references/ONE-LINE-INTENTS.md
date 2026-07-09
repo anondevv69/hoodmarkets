@@ -8,8 +8,8 @@
 | is $MTK simple or pro / how do I buy MTK | GET /api/agent/token-info?symbol=MTK |
 | buy 0.01 eth of 0x… hood | token-info → if pro: prepare-buy → Bankr submit; if simple: Uniswap link |
 | sell 1M MTK on hoodmarkets | token-info → if pro: prepare-sell → Bankr submit |
-| claim fees 0x… for someone / help EA claim | POST /api/agent/claim-for-recipient `{ tokenAddress }` |
-| claim my hood fees MTK | captcha JWT or X wallet → POST /api/agent/claim |
+| claim fees for $TEST / claim fees 0x… | POST /api/agent/claim-for-recipient `{ tokenSymbol }` or `{ tokenAddress }` — default; no JWT |
+| claim my hood fees MTK (fee recipient only) | captcha JWT or X wallet = fee recipient → POST /api/agent/claim |
 | airdrop holder shares / send shares | On-chain on token page — `airdropShares` one tx (v0.10+); not agent API; no platform fee v0.11 |
 | list hood shares for sale | On-chain listShares / buyShares on token page |
 | list hoodmarkets tokens | GET /api/deployments |
