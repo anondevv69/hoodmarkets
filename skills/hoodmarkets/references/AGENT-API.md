@@ -398,6 +398,99 @@ When Dex is paid but not yet imported, the token page still **previews** Dex ban
 
 ---
 
+## GET /api/agent/token-space-posts
+
+Read holder discussion on a token page (same thread as hood.markets **Discussion**). Public — no wallet required.
+
+```http
+GET https://api.hood.markets/api/agent/token-space-posts?symbol=NORMIES
+GET https://api.hood.markets/api/agent/token-space-posts?token=0x426bB0A71fB3C49D893cA9896B0b45347AA8a004
+GET https://api.hood.markets/api/agent/token-space-posts?symbol=TEST&limit=20
+```
+
+**Response:** `tokenAddress`, `tokenSymbol`, `tokenPageUrl`, `posts[]` (`id`, `walletAddress`, `body`, `createdAt`).
+
+---
+
+## POST /api/agent/token-space-post
+
+Post in a token’s **holder-only Discussion** (same rules as the hood.markets website). **No JWT, no Bankr `/wallet/submit`.** Caller must pass the user’s **Bankr-linked wallet**; API verifies on-chain **ERC-20 balance &gt; 0**.
+
+```http
+POST https://api.hood.markets/api/agent/token-space-post
+x-wallet-address: 0x…
+Content-Type: application/json
+
+{
+  "wallet": "0x…",
+  "tokenSymbol": "NORMIES",
+  "body": "Shipping v2 this week — LP is locked, fees claimable on the token page."
+}
+```
+
+`tokenAddress`, `token`, or `symbol` work instead of `tokenSymbol`. `message` is an alias for `body`.
+
+**403** when the wallet does not hold the token. **200** includes `replyHint`, `post`, `tokenPageUrl`, `bankrWalletSubmitRequired: false`.
+
+Example prompts: `post in $NORMIES discussion on hood.markets: …` · `read $TEST token discussion`.
+
+---
+
+## GET /api/agent/token-page-profile
+
+Resolved token page profile (description, links, branding toggles, verified badge).
+
+```http
+GET https://api.hood.markets/api/agent/token-page-profile?symbol=NORMIES&wallet=0x…
+```
+
+---
+
+## POST /api/agent/update-token-page-profile
+
+Edit token page — **fee recipient, top Holder share holder, or deployer**. No JWT, no Bankr `/wallet/submit`.
+
+```http
+POST https://api.hood.markets/api/agent/update-token-page-profile
+x-wallet-address: 0x…
+Content-Type: application/json
+
+{
+  "wallet": "0x…",
+  "tokenSymbol": "NORMIES",
+  "description": "Holder space for Normies on Robinhood.",
+  "websiteUrl": "https://example.com",
+  "xUrl": "@normies",
+  "telegramUrl": "t.me/normies",
+  "discordUrl": "discord.gg/normies",
+  "githubUrl": "github.com/normies",
+  "customLinks": [{ "title": "Docs", "url": "https://docs.example.com" }],
+  "imageUrl": "https://…",
+  "bannerUrl": "https://…",
+  "useDexIcon": true,
+  "useDexBanner": true,
+  "useLaunchImage": true,
+  "useDexLinks": true,
+  "importDexBranding": true
+}
+```
+
+---
+
+## POST /api/agent/verify-token-page
+
+**Fee recipient only** — marks the token page verified (badge on hood.markets).
+
+```http
+POST https://api.hood.markets/api/agent/verify-token-page
+x-wallet-address: 0x…
+Content-Type: application/json
+
+{ "wallet": "0x…", "tokenSymbol": "NORMIES" }
+```
+
+---
+
 ## Bankr wallet submit
 
 After `prepare-buy` / `prepare-sell`, for each validated tx:

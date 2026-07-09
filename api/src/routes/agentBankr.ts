@@ -13,6 +13,15 @@ import {
 } from '../lib/agentBuyerRewardPrepare.js';
 import { importDexBrandingForToken } from '../lib/importDexBranding.js';
 import {
+  listAgentTokenSpacePosts,
+  postAgentTokenSpaceComment,
+} from '../lib/tokenSpaceAgent.js';
+import {
+  loadTokenPageProfileView,
+  updateTokenPageProfileForWallet,
+  verifyTokenPageForWallet,
+} from '../lib/tokenPageProfile.js';
+import {
   resolveAgentTokenLookup,
   runAgentDeployPreflight,
 } from '../lib/agentDeployPreflight.js';
@@ -756,6 +765,274 @@ export function registerAgentBankrRoutes(app: Express): void {
       dex: result.dex,
       replyHint: `Imported DexScreener icon and banner for ${result.token?.tokenSymbol ?? 'token'} onto hood.markets.`,
       tokenPageUrl: `${WEB_BASE}/?token=${resolvedToken}`,
+    });
+  });
+
+  app.options('/api/agent/token-space-posts', (req, res) => {
+    cors(req, res);
+    res.status(204).end();
+  });
+
+  app.get('/api/agent/token-space-posts', async (req: Request, res: Response) => {
+    cors(req, res);
+    const token =
+      typeof req.query.token === 'string'
+        ? req.query.token.trim()
+        : typeof req.query.tokenAddress === 'string'
+          ? req.query.tokenAddress.trim()
+          : typeof req.query.symbol === 'string'
+            ? req.query.symbol.trim()
+            : '';
+
+    if (!token) {
+      res.status(400).json({ ok: false, error: 'token, tokenAddress, or symbol query param required.' });
+      return;
+    }
+
+    const rawLimit = req.query.limit;
+    const limit = typeof rawLimit === 'string' ? Number.parseInt(rawLimit, 10) : 50;
+
+    const result = await listAgentTokenSpacePosts(token, limit);
+    if (!result.ok) {
+      res.status(result.status).json({ ok: false, error: result.error });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      tokenAddress: result.deployment.tokenAddress,
+      tokenSymbol: result.deployment.tokenSymbol,
+      tokenName: result.deployment.tokenName,
+      tokenPageUrl: result.tokenPageUrl,
+      posts: result.posts,
+    });
+  });
+
+  app.options('/api/agent/token-space-post', (req, res) => {
+    cors(req, res);
+    res.status(204).end();
+  });
+
+  app.post('/api/agent/token-space-post', async (req: Request, res: Response) => {
+    cors(req, res);
+    const wallet = walletFromBody(req.body) ?? walletFromReq(req);
+    if (!wallet) {
+      res.status(400).json({ ok: false, error: 'wallet required (x-wallet-address header or body).' });
+      return;
+    }
+
+    const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const tokenOrSymbol =
+      typeof body.tokenAddress === 'string'
+        ? body.tokenAddress.trim()
+        : typeof body.token === 'string'
+          ? body.token.trim()
+          : typeof body.symbol === 'string'
+            ? body.symbol.trim()
+            : typeof body.tokenSymbol === 'string'
+              ? body.tokenSymbol.trim()
+              : '';
+
+    const postBody = typeof body.body === 'string' ? body.body : typeof body.message === 'string' ? body.message : '';
+
+    if (!tokenOrSymbol) {
+      res.status(400).json({
+        ok: false,
+        error: 'tokenAddress, token, symbol, or tokenSymbol is required.',
+      });
+      return;
+    }
+
+    const result = await postAgentTokenSpaceComment({
+      walletAddress: wallet,
+      tokenOrSymbol,
+      body: postBody,
+    });
+
+    if (!result.ok) {
+      res.status(result.status).json({ ok: false, error: result.error });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      wallet,
+      tokenAddress: result.deployment.tokenAddress,
+      tokenSymbol: result.deployment.tokenSymbol,
+      tokenName: result.deployment.tokenName,
+      tokenPageUrl: result.tokenPageUrl,
+      post: result.post,
+      replyHint: result.replyHint,
+      bankrWalletSubmitRequired: false,
+    });
+  });
+
+  app.options('/api/agent/token-page-profile', (req, res) => {
+    cors(req, res);
+    res.status(204).end();
+  });
+
+  app.get('/api/agent/token-page-profile', async (req: Request, res: Response) => {
+    cors(req, res);
+    const wallet = walletFromReq(req);
+    const token =
+      typeof req.query.token === 'string'
+        ? req.query.token.trim()
+        : typeof req.query.tokenAddress === 'string'
+          ? req.query.tokenAddress.trim()
+          : typeof req.query.symbol === 'string'
+            ? req.query.symbol.trim()
+            : '';
+
+    if (!token) {
+      res.status(400).json({ ok: false, error: 'token, tokenAddress, or symbol query param required.' });
+      return;
+    }
+
+    let row = null;
+    if (/^0x[a-fA-F0-9]{40}$/.test(token)) {
+      row = await getDeploymentByTokenAddress(token);
+    } else {
+      row = await getNewestDeploymentByTickerSymbol(token.toUpperCase().replace(/^\$/, ''));
+    }
+    if (!row) {
+      res.status(404).json({ ok: false, error: 'Token not found in hood.markets catalog.' });
+      return;
+    }
+
+    const profile = await loadTokenPageProfileView(row, wallet ?? undefined);
+    res.json({
+      ok: true,
+      tokenAddress: row.tokenAddress,
+      tokenSymbol: row.tokenSymbol,
+      tokenPageUrl: `${WEB_BASE}/?token=${row.tokenAddress}`,
+      profile,
+    });
+  });
+
+  app.post('/api/agent/update-token-page-profile', async (req: Request, res: Response) => {
+    cors(req, res);
+    const wallet = walletFromBody(req.body) ?? walletFromReq(req);
+    if (!wallet) {
+      res.status(400).json({ ok: false, error: 'wallet required (x-wallet-address header or body).' });
+      return;
+    }
+
+    const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const tokenOrSymbol =
+      typeof body.tokenAddress === 'string'
+        ? body.tokenAddress.trim()
+        : typeof body.token === 'string'
+          ? body.token.trim()
+          : typeof body.symbol === 'string'
+            ? body.symbol.trim()
+            : typeof body.tokenSymbol === 'string'
+              ? body.tokenSymbol.trim()
+              : '';
+
+    if (!tokenOrSymbol) {
+      res.status(400).json({ ok: false, error: 'tokenAddress, token, symbol, or tokenSymbol is required.' });
+      return;
+    }
+
+    let row = null;
+    if (/^0x[a-fA-F0-9]{40}$/.test(tokenOrSymbol)) {
+      row = await getDeploymentByTokenAddress(tokenOrSymbol);
+    } else {
+      row = await getNewestDeploymentByTickerSymbol(tokenOrSymbol.toUpperCase().replace(/^\$/, ''));
+    }
+    if (!row) {
+      res.status(404).json({ ok: false, error: 'Token not found in hood.markets catalog.' });
+      return;
+    }
+
+    const result = await updateTokenPageProfileForWallet(row, {
+      walletAddress: wallet,
+      description: typeof body.description === 'string' ? body.description : undefined,
+      websiteUrl: typeof body.websiteUrl === 'string' ? body.websiteUrl : undefined,
+      xUrl: typeof body.xUrl === 'string' ? body.xUrl : undefined,
+      telegramUrl: typeof body.telegramUrl === 'string' ? body.telegramUrl : undefined,
+      discordUrl: typeof body.discordUrl === 'string' ? body.discordUrl : undefined,
+      githubUrl: typeof body.githubUrl === 'string' ? body.githubUrl : undefined,
+      customLinks: Array.isArray(body.customLinks) ? body.customLinks : undefined,
+      imageUrl: typeof body.imageUrl === 'string' ? body.imageUrl : undefined,
+      bannerUrl: typeof body.bannerUrl === 'string' ? body.bannerUrl : undefined,
+      useDexIcon: typeof body.useDexIcon === 'boolean' ? body.useDexIcon : undefined,
+      useDexBanner: typeof body.useDexBanner === 'boolean' ? body.useDexBanner : undefined,
+      useLaunchImage: typeof body.useLaunchImage === 'boolean' ? body.useLaunchImage : undefined,
+      useDexLinks: typeof body.useDexLinks === 'boolean' ? body.useDexLinks : undefined,
+      importDexBranding: body.importDexBranding === true,
+    });
+
+    if (!result.ok) {
+      res.status(result.status).json({ ok: false, error: result.error });
+      return;
+    }
+
+    const sym = row.tokenSymbol.replace(/^\$/, '');
+    res.json({
+      ok: true,
+      wallet,
+      tokenAddress: row.tokenAddress,
+      tokenSymbol: row.tokenSymbol,
+      tokenPageUrl: `${WEB_BASE}/?token=${row.tokenAddress}`,
+      profile: result.profile,
+      replyHint: `Updated $${sym} token page on hood.markets.`,
+      bankrWalletSubmitRequired: false,
+    });
+  });
+
+  app.post('/api/agent/verify-token-page', async (req: Request, res: Response) => {
+    cors(req, res);
+    const wallet = walletFromBody(req.body) ?? walletFromReq(req);
+    if (!wallet) {
+      res.status(400).json({ ok: false, error: 'wallet required (x-wallet-address header or body).' });
+      return;
+    }
+
+    const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const tokenOrSymbol =
+      typeof body.tokenAddress === 'string'
+        ? body.tokenAddress.trim()
+        : typeof body.token === 'string'
+          ? body.token.trim()
+          : typeof body.symbol === 'string'
+            ? body.symbol.trim()
+            : typeof body.tokenSymbol === 'string'
+              ? body.tokenSymbol.trim()
+              : '';
+
+    if (!tokenOrSymbol) {
+      res.status(400).json({ ok: false, error: 'tokenAddress, token, symbol, or tokenSymbol is required.' });
+      return;
+    }
+
+    let row = null;
+    if (/^0x[a-fA-F0-9]{40}$/.test(tokenOrSymbol)) {
+      row = await getDeploymentByTokenAddress(tokenOrSymbol);
+    } else {
+      row = await getNewestDeploymentByTickerSymbol(tokenOrSymbol.toUpperCase().replace(/^\$/, ''));
+    }
+    if (!row) {
+      res.status(404).json({ ok: false, error: 'Token not found in hood.markets catalog.' });
+      return;
+    }
+
+    const result = await verifyTokenPageForWallet(row, wallet);
+    if (!result.ok) {
+      res.status(result.status).json({ ok: false, error: result.error });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      wallet,
+      tokenAddress: row.tokenAddress,
+      tokenSymbol: row.tokenSymbol,
+      tokenPageUrl: `${WEB_BASE}/?token=${row.tokenAddress}`,
+      profile: result.profile,
+      replyHint: result.replyHint,
+      bankrWalletSubmitRequired: false,
     });
   });
 }

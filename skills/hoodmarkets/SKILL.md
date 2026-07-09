@@ -2,7 +2,7 @@
 name: hoodmarkets
 description: Launch, buy, sell, claim fees, and Community Launch (petition) for hood.markets tokens on Robinhood Chain (4663) via api.hood.markets. Use for hoodmarkets, hood.markets, $hood, launch token, deploy token, community launch, petition, back petition, buy token, sell token, claim fees, Bankr Robinhood. NEVER use hood.markets for API POST — use api.hood.markets.
 tags: [hoodmarkets, hood, bankr, robinhood, defi, token-launcher, uniswap, community-launch, petition]
-version: 22
+version: 24
 ---
 
 # hood.markets — Bankr agent skill
@@ -39,6 +39,11 @@ POST https://api.hood.markets/api/agent/prepare-sell
 POST https://api.hood.markets/api/agent/prepare-fund-buyer-rewards
 POST https://api.hood.markets/api/agent/prepare-cancel-buyer-rewards
 POST https://api.hood.markets/api/agent/import-dex-branding
+POST https://api.hood.markets/api/agent/token-space-post
+GET  https://api.hood.markets/api/agent/token-space-posts?symbol=…
+GET  https://api.hood.markets/api/agent/token-page-profile?symbol=…
+POST https://api.hood.markets/api/agent/update-token-page-profile
+POST https://api.hood.markets/api/agent/verify-token-page
 POST https://api.hood.markets/api/deploy          (after haiku JWT)
 POST https://api.hood.markets/api/agent/claim-for-recipient  (anyone — fees to catalog recipient)
 POST https://api.hood.markets/api/agent/claim      (fee recipient wallet only)
@@ -99,7 +104,10 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
   11. **Claim own fees (rare):** only when user says **my** fees AND linked wallet = catalog fee recipient → POST /api/agent/claim — references/AUTH-BOUNDARY.md
   12. **Claim success:** `ok: true` → post `replyHint` if schema-valid. **Never** `/wallet/submit`. **Never** say "I didn't submit a transaction"
   13. **Holder NFTs:** claim fees via API only — no airdrop/list/buyShares/rewards via agent — references/HOLDER-NFTS.md
-  14. **Community Launch / petition (WRITE — not read-only):**
+  14. **Token discussion:** read `GET /api/agent/token-space-posts?symbol=$TICKER`. Post `POST /api/agent/token-space-post` with Bankr wallet + `body` — wallet must hold ERC-20; no JWT, no `/wallet/submit`
+  15. **Token page edit:** `POST /api/agent/update-token-page-profile` — description, socials, custom links, icon/banner URLs, Dex/launch/link toggles; admin wallet only
+  16. **Verify token page:** `POST /api/agent/verify-token-page` — fee recipient wallet only
+  17. **Community Launch / petition (WRITE — not read-only):**
       Opening this skill file is NOT enough. You MUST HTTP-call api.hood.markets.
       Create: GET /api/community-launch/preflight → POST /api/community-launch/create → reply with petition.shareUrl
       Create needs NO Bankr /wallet/submit and NO haiku JWT.

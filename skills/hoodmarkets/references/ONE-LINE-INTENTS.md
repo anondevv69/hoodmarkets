@@ -21,6 +21,10 @@
 | list open community launches | `GET /api/community-launch/list` |
 | refund my community launch deposit | `POST /api/community-launch/refund` |
 | cancel my community launch | `POST /api/community-launch/cancel` (creator wallet) |
+| read $SYM discussion / token space on hood | `GET /api/agent/token-space-posts?symbol=SYM` |
+| post in $SYM discussion on hood / holder update | `POST /api/agent/token-space-post` — Bankr wallet must hold ERC-20; no JWT, no wallet submit |
+| edit $SYM token page on hood / update description links | `POST /api/agent/update-token-page-profile` — admin wallet; no wallet submit |
+| verify $SYM token page on hood | `POST /api/agent/verify-token-page` — **fee recipient wallet only** |
 
 Tweet/DM to `@bankrbot` uses the same mapping.
 

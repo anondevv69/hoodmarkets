@@ -86,6 +86,28 @@ export function initHoodSocialDb(): void {
       `CREATE INDEX IF NOT EXISTS idx_token_space_posts_token ON token_space_posts(token_address, created_at DESC)`,
     );
     db!.run(
+      `CREATE TABLE IF NOT EXISTS token_page_profiles (
+        token_address TEXT PRIMARY KEY,
+        description TEXT NOT NULL DEFAULT '',
+        website_url TEXT NOT NULL DEFAULT '',
+        x_url TEXT NOT NULL DEFAULT '',
+        telegram_url TEXT NOT NULL DEFAULT '',
+        discord_url TEXT NOT NULL DEFAULT '',
+        github_url TEXT NOT NULL DEFAULT '',
+        custom_links_json TEXT NOT NULL DEFAULT '[]',
+        image_url TEXT NOT NULL DEFAULT '',
+        banner_url TEXT NOT NULL DEFAULT '',
+        use_dex_icon INTEGER NOT NULL DEFAULT 1,
+        use_dex_banner INTEGER NOT NULL DEFAULT 1,
+        use_launch_image INTEGER NOT NULL DEFAULT 1,
+        use_dex_links INTEGER NOT NULL DEFAULT 1,
+        verified INTEGER NOT NULL DEFAULT 0,
+        verified_at TEXT,
+        verified_by TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+    );
+    db!.run(
       `CREATE TABLE IF NOT EXISTS user_x_links (
         wallet_address TEXT PRIMARY KEY,
         x_handle TEXT NOT NULL,
@@ -93,6 +115,7 @@ export function initHoodSocialDb(): void {
         verified_at DATETIME
       )`,
     );
+    db!.run(`ALTER TABLE token_page_profiles ADD COLUMN use_dex_links INTEGER NOT NULL DEFAULT 1`, () => undefined);
     db!.run(`ALTER TABLE user_x_links ADD COLUMN verified_at DATETIME`, () => undefined);
     db!.run(
       `CREATE INDEX IF NOT EXISTS idx_user_x_handle ON user_x_links(x_handle)`,
@@ -339,3 +362,177 @@ export async function unlinkXHandleForWallet(walletAddress: string): Promise<voi
   const wallet = getAddress(walletAddress).toLowerCase();
   await run(`DELETE FROM user_x_links WHERE wallet_address = ?`, [wallet]);
 }
+
+export type TokenPageProfileRow = {
+  tokenAddress: string;
+  description: string;
+  websiteUrl: string;
+  xUrl: string;
+  telegramUrl: string;
+  discordUrl: string;
+  githubUrl: string;
+  customLinksJson: string;
+  imageUrl: string;
+  bannerUrl: string;
+  useDexIcon: boolean;
+  useDexBanner: boolean;
+  useLaunchImage: boolean;
+  useDexLinks: boolean;
+  verified: boolean;
+  verifiedAt: string | null;
+  verifiedBy: string | null;
+  updatedAt: string;
+};
+
+function mapTokenPageProfileRow(row: {
+  token_address: string;
+  description: string;
+  website_url: string;
+  x_url: string;
+  telegram_url: string;
+  discord_url: string;
+  github_url: string;
+  custom_links_json: string;
+  image_url: string;
+  banner_url: string;
+  use_dex_icon: number;
+  use_dex_banner: number;
+  use_launch_image: number;
+  use_dex_links: number;
+  verified: number;
+  verified_at: string | null;
+  verified_by: string | null;
+  updated_at: string;
+}): TokenPageProfileRow {
+  return {
+    tokenAddress: row.token_address,
+    description: row.description ?? '',
+    websiteUrl: row.website_url ?? '',
+    xUrl: row.x_url ?? '',
+    telegramUrl: row.telegram_url ?? '',
+    discordUrl: row.discord_url ?? '',
+    githubUrl: row.github_url ?? '',
+    customLinksJson: row.custom_links_json ?? '[]',
+    imageUrl: row.image_url ?? '',
+    bannerUrl: row.banner_url ?? '',
+    useDexIcon: row.use_dex_icon !== 0,
+    useDexBanner: row.use_dex_banner !== 0,
+    useLaunchImage: row.use_launch_image !== 0,
+    useDexLinks: (row.use_dex_links ?? 1) !== 0,
+    verified: row.verified === 1,
+    verifiedAt: row.verified_at ?? null,
+    verifiedBy: row.verified_by ?? null,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function getTokenPageProfile(tokenAddress: string): Promise<TokenPageProfileRow | null> {
+  const token = getAddress(tokenAddress).toLowerCase();
+  const row = await get<Parameters<typeof mapTokenPageProfileRow>[0]>(
+    `SELECT token_address, description, website_url, x_url, telegram_url, discord_url, github_url,
+            custom_links_json, image_url, banner_url, use_dex_icon, use_dex_banner, use_launch_image,
+            use_dex_links, verified, verified_at, verified_by, updated_at
+     FROM token_page_profiles WHERE token_address = ?`,
+    [token],
+  );
+  return row ? mapTokenPageProfileRow(row) : null;
+}
+
+export type UpsertTokenPageProfileInput = {
+  description?: string;
+  websiteUrl?: string;
+  xUrl?: string;
+  telegramUrl?: string;
+  discordUrl?: string;
+  githubUrl?: string;
+  customLinksJson?: string;
+  imageUrl?: string;
+  bannerUrl?: string;
+  useDexIcon?: boolean;
+  useDexBanner?: boolean;
+  useLaunchImage?: boolean;
+  useDexLinks?: boolean;
+};
+
+export async function upsertTokenPageProfile(
+  tokenAddress: string,
+  patch: UpsertTokenPageProfileInput,
+): Promise<void> {
+  const token = getAddress(tokenAddress).toLowerCase();
+  const existing = await getTokenPageProfile(tokenAddress);
+
+  const next = {
+    description: patch.description ?? existing?.description ?? '',
+    websiteUrl: patch.websiteUrl ?? existing?.websiteUrl ?? '',
+    xUrl: patch.xUrl ?? existing?.xUrl ?? '',
+    telegramUrl: patch.telegramUrl ?? existing?.telegramUrl ?? '',
+    discordUrl: patch.discordUrl ?? existing?.discordUrl ?? '',
+    githubUrl: patch.githubUrl ?? existing?.githubUrl ?? '',
+    customLinksJson: patch.customLinksJson ?? existing?.customLinksJson ?? '[]',
+    imageUrl: patch.imageUrl ?? existing?.imageUrl ?? '',
+    bannerUrl: patch.bannerUrl ?? existing?.bannerUrl ?? '',
+    useDexIcon: patch.useDexIcon ?? existing?.useDexIcon ?? true,
+    useDexBanner: patch.useDexBanner ?? existing?.useDexBanner ?? true,
+    useLaunchImage: patch.useLaunchImage ?? existing?.useLaunchImage ?? true,
+    useDexLinks: patch.useDexLinks ?? existing?.useDexLinks ?? true,
+  };
+
+  await run(
+    `INSERT INTO token_page_profiles (
+       token_address, description, website_url, x_url, telegram_url, discord_url, github_url,
+       custom_links_json, image_url, banner_url, use_dex_icon, use_dex_banner, use_launch_image,
+       use_dex_links, verified, verified_at, verified_by, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, CURRENT_TIMESTAMP)
+     ON CONFLICT(token_address) DO UPDATE SET
+       description = excluded.description,
+       website_url = excluded.website_url,
+       x_url = excluded.x_url,
+       telegram_url = excluded.telegram_url,
+       discord_url = excluded.discord_url,
+       github_url = excluded.github_url,
+       custom_links_json = excluded.custom_links_json,
+       image_url = excluded.image_url,
+       banner_url = excluded.banner_url,
+       use_dex_icon = excluded.use_dex_icon,
+       use_dex_banner = excluded.use_dex_banner,
+       use_launch_image = excluded.use_launch_image,
+       use_dex_links = excluded.use_dex_links,
+       updated_at = CURRENT_TIMESTAMP`,
+    [
+      token,
+      next.description.slice(0, 2000),
+      next.websiteUrl.slice(0, 512),
+      next.xUrl.slice(0, 512),
+      next.telegramUrl.slice(0, 512),
+      next.discordUrl.slice(0, 512),
+      next.githubUrl.slice(0, 512),
+      next.customLinksJson.slice(0, 8000),
+      next.imageUrl.slice(0, 1024),
+      next.bannerUrl.slice(0, 1024),
+      next.useDexIcon ? 1 : 0,
+      next.useDexBanner ? 1 : 0,
+      next.useLaunchImage ? 1 : 0,
+      next.useDexLinks ? 1 : 0,
+    ],
+  );
+}
+
+export async function markTokenPageVerified(
+  tokenAddress: string,
+  walletAddress: string,
+): Promise<void> {
+  const token = getAddress(tokenAddress).toLowerCase();
+  const wallet = getAddress(walletAddress).toLowerCase();
+  const iso = new Date().toISOString();
+  await run(
+    `INSERT INTO token_page_profiles (token_address, verified, verified_at, verified_by, updated_at)
+     VALUES (?, 1, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(token_address) DO UPDATE SET
+       verified = 1,
+       verified_at = excluded.verified_at,
+       verified_by = excluded.verified_by,
+       updated_at = CURRENT_TIMESTAMP`,
+    [token, iso, wallet],
+  );
+}
+

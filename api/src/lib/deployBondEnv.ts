@@ -46,9 +46,6 @@ export function parseDeployBondWeiFromEnv(): bigint {
 }
 
 export function webInitialBuyMinEth(): string {
-  if (process.env.WEB_ONLY_MODE === 'true') {
-    return webInitialBuyDefaultEth();
-  }
   return ethEnv('WEB_INITIAL_BUY_MIN_ETH', WEB_INITIAL_BUY_MIN_ETH);
 }
 

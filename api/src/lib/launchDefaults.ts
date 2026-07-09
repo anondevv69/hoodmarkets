@@ -15,7 +15,8 @@ export const DEFAULT_DEPLOY_BOND_ETH = '0.05';
 /** Web deploy default initial buy (user wallet pays). */
 export const WEB_INITIAL_BUY_DEFAULT_ETH = '0.1';
 
-export const WEB_INITIAL_BUY_MIN_ETH = '0.001';
+/** Hard floor for wallet-paid pool seed (lower = thinner starting liquidity). */
+export const WEB_INITIAL_BUY_MIN_ETH = '0.005';
 export const WEB_INITIAL_BUY_MAX_ETH = '0.5';
 export const WEB_INITIAL_BUY_PRESETS_ETH = ['0.1', '0.25', '0.5'] as const;
 
