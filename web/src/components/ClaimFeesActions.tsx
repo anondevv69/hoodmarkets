@@ -13,6 +13,57 @@ import {
   collectV4PoolFeesFromWallet,
 } from '../lib/walletFeeClaims';
 
+function V3FeePoolMeter({ pool }: { pool: NonNullable<TokenFeeStatus['v3Pool']> }) {
+  const pct = Math.round(Math.max(0, Math.min(1, pool.progress)) * 100);
+  const title =
+    pool.statusLabel === 'ready'
+      ? 'Ready to claim'
+      : pool.statusLabel === 'filling'
+        ? 'Filling toward next claim'
+        : 'Waiting on new swap fees';
+
+  const detail =
+    pool.statusLabel === 'ready'
+      ? `~${pool.uncollectedWethHuman} WETH in the LP is ready to pull and pay share holders.`
+      : pool.statusLabel === 'filling'
+        ? `~${pool.estimatedIncomingWethHuman} WETH waiting in the LP` +
+          (Number.parseFloat(pool.remainingWethHuman) > 0
+            ? ` · ~${pool.remainingWethHuman} WETH more trading needed`
+            : '') +
+          '.'
+        : 'No new swap fees in the locked LP since the last payout.';
+
+  return (
+    <div className={`claim-fee-meter claim-fee-meter--${pool.statusLabel}`}>
+      <div className="claim-fee-meter-head">
+        <span className="claim-fee-meter-title">{title}</span>
+        <span className="claim-fee-meter-pct lp-mono">{pct}%</span>
+      </div>
+      <div
+        className="claim-fee-meter-track"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={pct}
+        aria-label={title}
+      >
+        <div className="claim-fee-meter-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <p className="claim-fee-meter-detail muted">{detail}</p>
+      {pool.statusLabel === 'filling' ? (
+        <div className="claim-fee-meter-stats">
+          <span>
+            In LP <strong className="lp-mono">{pool.uncollectedWethHuman}</strong> WETH
+          </span>
+          <span>
+            Still need <strong className="lp-mono">{pool.remainingWethHuman}</strong> WETH
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function ClaimFeesActions({
   tokenAddress,
   feeRecipientAddress,
@@ -160,6 +211,7 @@ export function ClaimFeesActions({
       : 'Never';
 
   const walletNote = 'Anyone can claim fees for fee recipients.';
+  const v3Pool = feeStatus?.v3Pool;
 
   if (variant === 'sidebar') {
     return (
@@ -168,6 +220,8 @@ export function ClaimFeesActions({
           <span className="tp-info-k">Last fee claim</span>
           <span className="tp-info-v">{lastClaimLabel}</span>
         </div>
+
+        {isV3 && v3Pool ? <V3FeePoolMeter pool={v3Pool} /> : null}
 
         {isV3 ? (
           <button
@@ -202,7 +256,7 @@ export function ClaimFeesActions({
 
         <p className="tp-footnote">
           {isV3
-            ? 'Anyone can claim anytime. If it says waiting on fees, more trading needs to accrue since the last payout — not a lockout.'
+            ? 'Anyone can claim anytime. The meter shows fees waiting in the LP toward the next payout — not a lockout.'
             : walletNote}
         </p>
 
@@ -231,21 +285,32 @@ export function ClaimFeesActions({
       {statusLoading ? (
         <p className="muted claim-fees-status">Checking fee status…</p>
       ) : feeStatus ? (
-        <p className="claim-fees-status">
-          {isV3 ? (
-            <span className="muted">V3: claim pulls pool fees to share holders.</span>
-          ) : hasPending ? (
-            <span className="lp-display">{pending} WETH in fee locker</span>
+        <>
+          {isV3 && v3Pool ? (
+            <V3FeePoolMeter pool={v3Pool} />
           ) : (
-            <span className="muted">No WETH in the fee locker yet</span>
+            <p className="claim-fees-status">
+              {isV3 ? (
+                <span className="muted">V3: claim pulls pool fees to share holders.</span>
+              ) : hasPending ? (
+                <span className="lp-display">{pending} WETH in fee locker</span>
+              ) : (
+                <span className="muted">No WETH in the fee locker yet</span>
+              )}
+              {feeStatus.feeClaimedAt ? (
+                <span className="muted">
+                  {' '}
+                  · Last claim {new Date(feeStatus.feeClaimedAt).toLocaleString()}
+                </span>
+              ) : null}
+            </p>
           )}
-          {feeStatus.feeClaimedAt ? (
-            <span className="muted">
-              {' '}
-              · Last claim {new Date(feeStatus.feeClaimedAt).toLocaleString()}
-            </span>
+          {isV3 && v3Pool && feeStatus.feeClaimedAt ? (
+            <p className="muted claim-fees-status" style={{ marginTop: '0.35rem' }}>
+              Last claim {new Date(feeStatus.feeClaimedAt).toLocaleString()}
+            </p>
           ) : null}
-        </p>
+        </>
       ) : null}
 
       <div className="claim-fees-actions">

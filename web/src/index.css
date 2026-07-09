@@ -3930,6 +3930,73 @@ label {
   margin-top: 0.75rem;
 }
 
+.claim-fee-meter {
+  margin: 0.65rem 0 0.85rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--lp-border, #2a2a2a) 80%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--lp-surface, #121212) 92%, transparent);
+}
+
+.claim-fee-meter-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+}
+
+.claim-fee-meter-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.claim-fee-meter-pct {
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+.claim-fee-meter-track {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  overflow: hidden;
+}
+
+.claim-fee-meter-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, #6b9e6b 85%, #fff);
+  transition: width 0.35s ease;
+}
+
+.claim-fee-meter--ready .claim-fee-meter-fill {
+  background: color-mix(in srgb, #5cb85c 90%, #fff);
+}
+
+.claim-fee-meter--filling .claim-fee-meter-fill {
+  background: color-mix(in srgb, #c4a35a 88%, #fff);
+}
+
+.claim-fee-meter--empty .claim-fee-meter-fill {
+  background: color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.claim-fee-meter-detail {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.claim-fee-meter-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin-top: 0.45rem;
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
 .claim-fees-card--platform {
   margin-top: 0.5rem;
 }
@@ -4169,6 +4236,20 @@ label {
 .token-space-note {
   margin: 0 0 1rem;
   font-size: 0.85rem;
+}
+
+.tp-website-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tp-website-prompt-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  min-height: 14rem;
 }
 
 .token-space-compose {

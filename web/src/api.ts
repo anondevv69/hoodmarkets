@@ -567,7 +567,11 @@ export interface TokenPageProfile {
   canEdit: boolean;
   canVerify: boolean;
   isAdmin: boolean;
+  /** Deployer or top Holder NFT share holder. */
+  canBuildWebsite: boolean;
   adminRole: TokenPageAdminRole | null;
+  topShareHolder: string | null;
+  deployerWallet: string | null;
   dex: TokenDexBrandingResponse['dex'];
 }
 
@@ -958,8 +962,23 @@ export interface TokenFeeStatus {
   feeModel: 'v3' | 'v4';
   pendingWethWei: string;
   pendingWethHuman: string;
+  /** V3 claims are always permissionless — no cooldown. */
+  claimAlwaysAvailable?: boolean;
   feeClaimedAt?: string;
   feeClaimTxHash?: string;
+  /** Simple / V3 Holder NFT fee pool progress (claim readiness). */
+  v3Pool?: {
+    fractionAddress: string;
+    fractionWethHuman: string;
+    gapWethHuman: string;
+    surplusWethHuman: string;
+    uncollectedWethHuman: string;
+    estimatedIncomingWethHuman: string;
+    remainingWethHuman: string;
+    progress: number;
+    claimReady: boolean;
+    statusLabel: 'ready' | 'filling' | 'empty';
+  };
 }
 
 export async function fetchTokenFeeStatus(tokenAddress: string): Promise<TokenFeeStatus> {
