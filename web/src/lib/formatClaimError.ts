@@ -29,11 +29,13 @@ export function formatClaimError(error: unknown): string {
     lower.includes('nothingtoclaim') ||
     lower.includes('nothing to claim') ||
     lower.includes('zerotoclaim') ||
-    lower.includes('zero to claim')
+    lower.includes('zero to claim') ||
+    lower.includes('0x969bf728')
   ) {
     return (
-      'Nothing to claim right now. Trading fees may have been claimed recently, ' +
-      'or the pool has not accrued new swap fees since the last claim.'
+      'Waiting on new swap fees. The last claim already paid out what was available — ' +
+      'holders get paid again after more trading adds fees to the locked LP. ' +
+      'You can click Claim anytime; it is not locked or on a timer.'
     );
   }
 
@@ -74,8 +76,8 @@ export function formatClaimError(error: unknown): string {
       );
     }
     return (
-      'Could not claim fees. There may be nothing to claim yet, fees were claimed recently, ' +
-      'or the pool has not accrued new swap fees.'
+      'Waiting on new swap fees since the last payout. ' +
+      'Claim anytime after more trading — not a cooldown or lockout.'
     );
   }
 
@@ -98,6 +100,12 @@ export function formatClaimError(error: unknown): string {
 export function shouldReportClaimError(userMessage: string): boolean {
   const lower = userMessage.toLowerCase();
   if (/cancelled in wallet/.test(lower)) return false;
-  if (/nothing to claim|no weth in the fee locker|no unclaimed fees/i.test(lower)) return false;
+  if (
+    /nothing to claim|no weth in the fee locker|no unclaimed fees|waiting on new swap fees/i.test(
+      lower,
+    )
+  ) {
+    return false;
+  }
   return true;
 }

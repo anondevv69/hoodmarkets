@@ -200,7 +200,11 @@ export function ClaimFeesActions({
           </>
         )}
 
-        <p className="tp-footnote">{walletNote}</p>
+        <p className="tp-footnote">
+          {isV3
+            ? 'Anyone can claim anytime. If it says waiting on fees, more trading needs to accrue since the last payout — not a lockout.'
+            : walletNote}
+        </p>
 
         {message ? <p className="muted claim-fees-message">{message}</p> : null}
         {txHash ? (
@@ -218,7 +222,11 @@ export function ClaimFeesActions({
   return (
     <div className="lp-card claim-fees-card">
       <p className="section-label">Trading fees</p>
-      <p className="muted claim-fees-intro">{walletNote}</p>
+      <p className="muted claim-fees-intro">
+        {isV3
+          ? 'Anyone can claim anytime. One tx pays all share holders pro-rata when new swap fees have accrued since the last payout — not a timer or lockout.'
+          : walletNote}
+      </p>
 
       {statusLoading ? (
         <p className="muted claim-fees-status">Checking fee status…</p>
