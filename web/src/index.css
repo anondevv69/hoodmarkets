@@ -3096,6 +3096,90 @@ label {
   padding: 1rem 1.1rem 1.15rem;
 }
 
+.external-trade-bots {
+  margin: 0.65rem 0 0.85rem;
+  padding: 0.85rem 1rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--surface) 88%, #000);
+}
+
+.external-trade-bots-label {
+  margin: 0 0 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-faint);
+}
+
+.external-trade-bots-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.external-trade-bot-link {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.5rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.external-trade-bot-link:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-soft));
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  transform: translateY(-1px);
+}
+
+.external-trade-bot-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: #0a0a0a;
+}
+
+.external-trade-bot-icon--basedBot {
+  background: linear-gradient(135deg, #7cff6b, #3ecf2f);
+}
+
+.external-trade-bot-icon--maestro {
+  background: linear-gradient(135deg, #c4a0ff, #8b5cf6);
+}
+
+.external-trade-bot-icon--sigma {
+  background: linear-gradient(135deg, #7dd3fc, #0ea5e9);
+}
+
+.external-trade-bot-icon--gmgn {
+  background: linear-gradient(135deg, #fde68a, #f59e0b);
+}
+
+.external-trade-bot-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .tp-balance-line {
   margin: 0 0 0.65rem;
   font-size: 0.82rem;
@@ -5192,9 +5276,24 @@ label {
 .explore-coin-title-row {
   display: flex;
   align-items: baseline;
+  min-width: 0;
+}
+
+.explore-coin-meta-row {
+  display: flex;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 0.4rem;
+  margin-top: 0.12rem;
   min-width: 0;
+}
+
+.explore-coin-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.08rem;
+  flex-shrink: 0;
 }
 
 .explore-coin-name {

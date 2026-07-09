@@ -47,6 +47,7 @@ import { registerLangchainAgentRoutes } from './routes/langchainAgent.js';
 import { registerAgentBankrRoutes } from './routes/agentBankr.js';
 import { registerCatalogAdminRoutes } from './routes/catalogAdmin.js';
 import { registerCommunityLaunchRoutes } from './routes/communityLaunch.js';
+import { registerClientErrorReportRoutes } from './routes/clientErrorReport.js';
 import { registerExploreRoutes } from './routes/explore.js';
 import { registerWalletAuthRoutes } from './routes/walletAuth.js';
 import { registerWebDeployCorsMiddleware } from './lib/webDeployCors.js';
@@ -236,6 +237,7 @@ async function main() {
     registerDeploymentFeedRoutes(app);
     registerExploreRoutes(app);
     registerDeploymentFeeActionRoutes(app);
+    registerClientErrorReportRoutes(app);
     registerFractionBuyerRewardRoutes(app);
     registerFractionMetadataRoutes(app);
     registerTokenSwapRoutes(app);

@@ -142,15 +142,19 @@ export async function claimV3RewardsForToken(
 export function friendlyV3ClaimError(msg: string): string {
   const lower = msg.toLowerCase();
   if (lower.includes('nothingtoclaim') || lower.includes('nothing to claim')) {
-    return 'No trading fees to claim yet — the pool may have no accrued swap fees.';
+    return (
+      'Nothing to claim right now. Trading fees may have been claimed recently, ' +
+      'or the pool has not accrued new swap fees since the last claim.'
+    );
   }
   if (lower.includes('execution reverted') || lower.includes('revert')) {
     return (
-      'Could not claim V3 fees yet. The pool may have no accrued swap fees, or this token was not deployed via HoodMarkets V3.'
+      'Could not claim fees. There may be nothing to claim yet, fees were claimed recently, ' +
+      'or the pool has not accrued new swap fees.'
     );
   }
   if (lower.includes('insufficient funds')) {
-    return 'Launcher wallet is low on gas. Contact hood.markets support.';
+    return 'Launcher wallet is low on Robinhood Chain ETH for gas. Contact hood.markets support.';
   }
   return msg;
 }

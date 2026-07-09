@@ -103,6 +103,7 @@ function ExploreCoinCard({
   const d = item.deployment;
   const sym = d.tokenSymbol.replace(/^\$/, '');
   const age = formatTickerAge(d.createdAt);
+  const mcap = item.stats.mcapUsd;
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | undefined>(d.tokenImageUrl);
 
   useEffect(() => {
@@ -150,12 +151,21 @@ function ExploreCoinCard({
         <div className="explore-coin-body">
           <div className="explore-coin-title-row">
             <span className="explore-coin-name lp-display">{d.tokenName}</span>
-            <span className="explore-coin-age">
-              <span className="explore-coin-age-dot" aria-hidden />
-              {age}
-            </span>
           </div>
-          <div className="explore-coin-ticker">${sym}</div>
+          <div className="explore-coin-meta-row">
+            <span className="explore-coin-ticker">${sym}</span>
+            <div className="explore-coin-stats">
+              {mcap > 0 ? (
+                <span className="explore-coin-mcap" title="Market cap">
+                  {formatUsdVol(mcap)}
+                </span>
+              ) : null}
+              <span className="explore-coin-age">
+                <span className="explore-coin-age-dot" aria-hidden />
+                {age}
+              </span>
+            </div>
+          </div>
         </div>
       </button>
     </li>

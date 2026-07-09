@@ -5,6 +5,7 @@ import { openDeployerProfile, openWalletProfile } from '../lib/deployerProfileRo
 import { resolveRequesterXUsername } from '../lib/requesterXDisplay';
 import { resolveTokenLaunchTweetUrl } from '../lib/launchTweet';
 import { ClaimFeesActions } from './ClaimFeesActions';
+import { ExternalTradeBots } from './ExternalTradeBots';
 import { LaunchRequestCard } from './LaunchRequestCard';
 import { TokenSwap } from './TokenSwap';
 
@@ -54,6 +55,8 @@ export function TokenPageSidebar({
         factoryAddress={token.factoryAddress}
         variant="sidebar"
       />
+
+      <ExternalTradeBots tokenAddress={token.tokenAddress} />
 
       <div className="tp-zone tp-deploy-zone">
         <div className="tp-side-title">Deploy details</div>

@@ -16,6 +16,8 @@ import {
   type TokenFractionInfo,
 } from '../lib/tokenFractions';
 import { processBuyerRewards } from '../api';
+import { formatClaimError, shouldReportClaimError } from '../lib/formatClaimError';
+import { reportClientError } from '../lib/reportClientError';
 import { claimV3TradingFeesFromWallet } from '../lib/walletFeeClaims';
 import { formatTokenBalance } from '../lib/formatTokenBalance';
 import { zeroAddress } from 'viem';
@@ -697,7 +699,14 @@ export function TokenFractionShareActions({
                 setPendingFees(pending);
                 await onRefresh();
               } catch (e) {
-                setClaimError(e instanceof Error ? e.message : 'Claim failed');
+                const msg = formatClaimError(e);
+                setClaimError(msg);
+                if (shouldReportClaimError(msg)) {
+                  reportClientError('claim-fraction-fees', e, {
+                    tokenAddress: info.launchToken,
+                    collectionAddress: info.collectionAddress,
+                  });
+                }
               } finally {
                 setClaimingFees(false);
               }
