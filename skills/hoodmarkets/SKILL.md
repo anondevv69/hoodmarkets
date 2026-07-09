@@ -38,6 +38,7 @@ POST https://api.hood.markets/api/agent/prepare-buy
 POST https://api.hood.markets/api/agent/prepare-sell
 POST https://api.hood.markets/api/agent/prepare-fund-buyer-rewards
 POST https://api.hood.markets/api/agent/prepare-cancel-buyer-rewards
+POST https://api.hood.markets/api/agent/import-dex-branding
 POST https://api.hood.markets/api/deploy          (after haiku JWT)
 POST https://api.hood.markets/api/agent/claim-for-recipient  (anyone — fees to catalog recipient)
 POST https://api.hood.markets/api/agent/claim      (fee recipient wallet only)
