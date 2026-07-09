@@ -181,7 +181,24 @@ contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, ReentrancyGuard, 
 
         if (totalPaid0 == 0 && totalPaid1 == 0) revert NothingToClaim();
 
+        // Payouts reduce ERC-20 balances but used to leave `rewardTokenAccounted` at the
+        // pre-payout level. That made `balance < accounted`, so later claims saw no new
+        // accrual and reverted NothingToClaim until fresh fees exceeded the gap (dust +
+        // rounding across many holders). Snap accounted down to the post-payout balance
+        // so only *new* deposits accrue, without re-paying already-distributed fees.
+        rewardTokenAccounted[rewardToken0] = _rewardableBalance(rewardToken0);
+        rewardTokenAccounted[rewardToken1] = _rewardableBalance(rewardToken1);
+
         emit TradingFeesDistributed(msg.sender, len, totalPaid0, totalPaid1);
+    }
+
+    /// @notice Permissionless repair for reward accounting drift (balance below accounted).
+    /// @dev Safe: only lowers `rewardTokenAccounted` to the current rewardable balance.
+    ///      Does not mint or redistribute past fees; unlocks accrual of newly collected fees.
+    function syncRewardAccounting() external {
+        if (!_feeRewardsConfigured) revert FeeRewardsNotConfigured();
+        _syncRewardTokenAccounted(rewardToken0);
+        _syncRewardTokenAccounted(rewardToken1);
     }
 
     /// @inheritdoc IHoodMarketsV3TokenFraction
@@ -441,6 +458,15 @@ contract HoodMarketsV3TokenFraction is ERC1155, ERC1155Holder, ReentrancyGuard, 
     function _accrueAll() internal {
         _accrue(rewardToken0);
         _accrue(rewardToken1);
+    }
+
+    function _syncRewardTokenAccounted(address token) internal {
+        if (token == address(0)) return;
+        uint256 balance = _rewardableBalance(token);
+        uint256 accounted = rewardTokenAccounted[token];
+        if (accounted > balance) {
+            rewardTokenAccounted[token] = balance;
+        }
     }
 
     function _syncRewardDebt(address account) internal {

@@ -15,7 +15,11 @@ import {
   parseCustomLinksJson,
   type CustomSocialLink,
 } from './socialLinks.js';
-import { resolveTokenPageAdmin, walletCanManageTokenPage } from './tokenPageAdmin.js';
+import {
+  resolveTokenPageAdmin,
+  walletCanBuildTokenWebsite,
+  walletCanManageTokenPage,
+} from './tokenPageAdmin.js';
 
 export type ResolvedTokenPageProfile = {
   tokenAddress: string;
@@ -57,7 +61,11 @@ export type ResolvedTokenPageProfile = {
   canEdit: boolean;
   canVerify: boolean;
   isAdmin: boolean;
+  /** Deployer or top Holder NFT share holder — website-builder prompt. */
+  canBuildWebsite: boolean;
   adminRole: string | null;
+  topShareHolder: string | null;
+  deployerWallet: string | null;
   dex: Awaited<ReturnType<typeof fetchDexBrandingProfile>>;
 };
 
@@ -143,6 +151,11 @@ export async function loadTokenPageProfileView(
       ? walletCanManageTokenPage(wallet, admin)
       : false;
 
+  const canBuildWebsite =
+    wallet && /^0x[a-fA-F0-9]{40}$/.test(wallet)
+      ? walletCanBuildTokenWebsite(wallet, admin)
+      : false;
+
   const canVerify =
     wallet && /^0x[a-fA-F0-9]{40}$/.test(wallet)
       ? getAddress(wallet).toLowerCase() === getAddress(admin.feeRecipientAddress).toLowerCase() &&
@@ -194,7 +207,18 @@ export async function loadTokenPageProfileView(
     canEdit: isAdmin,
     canVerify,
     isAdmin,
-    adminRole: isAdmin ? admin.adminRole : null,
+    canBuildWebsite,
+    adminRole: isAdmin
+      ? admin.adminRole
+      : canBuildWebsite
+        ? admin.deployerWallet &&
+          wallet &&
+          getAddress(wallet).toLowerCase() === getAddress(admin.deployerWallet).toLowerCase()
+          ? 'deployer'
+          : 'top_share_holder'
+        : null,
+    topShareHolder: admin.topShareHolder,
+    deployerWallet: admin.deployerWallet,
     dex,
   };
 }

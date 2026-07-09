@@ -74,6 +74,18 @@ export function walletCanManageTokenPage(wallet: string, admin: TokenPageAdminIn
   }
 }
 
+/** Deployer or current top Holder NFT share holder — for website-builder prompt access. */
+export function walletCanBuildTokenWebsite(wallet: string, admin: TokenPageAdminInfo): boolean {
+  try {
+    const w = getAddress(wallet).toLowerCase();
+    if (admin.deployerWallet && w === getAddress(admin.deployerWallet).toLowerCase()) return true;
+    if (admin.topShareHolder && w === getAddress(admin.topShareHolder).toLowerCase()) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 /** @deprecated use walletCanManageTokenPage — kept for callers that only checked top holder */
 export function walletIsTokenPageAdmin(wallet: string, admin: TokenPageAdminInfo): boolean {
   return walletCanManageTokenPage(wallet, admin);
