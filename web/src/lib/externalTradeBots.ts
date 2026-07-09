@@ -4,9 +4,10 @@
  */
 
 export interface ExternalTradeBotLink {
-  id: 'basedBot' | 'maestro' | 'sigma' | 'gmgn';
+  id: 'basedBot' | 'maestro' | 'gmgn' | 'sigma';
   label: string;
   href: string;
+  logoSrc: string;
 }
 
 /** hood.markets partner slug on Based Bot (`r_{slug}_b_{token}`). */
@@ -32,22 +33,26 @@ export function buildExternalTradeBotLinks(tokenAddress: string): ExternalTradeB
     {
       id: 'basedBot',
       label: 'Based Bot',
+      logoSrc: '/trade-bots/based-bot.png',
       href: `https://t.me/based_eth_bot?start=r_${BASED_BOT_REF}_b_${token}`,
     },
     {
       id: 'maestro',
       label: 'Maestro',
+      logoSrc: '/trade-bots/maestro.png',
       href: `https://t.me/maestro?start=${token}-${MAESTRO_REF}`,
-    },
-    {
-      id: 'sigma',
-      label: 'Sigma',
-      href: `https://t.me/Sigma_buyBot?start=ref=${SIGMA_REF}-${token}`,
     },
     {
       id: 'gmgn',
       label: 'GMGN',
-      href: `https://gmgn.ai/eth/token/${GMGN_REF}_${token}`,
+      logoSrc: '/trade-bots/gmgn.png',
+      href: `https://gmgn.ai/robinhood/token/${GMGN_REF}_${token}`,
+    },
+    {
+      id: 'sigma',
+      label: 'Sigma',
+      logoSrc: '/trade-bots/sigma.png',
+      href: `https://t.me/Sigma_buyBot?start=ref=${SIGMA_REF}-${token}`,
     },
   ];
 }

@@ -15,9 +15,7 @@ export function ExternalTradeBots({ tokenAddress }: { tokenAddress: string }) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span className={`external-trade-bot-icon external-trade-bot-icon--${bot.id}`} aria-hidden>
-              {bot.id === 'basedBot' ? 'B' : bot.id === 'maestro' ? 'M' : bot.id === 'sigma' ? 'Σ' : 'G'}
-            </span>
+            <img className="external-trade-bot-logo" src={bot.logoSrc} alt="" loading="lazy" />
             <span className="external-trade-bot-name">{bot.label}</span>
           </a>
         ))}
