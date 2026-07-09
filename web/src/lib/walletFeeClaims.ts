@@ -11,6 +11,8 @@ import {
 } from 'viem';
 import { fetchWebDeployConfig } from '../api';
 import { robinhood } from '../chain';
+import { formatClaimError } from './formatClaimError';
+import { ensureRobinhoodChainInWallet } from './ensureRobinhoodChain';
 import { HOODMARKETS_V3_FACTORY } from './launchType';
 import { claimFractionTradingFees } from './tokenFractions';
 import { HOODMARKETS_V3_ABI } from './hoodmarketsV3Abi';
@@ -25,6 +27,16 @@ const FRACTION_FACTORY_ABI = [
   },
 ] as const;
 
+const FRACTION_CLAIM_ABI = [
+  {
+    type: 'function',
+    name: 'claimTradingFees',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const;
+
 const LP_LOCKER_COLLECT_ABI = [
   {
     type: 'function',
@@ -35,7 +47,17 @@ const LP_LOCKER_COLLECT_ABI = [
   },
 ] as const;
 
-const FEE_LOCKER_CLAIM_ABI = [
+const FEE_LOCKER_ABI = [
+  {
+    type: 'function',
+    name: 'feesToClaim',
+    inputs: [
+      { name: 'feeOwner', type: 'address' },
+      { name: 'token', type: 'address' },
+    ],
+    outputs: [{ name: 'balance', type: 'uint256' }],
+    stateMutability: 'view',
+  },
   {
     type: 'function',
     name: 'claim',
@@ -50,6 +72,13 @@ const FEE_LOCKER_CLAIM_ABI = [
 
 const ROBINHOOD_WETH = '0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73' as const;
 
+function publicClient() {
+  return createPublicClient({
+    chain: robinhood,
+    transport: http(),
+  });
+}
+
 function walletClientFor(walletAddress: Address, ethereumProvider: unknown) {
   return createWalletClient({
     account: walletAddress,
@@ -58,17 +87,43 @@ function walletClientFor(walletAddress: Address, ethereumProvider: unknown) {
   });
 }
 
+async function prepareWallet(ethereumProvider: unknown) {
+  await ensureRobinhoodChainInWallet(
+    ethereumProvider as Parameters<typeof ensureRobinhoodChainInWallet>[0],
+  );
+}
+
+async function simulateOrThrow(
+  walletAddress: Address,
+  call: {
+    address: Address;
+    abi: readonly unknown[];
+    functionName: string;
+    args?: readonly unknown[];
+  },
+): Promise<void> {
+  const pc = publicClient();
+  try {
+    await pc.simulateContract({
+      address: call.address,
+      abi: call.abi as never,
+      functionName: call.functionName as never,
+      args: (call.args ?? []) as never,
+      account: walletAddress,
+    });
+  } catch (e) {
+    throw new Error(formatClaimError(e));
+  }
+}
+
 async function resolveV3ClaimTarget(tokenAddress: Address): Promise<{
   to: Address;
   data: Hex;
   usesFraction: boolean;
 }> {
-  const publicClient = createPublicClient({
-    chain: robinhood,
-    transport: http(),
-  });
+  const pc = publicClient();
   const factory = getAddress(HOODMARKETS_V3_FACTORY);
-  const fractionCollection = await publicClient.readContract({
+  const fractionCollection = await pc.readContract({
     address: factory,
     abi: FRACTION_FACTORY_ABI,
     functionName: 'fractionCollectionForToken',
@@ -79,7 +134,7 @@ async function resolveV3ClaimTarget(tokenAddress: Address): Promise<{
     return {
       to: getAddress(fractionCollection),
       data: encodeFunctionData({
-        abi: [{ type: 'function', name: 'claimTradingFees', inputs: [], outputs: [] }],
+        abi: FRACTION_CLAIM_ABI,
         functionName: 'claimTradingFees',
         args: [],
       }),
@@ -103,19 +158,47 @@ export async function claimV3TradingFeesFromWallet(params: {
   walletAddress: Address;
   ethereumProvider: unknown;
 }): Promise<Hex> {
+  await prepareWallet(params.ethereumProvider);
   const token = getAddress(params.tokenAddress);
   const target = await resolveV3ClaimTarget(token);
+
   if (target.usesFraction) {
-    return claimFractionTradingFees(target.to, params.walletAddress, params.ethereumProvider);
+    await simulateOrThrow(params.walletAddress, {
+      address: target.to,
+      abi: FRACTION_CLAIM_ABI,
+      functionName: 'claimTradingFees',
+      args: [],
+    });
+    try {
+      return await claimFractionTradingFees(
+        target.to,
+        params.walletAddress,
+        params.ethereumProvider,
+      );
+    } catch (e) {
+      throw new Error(formatClaimError(e));
+    }
   }
-  const client = walletClientFor(params.walletAddress, params.ethereumProvider);
-  return client.writeContract({
+
+  await simulateOrThrow(params.walletAddress, {
     address: target.to,
     abi: HOODMARKETS_V3_ABI,
     functionName: 'claimRewards',
     args: [token],
-    chain: robinhood,
   });
+
+  try {
+    const client = walletClientFor(params.walletAddress, params.ethereumProvider);
+    return await client.writeContract({
+      address: target.to,
+      abi: HOODMARKETS_V3_ABI,
+      functionName: 'claimRewards',
+      args: [token],
+      chain: robinhood,
+    });
+  } catch (e) {
+    throw new Error(formatClaimError(e));
+  }
 }
 
 export async function collectV4PoolFeesFromWallet(params: {
@@ -123,19 +206,34 @@ export async function collectV4PoolFeesFromWallet(params: {
   walletAddress: Address;
   ethereumProvider: unknown;
 }): Promise<Hex> {
+  await prepareWallet(params.ethereumProvider);
   const cfg = await fetchWebDeployConfig();
   const lpLocker = cfg.feeClaimContracts?.liquidLpLocker;
   if (!lpLocker) {
     throw new Error('LP locker is not configured. Try again later.');
   }
-  const client = walletClientFor(params.walletAddress, params.ethereumProvider);
-  return client.writeContract({
-    address: getAddress(lpLocker),
+  const token = getAddress(params.tokenAddress);
+  const locker = getAddress(lpLocker);
+
+  await simulateOrThrow(params.walletAddress, {
+    address: locker,
     abi: LP_LOCKER_COLLECT_ABI,
     functionName: 'collectRewards',
-    args: [getAddress(params.tokenAddress)],
-    chain: robinhood,
+    args: [token],
   });
+
+  try {
+    const client = walletClientFor(params.walletAddress, params.ethereumProvider);
+    return await client.writeContract({
+      address: locker,
+      abi: LP_LOCKER_COLLECT_ABI,
+      functionName: 'collectRewards',
+      args: [token],
+      chain: robinhood,
+    });
+  } catch (e) {
+    throw new Error(formatClaimError(e));
+  }
 }
 
 export async function claimV4LockerFeesFromWallet(params: {
@@ -143,6 +241,7 @@ export async function claimV4LockerFeesFromWallet(params: {
   walletAddress: Address;
   ethereumProvider: unknown;
 }): Promise<Hex> {
+  await prepareWallet(params.ethereumProvider);
   const cfg = await fetchWebDeployConfig();
   const feeLocker = cfg.feeClaimContracts?.feeLocker;
   if (!feeLocker) {
@@ -150,12 +249,38 @@ export async function claimV4LockerFeesFromWallet(params: {
   }
   const weth = (cfg.feeClaimContracts?.weth || ROBINHOOD_WETH) as Address;
   const feeOwner = getAddress(params.feeRecipientAddress);
-  const client = walletClientFor(params.walletAddress, params.ethereumProvider);
-  return client.writeContract({
-    address: getAddress(feeLocker),
-    abi: FEE_LOCKER_CLAIM_ABI,
+  const locker = getAddress(feeLocker);
+  const pc = publicClient();
+
+  const pending = await pc.readContract({
+    address: locker,
+    abi: FEE_LOCKER_ABI,
+    functionName: 'feesToClaim',
+    args: [feeOwner, weth],
+  });
+  if (pending === 0n) {
+    throw new Error(
+      'No WETH in the fee locker yet. Collect pool fees first after trading activity.',
+    );
+  }
+
+  await simulateOrThrow(params.walletAddress, {
+    address: locker,
+    abi: FEE_LOCKER_ABI,
     functionName: 'claim',
     args: [feeOwner, weth],
-    chain: robinhood,
   });
+
+  try {
+    const client = walletClientFor(params.walletAddress, params.ethereumProvider);
+    return await client.writeContract({
+      address: locker,
+      abi: FEE_LOCKER_ABI,
+      functionName: 'claim',
+      args: [feeOwner, weth],
+      chain: robinhood,
+    });
+  } catch (e) {
+    throw new Error(formatClaimError(e));
+  }
 }

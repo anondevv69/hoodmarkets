@@ -5,6 +5,8 @@ import { fetchTokenFeeStatus, type TokenFeeStatus } from '../api';
 import { txUrl } from '../chain';
 import { isHoodmarketsPlatformFeeRecipient } from '../lib/feeRecipientDisplay';
 import { isSimpleLaunchDeployment } from '../lib/launchType';
+import { formatClaimError, shouldReportClaimError } from '../lib/formatClaimError';
+import { reportClientError } from '../lib/reportClientError';
 import {
   claimV3TradingFeesFromWallet,
   claimV4LockerFeesFromWallet,
@@ -99,7 +101,11 @@ export function ClaimFeesActions({
       setMessage('Pool fees collected into the locker.');
       await refreshStatus();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Collect failed');
+      const msg = formatClaimError(e);
+      setError(msg);
+      if (shouldReportClaimError(msg)) {
+        reportClientError('claim-fees-collect', e, { tokenAddress });
+      }
     } finally {
       setCollecting(false);
     }
@@ -127,7 +133,14 @@ export function ClaimFeesActions({
       setMessage(isV3 ? 'Trading fees claim submitted.' : 'Fees claim submitted.');
       await refreshStatus();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Claim failed');
+      const msg = formatClaimError(e);
+      setError(msg);
+      if (shouldReportClaimError(msg)) {
+        reportClientError('claim-fees', e, {
+          tokenAddress,
+          feeModel: isV3 ? 'v3' : 'v4',
+        });
+      }
     } finally {
       setClaiming(false);
     }
