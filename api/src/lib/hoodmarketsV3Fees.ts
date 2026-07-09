@@ -141,16 +141,21 @@ export async function claimV3RewardsForToken(
 
 export function friendlyV3ClaimError(msg: string): string {
   const lower = msg.toLowerCase();
-  if (lower.includes('nothingtoclaim') || lower.includes('nothing to claim')) {
+  if (
+    lower.includes('nothingtoclaim') ||
+    lower.includes('nothing to claim') ||
+    lower.includes('0x969bf728')
+  ) {
     return (
-      'Nothing to claim right now. Trading fees may have been claimed recently, ' +
-      'or the pool has not accrued new swap fees since the last claim.'
+      'Waiting on new swap fees. The last claim already paid out what was available — ' +
+      'holders get paid again after more trading adds fees to the locked LP. ' +
+      'You can claim anytime; it is not locked or on a timer.'
     );
   }
   if (lower.includes('execution reverted') || lower.includes('revert')) {
     return (
-      'Could not claim fees. There may be nothing to claim yet, fees were claimed recently, ' +
-      'or the pool has not accrued new swap fees.'
+      'Waiting on new swap fees since the last payout. ' +
+      'Claim anytime after more trading — not a cooldown or lockout.'
     );
   }
   if (lower.includes('insufficient funds')) {
