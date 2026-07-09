@@ -27,28 +27,32 @@ async function bankrFetch(path: string, apiKey: string, init: RequestInit = {}):
 
 function extractEvmAddress(payload: unknown): string | null {
   const p = payload as Record<string, unknown>;
-  const candidates: unknown[] = [
-    p.address,
-    p.walletAddress,
-    (p.wallet as Record<string, unknown> | undefined)?.address,
-    (p.wallets as unknown[])?.[0],
-  ];
+
+  // Prefer wallets[].chain === 'evm' (current /wallet/me format)
   if (Array.isArray(p.wallets)) {
     for (const w of p.wallets) {
-      if (typeof w === 'string' && /^0x[a-fA-F0-9]{40}$/.test(w)) candidates.push(w);
+      if (w && typeof w === 'object') {
+        const wo = w as Record<string, unknown>;
+        if (wo.chain === 'evm' && typeof wo.address === 'string') {
+          try { return getAddress(wo.address); } catch { /* skip */ }
+        }
+      }
+    }
+    // Fallback: any object in wallets with a 0x address
+    for (const w of p.wallets) {
       if (w && typeof w === 'object') {
         const wa = (w as Record<string, unknown>).address;
-        if (typeof wa === 'string') candidates.push(wa);
+        if (typeof wa === 'string' && /^0x[a-fA-F0-9]{40}$/.test(wa)) {
+          try { return getAddress(wa); } catch { /* skip */ }
+        }
       }
     }
   }
-  for (const c of candidates) {
+
+  // Legacy flat response shapes
+  for (const c of [p.address, p.walletAddress, (p.wallet as Record<string, unknown> | undefined)?.address]) {
     if (typeof c === 'string' && /^0x[a-fA-F0-9]{40}$/.test(c)) {
-      try {
-        return getAddress(c);
-      } catch {
-        continue;
-      }
+      try { return getAddress(c); } catch { /* skip */ }
     }
   }
   return null;
@@ -166,10 +170,7 @@ export function registerWalletAuthRoutes(app: Express): void {
     }
 
     try {
-      let r = await bankrFetch('/wallet/me', apiKey);
-      if (!r.ok) {
-        r = await bankrFetch('/agent/user', apiKey);
-      }
+      const r = await bankrFetch('/wallet/me', apiKey);
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
         res.status(r.status).json({
@@ -214,16 +215,10 @@ export function registerWalletAuthRoutes(app: Express): void {
     }
 
     try {
-      let r = await bankrFetch('/wallet/sign', apiKey, {
+      const r = await bankrFetch('/wallet/sign', apiKey, {
         method: 'POST',
         body: JSON.stringify({ signatureType: 'personal_sign', message }),
       });
-      if (!r.ok) {
-        r = await bankrFetch('/agent/sign', apiKey, {
-          method: 'POST',
-          body: JSON.stringify({ type: 'personal_sign', message }),
-        });
-      }
       const data = (await r.json().catch(() => ({}))) as Record<string, unknown>;
       if (!r.ok) {
         res.status(r.status).json({
@@ -231,10 +226,7 @@ export function registerWalletAuthRoutes(app: Express): void {
         });
         return;
       }
-      const signature =
-        (typeof data.signature === 'string' && data.signature) ||
-        (typeof data.signedMessage === 'string' && data.signedMessage) ||
-        '';
+      const signature = typeof data.signature === 'string' ? data.signature : '';
       if (!signature) {
         res.status(502).json({ error: 'Bankr sign response missing signature.' });
         return;
