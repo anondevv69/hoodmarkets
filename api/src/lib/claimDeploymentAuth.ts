@@ -3,10 +3,13 @@ import type { DeploymentCatalogRow } from './deploymentCatalog.js';
 import {
   getDeploymentByFeeRecipientAndTokenAddress,
   getDeploymentByPlatformDeployerFeeRecipientAndTokenAddress,
+  getDeploymentByTokenAddress,
+  getNewestDeploymentByTickerSymbol,
   listDeploymentsByFeeRecipientAndName,
   listDeploymentsByFeeRecipientAndSymbol,
   listDeploymentsByPlatformDeployerFeeRecipientAndName,
   listDeploymentsByPlatformDeployerFeeRecipientAndSymbol,
+  normalizeCatalogTickerSymbol,
 } from './deploymentCatalog.js';
 
 export type ResolveClaimDeploymentResult =
@@ -245,5 +248,59 @@ export async function resolveSocialClaimDeployment(params: {
     };
   }
   const row = matchesName[0];
+  return { ok: true, row, tokenAddress: getAddress(row.tokenAddress) };
+}
+
+/**
+ * Permissionless claim lookup — any hood.markets catalog token by contract or ticker.
+ * Caller does not need to be fee recipient, deployer, or share holder.
+ */
+export async function resolvePermissionlessClaimDeployment(params: {
+  tokenAddress?: string;
+  tokenSymbol?: string;
+}): Promise<ResolveClaimDeploymentResult> {
+  const ca = params.tokenAddress?.trim();
+  const sym = params.tokenSymbol?.trim();
+
+  if (!ca && !sym) {
+    return {
+      ok: false,
+      status: 400,
+      error:
+        'Identify the token: send tokenAddress (contract 0x…) or tokenSymbol (ticker, e.g. $TEST).',
+    };
+  }
+
+  if (ca) {
+    if (!/^0x[0-9a-fA-F]{40}$/.test(ca)) {
+      return { ok: false, status: 400, error: 'tokenAddress must be a valid 0x contract address.' };
+    }
+    const token = getAddress(ca);
+    const row = await getDeploymentByTokenAddress(token);
+    if (!row) {
+      return {
+        ok: false,
+        status: 404,
+        error: 'Token not found in hoodmarkets catalog.',
+      };
+    }
+    if (sym && normalizeSymbol(sym) !== normalizeSymbol(row.tokenSymbol)) {
+      return {
+        ok: false,
+        status: 400,
+        error: `tokenSymbol does not match this deployment (expected ${row.tokenSymbol}).`,
+      };
+    }
+    return { ok: true, row, tokenAddress: token };
+  }
+
+  const row = await getNewestDeploymentByTickerSymbol(sym!);
+  if (!row) {
+    return {
+      ok: false,
+      status: 404,
+      error: `No hood.markets token found for ticker ${normalizeCatalogTickerSymbol(sym!)}. Pass tokenAddress (0x…) if the symbol is wrong.`,
+    };
+  }
   return { ok: true, row, tokenAddress: getAddress(row.tokenAddress) };
 }

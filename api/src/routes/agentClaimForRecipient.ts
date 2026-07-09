@@ -1,10 +1,7 @@
 import type { Express, Request, Response } from 'express';
-import { getAddress } from 'viem';
 import { claimFeesForDeployment } from '../lib/claimFeesForDeployment.js';
-import {
-  getDeploymentByTokenAddress,
-  markDeploymentFeeClaimed,
-} from '../lib/deploymentCatalog.js';
+import { resolvePermissionlessClaimDeployment } from '../lib/claimDeploymentAuth.js';
+import { markDeploymentFeeClaimed } from '../lib/deploymentCatalog.js';
 import { friendlyV3ClaimError } from '../lib/hoodmarketsV3Fees.js';
 import { friendlyCollectPoolError } from '../lib/deploymentFeeActions.js';
 import { agentClaimSuccessAgentFields, agentClaimSuccessReplyHint } from '../lib/agentClaimReplyHint.js';
@@ -12,16 +9,7 @@ import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 
 interface Body {
   tokenAddress?: string;
-}
-
-function parseToken(raw: string): `0x${string}` | null {
-  const trimmed = raw.trim();
-  if (!/^0x[0-9a-fA-F]{40}$/.test(trimmed)) return null;
-  try {
-    return getAddress(trimmed) as `0x${string}`;
-  } catch {
-    return null;
-  }
+  tokenSymbol?: string;
 }
 
 /**
@@ -41,20 +29,22 @@ export function registerAgentClaimForRecipientRoutes(app: Express): void {
     for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
 
     const body = req.body as Body;
-    const tokenAddress = parseToken(
-      typeof body.tokenAddress === 'string' ? body.tokenAddress : '',
-    );
-    if (!tokenAddress) {
-      res.status(400).json({ error: 'tokenAddress is required and must be a valid 0x contract.' });
-      return;
-    }
+    const tokenAddressRaw =
+      typeof body.tokenAddress === 'string' ? body.tokenAddress.trim() : '';
+    const tokenSymbolRaw =
+      typeof body.tokenSymbol === 'string' ? body.tokenSymbol.trim() : '';
 
     try {
-      const row = await getDeploymentByTokenAddress(tokenAddress);
-      if (!row) {
-        res.status(404).json({ error: 'Token not found in hoodmarkets catalog.' });
+      const resolved = await resolvePermissionlessClaimDeployment({
+        tokenAddress: tokenAddressRaw || undefined,
+        tokenSymbol: tokenSymbolRaw || undefined,
+      });
+      if (!resolved.ok) {
+        res.status(resolved.status).json({ error: resolved.error });
         return;
       }
+
+      const { row, tokenAddress } = resolved;
       const claimed = await claimFeesForDeployment(row, tokenAddress);
       if (!claimed.ok) {
         const raw = claimed.error;
@@ -107,11 +97,12 @@ export function registerAgentClaimForRecipientRoutes(app: Express): void {
   });
 
   /** GET alias for agents that prefer query params */
-  app.get('/api/agent/claim-for-recipient', (req: Request, res: Response) => {
+  app.get('/api/agent/claim-for-recipient', (req, res) => {
     const h = webDeployCorsHeaders(req.headers.origin);
     for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
     res.status(405).json({
-      error: 'Use POST with JSON { "tokenAddress": "0x…" }. No fee-recipient wallet required — funds go to the catalog fee recipient.',
+      error:
+        'Use POST with JSON { "tokenAddress": "0x…" } and/or { "tokenSymbol": "$TEST" }. No fee-recipient wallet required — funds go to the catalog fee recipient / share holders.',
       method: 'POST',
       path: '/api/agent/claim-for-recipient',
     });
