@@ -16,6 +16,7 @@ import {
   type CustomSocialLink,
 } from './socialLinks.js';
 import {
+  resolveLinkedBankrWallet,
   resolveTokenPageAdmin,
   walletCanBuildTokenWebsite,
   walletCanManageTokenPage,
@@ -146,15 +147,20 @@ export async function loadTokenPageProfileView(
     resolveTokenPageAdmin(row),
   ]);
 
-  const isAdmin =
-    wallet && /^0x[a-fA-F0-9]{40}$/.test(wallet)
-      ? walletCanManageTokenPage(wallet, admin)
-      : false;
+  const isWalletAddress = (w?: string): w is string => !!w && /^0x[a-fA-F0-9]{40}$/.test(w);
 
-  const canBuildWebsite =
-    wallet && /^0x[a-fA-F0-9]{40}$/.test(wallet)
-      ? walletCanBuildTokenWebsite(wallet, admin)
-      : false;
+  // Resolve the Bankr wallet that the connected wallet may have linked on hood.markets.
+  // This lets a user whose Bankr wallet deployed a token manage it via their connected
+  // hood.markets wallet (the two are bridged by the explicit Link flow).
+  const linkedBankrWallet = isWalletAddress(wallet)
+    ? await resolveLinkedBankrWallet(wallet)
+    : null;
+
+  const walletMatches = (w: string | undefined, check: (w: string, a: typeof admin) => boolean) =>
+    isWalletAddress(w) && (check(w, admin) || (!!linkedBankrWallet && check(linkedBankrWallet, admin)));
+
+  const isAdmin = walletMatches(wallet, walletCanManageTokenPage);
+  const canBuildWebsite = walletMatches(wallet, walletCanBuildTokenWebsite);
 
   const canVerify =
     wallet && /^0x[a-fA-F0-9]{40}$/.test(wallet)
@@ -211,11 +217,14 @@ export async function loadTokenPageProfileView(
     adminRole: isAdmin
       ? admin.adminRole
       : canBuildWebsite
-        ? admin.deployerWallet &&
-          wallet &&
-          getAddress(wallet).toLowerCase() === getAddress(admin.deployerWallet).toLowerCase()
-          ? 'deployer'
-          : 'top_share_holder'
+        ? (() => {
+            const effectiveWallet = wallet && admin.deployerWallet &&
+              (getAddress(wallet).toLowerCase() === getAddress(admin.deployerWallet).toLowerCase() ||
+               (linkedBankrWallet && getAddress(linkedBankrWallet).toLowerCase() === getAddress(admin.deployerWallet).toLowerCase()))
+              ? wallet
+              : null;
+            return effectiveWallet ? 'deployer' : 'top_share_holder';
+          })()
         : null,
     topShareHolder: admin.topShareHolder,
     deployerWallet: admin.deployerWallet,
@@ -256,7 +265,8 @@ export async function updateTokenPageProfileForWallet(
   }
 
   const admin = await resolveTokenPageAdmin(row);
-  if (!walletCanManageTokenPage(wallet, admin)) {
+  const linkedBankr = await resolveLinkedBankrWallet(wallet);
+  if (!walletCanManageTokenPage(wallet, admin) && !(linkedBankr && walletCanManageTokenPage(linkedBankr, admin))) {
     return {
       ok: false,
       status: 403,
