@@ -279,12 +279,12 @@ export function LaunchTab() {
     const defaultBuyEth = config?.initialBuyDefaultEth ?? '0.1';
     const buyEth = initialBuyEth.trim() || defaultBuyEth;
     const needsWallet = Boolean(config?.walletDeployEnabled);
-    const minBuyEth = Number.parseFloat(config?.initialBuyMinEth ?? '0.001');
-    const maxBuyEth = Number.parseFloat(config?.initialBuyMaxEth ?? '0.1');
+    const minBuyEth = Number.parseFloat(config?.initialBuyMinEth ?? '0.005');
+    const maxBuyEth = Number.parseFloat(config?.initialBuyMaxEth ?? '0.5');
     const buyEthNum = Number.parseFloat(buyEth);
 
     if (needsWallet && (!Number.isFinite(buyEthNum) || buyEthNum < minBuyEth || buyEthNum > maxBuyEth)) {
-      setError(`Pool seed must be between ${config?.initialBuyMinEth ?? '0.001'} and ${config?.initialBuyMaxEth ?? '0.1'} ETH.`);
+      setError(`Pool seed must be between ${config?.initialBuyMinEth ?? '0.005'} and ${config?.initialBuyMaxEth ?? '0.5'} ETH.`);
       return;
     }
 
@@ -652,9 +652,10 @@ export function LaunchTab() {
               <div className="lp-card form-section">
                 <p className="section-label">Pool seed</p>
                 <p className="muted" style={{ fontSize: '0.82rem', margin: '0 0 0.75rem' }}>
-                  You pay ~{config.initialBuyDefaultEth} ETH plus gas from your connected wallet to
-                  deploy and seed the pool. More ETH here means deeper starting liquidity relative
-                  to market cap. hood.markets does not cover website deployment costs.
+                  You pay ETH plus gas from your connected wallet to deploy and seed the pool.
+                  We recommend ~{config.initialBuyDefaultEth} ETH or more for healthier starting
+                  liquidity; you can go as low as {config.initialBuyMinEth} ETH if you accept a
+                  thinner pool. hood.markets does not cover website deployment costs.
                   {feeTarget === 'other'
                     ? ' Trading fees still go to the recipient you choose below.'
                     : null}
@@ -690,6 +691,23 @@ export function LaunchTab() {
                     inputMode="decimal"
                   />
                 </label>
+                {(() => {
+                  const recommended = Number.parseFloat(config.initialBuyDefaultEth);
+                  const entered = Number.parseFloat(initialBuyEth);
+                  if (
+                    !Number.isFinite(entered) ||
+                    entered < Number.parseFloat(config.initialBuyMinEth) ||
+                    entered >= recommended
+                  ) {
+                    return null;
+                  }
+                  return (
+                    <p className="muted" style={{ fontSize: '0.8rem', margin: '0.5rem 0 0' }}>
+                      Below our recommended {config.initialBuyDefaultEth} ETH — starting liquidity
+                      will be thin. You can still launch at this amount.
+                    </p>
+                  );
+                })()}
               </div>
             ) : null}
 

@@ -517,6 +517,124 @@ export async function importTokenDexBranding(
   return parseJson(res);
 }
 
+export type CustomSocialLink = { title: string; url: string };
+
+export interface TokenPageProfile {
+  tokenAddress: string;
+  description: string;
+  websiteUrl: string;
+  xUrl: string;
+  telegramUrl: string;
+  discordUrl: string;
+  githubUrl: string;
+  customLinks: CustomSocialLink[];
+  catalogImageUrl: string | null;
+  catalogBannerUrl: string | null;
+  profileImageUrl: string | null;
+  profileBannerUrl: string | null;
+  displayImageUrl: string | null;
+  displayBannerUrl: string | null;
+  useDexIcon: boolean;
+  useDexBanner: boolean;
+  useLaunchImage: boolean;
+  useDexLinks: boolean;
+  stored: {
+    description: string;
+    websiteUrl: string;
+    xUrl: string;
+    telegramUrl: string;
+    discordUrl: string;
+    githubUrl: string;
+    customLinks: CustomSocialLink[];
+  };
+  dexLinks: {
+    websiteUrl: string;
+    xUrl: string;
+    telegramUrl: string;
+    discordUrl: string;
+    githubUrl: string;
+    customLinks: CustomSocialLink[];
+  };
+  catalog: {
+    description: string;
+    websiteUrl: string;
+    xUrl: string;
+  };
+  verified: boolean;
+  verifiedAt: string | null;
+  verifiedBy: string | null;
+  canEdit: boolean;
+  canVerify: boolean;
+  isAdmin: boolean;
+  adminRole: TokenPageAdminRole | null;
+  dex: TokenDexBrandingResponse['dex'];
+}
+
+export async function fetchTokenPageProfile(
+  tokenAddress: string,
+  walletAddress?: string,
+): Promise<TokenPageProfile> {
+  const params = new URLSearchParams();
+  if (walletAddress?.trim()) params.set('wallet', walletAddress.trim());
+  const qs = params.toString();
+  const res = await fetch(
+    `${API_BASE}/api/tokens/${encodeURIComponent(tokenAddress)}/profile${qs ? `?${qs}` : ''}`,
+  );
+  const data = await parseJson<{ profile: TokenPageProfile }>(res);
+  return data.profile;
+}
+
+export type TokenPageProfilePatch = {
+  description?: string;
+  websiteUrl?: string;
+  xUrl?: string;
+  telegramUrl?: string;
+  discordUrl?: string;
+  githubUrl?: string;
+  customLinks?: CustomSocialLink[];
+  imageUrl?: string;
+  bannerUrl?: string;
+  useDexIcon?: boolean;
+  useDexBanner?: boolean;
+  useLaunchImage?: boolean;
+  useDexLinks?: boolean;
+  importDexBranding?: boolean;
+};
+
+export async function updateTokenPageProfile(
+  accessToken: string,
+  tokenAddress: string,
+  walletAddress: string,
+  patch: TokenPageProfilePatch,
+): Promise<TokenPageProfile> {
+  const res = await fetch(`${API_BASE}/api/tokens/${encodeURIComponent(tokenAddress)}/profile`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ walletAddress, ...patch }),
+  });
+  const data = await parseJson<{ profile: TokenPageProfile }>(res);
+  return data.profile;
+}
+
+export async function verifyTokenPage(
+  accessToken: string,
+  tokenAddress: string,
+  walletAddress: string,
+): Promise<{ profile: TokenPageProfile; replyHint: string }> {
+  const res = await fetch(`${API_BASE}/api/tokens/${encodeURIComponent(tokenAddress)}/verify`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ walletAddress }),
+  });
+  return parseJson(res);
+}
+
 export async function fetchWebDeployConfig(): Promise<WebDeployConfig> {
   const res = await fetch(`${API_BASE}/api/web-deploy-config`);
   return parseJson<WebDeployConfig>(res);

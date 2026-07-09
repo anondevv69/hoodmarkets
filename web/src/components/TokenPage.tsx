@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchDeploymentByAddress, fetchTokenDexBranding, fetchTokenMarketStats, type TokenDetail } from '../api';
+import { fetchDeploymentByAddress, fetchTokenPageProfile, fetchTokenMarketStats, type TokenDetail, type TokenPageProfile } from '../api';
 import { shortenAddress, tokenUrl } from '../chain';
 import { fetchTokenMetricsFromDexscreener, type DexTokenMetrics } from '../lib/dexscreenerVolume';
 import { mergeTokenMetrics } from '../lib/tokenMarketStats';
@@ -15,7 +15,7 @@ import { TokenHeroMetrics } from './TokenHeroMetrics';
 import { TokenPageSidebar } from './TokenPageSidebar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 import { TokenSpaceComments } from './TokenSpaceComments';
-import { TokenBrandingPanel } from './TokenBrandingPanel';
+import { TokenPageProfileEditor } from './TokenPageProfileEditor';
 import { TokenFractionPanel } from './TokenFractionPanel';
 
 function CopyIcon() {
@@ -66,6 +66,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [displayImageUrl, setDisplayImageUrl] = useState<string | undefined>();
   const [displayBannerUrl, setDisplayBannerUrl] = useState<string | undefined>();
+  const [pageProfile, setPageProfile] = useState<TokenPageProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -80,40 +81,48 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
       setMetrics(undefined);
       setDisplayImageUrl(undefined);
       setDisplayBannerUrl(undefined);
+      setPageProfile(null);
       setMetricsLoading(true);
       try {
         const row = await fetchDeploymentByAddress(tokenAddress);
         if (cancelled) return;
         setToken(row);
         const catalogDesc = row.tokenDescription?.trim();
-        if (catalogDesc) setDescription(catalogDesc);
         setLoading(false);
 
         void (async () => {
           try {
-            if (!catalogDesc) {
-              const onChainDesc = await fetchTokenDescriptionFromChain(tokenAddress);
-              if (!cancelled) setDescription(onChainDesc);
-            }
-            const [m, branding, cachedStats] = await Promise.all([
-              fetchTokenMetricsFromDexscreener([row.tokenAddress]),
-              fetchTokenDexBranding(row.tokenAddress).catch(() => null),
+            const [profile, cachedStats] = await Promise.all([
+              fetchTokenPageProfile(row.tokenAddress).catch(() => null),
               fetchTokenMarketStats(row.tokenAddress).catch(() => null),
             ]);
+            if (!cancelled && profile) {
+              setPageProfile(profile);
+              const profileDesc = profile.description?.trim();
+              if (profileDesc) setDescription(profileDesc);
+              else if (catalogDesc) setDescription(catalogDesc);
+              setDisplayImageUrl(profile.displayImageUrl ?? row.tokenImageUrl ?? undefined);
+              setDisplayBannerUrl(profile.displayBannerUrl ?? row.tokenBannerUrl ?? undefined);
+            } else if (!cancelled) {
+              if (catalogDesc) setDescription(catalogDesc);
+            }
+
+            if (!cancelled && !profile) {
+              if (!catalogDesc) {
+                const onChainDesc = await fetchTokenDescriptionFromChain(tokenAddress);
+                if (!cancelled) setDescription(onChainDesc);
+              }
+            }
+
+            const m = await fetchTokenMetricsFromDexscreener([row.tokenAddress]);
             if (!cancelled) {
               const metricsRow = mergeTokenMetrics(m[row.tokenAddress], cachedStats);
               setMetrics(metricsRow);
-              const paid = branding?.dex.enhancedInfoPaid ?? metricsRow?.enhancedInfoPaid;
-              setDisplayImageUrl(
-                branding?.displayImageUrl ||
-                  row.tokenImageUrl ||
-                  (paid ? metricsRow?.dexIconUrl ?? undefined : undefined),
-              );
-              setDisplayBannerUrl(
-                branding?.displayBannerUrl ||
-                  row.tokenBannerUrl ||
-                  (paid ? metricsRow?.dexBannerUrl ?? undefined : undefined),
-              );
+              if (!profile) {
+                const paid = metricsRow?.enhancedInfoPaid;
+                setDisplayImageUrl(row.tokenImageUrl || (paid ? metricsRow?.dexIconUrl ?? undefined : undefined));
+                setDisplayBannerUrl(row.tokenBannerUrl || (paid ? metricsRow?.dexBannerUrl ?? undefined : undefined));
+              }
             }
           } finally {
             if (!cancelled) setMetricsLoading(false);
@@ -146,12 +155,11 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
     };
   }, [displayImageUrl, token?.tokenImageUrl]);
 
-  const refreshBrandingDisplay = () => {
-    void fetchDeploymentByAddress(tokenAddress).then((row) => {
-      setToken(row);
-      setDisplayImageUrl(row.tokenImageUrl);
-      setDisplayBannerUrl(row.tokenBannerUrl);
-    });
+  const refreshProfileDisplay = (profile: TokenPageProfile) => {
+    setPageProfile(profile);
+    if (profile.description?.trim()) setDescription(profile.description.trim());
+    setDisplayImageUrl(profile.displayImageUrl ?? undefined);
+    setDisplayBannerUrl(profile.displayBannerUrl ?? undefined);
   };
 
   if (loading) return <p className="muted">Loading token…</p>;
@@ -204,6 +212,11 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
               <div className="tp-token-card-name-row">
                 <h1 className="tp-token-card-name">{token.tokenName}</h1>
                 <span className="tp-token-card-ticker">${sym}</span>
+                {pageProfile?.verified ? (
+                  <span className="tp-verified-badge tp-verified-badge--inline" title="Verified by fee recipient">
+                    Verified
+                  </span>
+                ) : null}
               </div>
               <div className="tp-token-card-meta">
                 <span className="tp-token-card-addr lp-mono">
@@ -240,8 +253,12 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
         ) : null}
 
         <TokenSocialLinks
-          websiteUrl={token.tokenWebsiteUrl}
-          xUrl={token.tokenXUrl}
+          websiteUrl={pageProfile?.websiteUrl ?? token.tokenWebsiteUrl}
+          xUrl={pageProfile?.xUrl ?? token.tokenXUrl}
+          telegramUrl={pageProfile?.telegramUrl}
+          discordUrl={pageProfile?.discordUrl}
+          githubUrl={pageProfile?.githubUrl}
+          customLinks={pageProfile?.customLinks}
           variant="card"
         />
 
@@ -253,7 +270,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
         />
       </section>
 
-      <TokenBrandingPanel tokenAddress={token.tokenAddress} onImported={refreshBrandingDisplay} />
+      <TokenPageProfileEditor tokenAddress={token.tokenAddress} onUpdated={refreshProfileDisplay} />
 
       <div className="token-page-grid">
         <div className="token-page-main">

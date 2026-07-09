@@ -31,6 +31,7 @@ import { registerDeployerProfileRoutes } from './routes/deployerProfile.js';
 import { registerUserProfileRoutes } from './routes/userProfile.js';
 import { registerTokenSpaceRoutes } from './routes/tokenSpaces.js';
 import { registerTokenPageBrandingRoutes } from './routes/tokenPageBranding.js';
+import { registerTokenPageProfileRoutes } from './routes/tokenPageProfile.js';
 import { registerMyDeploymentsClaimRoutes } from './routes/myDeploymentsClaim.js';
 import { registerMyDeploymentsCollectPoolRoutes } from './routes/myDeploymentsCollectPool.js';
 import { registerDeploymentFeeActionRoutes } from './routes/deploymentFeeActions.js';
@@ -248,6 +249,7 @@ async function main() {
     registerUserProfileRoutes(app);
     registerTokenSpaceRoutes(app);
     registerTokenPageBrandingRoutes(app);
+    registerTokenPageProfileRoutes(app);
     registerMyDeploymentsClaimRoutes(app);
     registerMyDeploymentsCollectPoolRoutes(app);
     registerAgentCaptchaRoutes(app);
@@ -279,6 +281,7 @@ async function main() {
         logger.info(`Agent Bankr briefing: GET http://localhost:${port}/api/agent/briefing`);
         logger.info(`Agent prepare deploy/buy/sell: POST http://localhost:${port}/api/agent/prepare-deploy|prepare-buy|prepare-sell`);
         logger.info(`Agent buyer rewards: POST http://localhost:${port}/api/agent/prepare-fund-buyer-rewards|prepare-cancel-buyer-rewards`);
+        logger.info(`Agent token discussion: GET http://localhost:${port}/api/agent/token-space-posts | POST http://localhost:${port}/api/agent/token-space-post`);
         logger.info(`Resolve source (prefill): POST http://localhost:${port}/api/resolve-source`);
         logger.info(`My deployments: GET http://localhost:${port}/api/my-deployments (auth)`);
         logger.info(`My deployment claim: POST http://localhost:${port}/api/my-deployments/claim (auth)`);
