@@ -104,6 +104,7 @@ interface IHoodMarketsV3 {
 
     event VaultUpdated(address oldVault, address newVault);
     event LiquidityLockerUpdated(address oldLocker, address newLocker);
+    event FractionDeployerUpdated(address oldDeployer, address newDeployer);
     event HoodMarketsV3DeployerUpdated(address oldHoodMarketsV3Deployer, address newHoodMarketsV3Deployer);
     event SetDeprecated(bool deprecated);
     event SetAdmin(address admin, bool isAdmin);

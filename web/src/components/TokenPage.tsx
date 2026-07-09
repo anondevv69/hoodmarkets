@@ -16,6 +16,7 @@ import { TokenPageSidebar } from './TokenPageSidebar';
 import { TokenSocialLinks } from './TokenSocialLinks';
 import { TokenSpaceComments } from './TokenSpaceComments';
 import { TokenPageProfileEditor } from './TokenPageProfileEditor';
+import { TokenWebsitePromptPanel } from './TokenWebsitePromptPanel';
 import { TokenFractionPanel } from './TokenFractionPanel';
 
 function CopyIcon() {
@@ -271,6 +272,8 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
       </section>
 
       <TokenPageProfileEditor tokenAddress={token.tokenAddress} onUpdated={refreshProfileDisplay} />
+
+      <TokenWebsitePromptPanel token={token} profile={pageProfile} />
 
       <div className="token-page-grid">
         <div className="token-page-main">

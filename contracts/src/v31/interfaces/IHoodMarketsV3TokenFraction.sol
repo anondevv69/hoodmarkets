@@ -115,6 +115,9 @@ interface IHoodMarketsV3TokenFraction {
     /// @notice Pull LP swap fees into this contract and pay every share holder their pro-rata slice (one tx).
     function claimTradingFees() external;
 
+    /// @notice Lower reward accounting if it drifted above the rewardable balance (permissionless).
+    function syncRewardAccounting() external;
+
     /// @notice Number of wallets with a non-zero share balance.
     function shareHolderCount() external view returns (uint256);
 

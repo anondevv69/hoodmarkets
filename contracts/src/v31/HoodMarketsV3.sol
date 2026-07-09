@@ -104,6 +104,12 @@ contract HoodMarketsV3 is Ownable, ReentrancyGuard, IHoodMarketsV3 {
         emit LiquidityLockerUpdated(oldLocker, newLocker);
     }
 
+    function updateFractionDeployer(address newDeployer) external onlyOwner {
+        address oldDeployer = address(fractionDeployer);
+        fractionDeployer = HoodMarketsV3FractionDeployer(newDeployer);
+        emit FractionDeployerUpdated(oldDeployer, newDeployer);
+    }
+
     function updateVault(address newVault) external onlyOwner {
         address oldVault = address(vault);
         vault = IHoodMarketsV3Vault(newVault);

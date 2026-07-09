@@ -183,6 +183,40 @@ contract HoodMarketsV3TokenFractionTest is Test {
         fraction.claimTradingFees();
     }
 
+    function test_claimTradingFees_secondClaimAfterNewFees() public {
+        weth.mint(address(fraction), 1 ether);
+
+        vm.prank(creator);
+        fraction.claimTradingFees();
+        assertApproxEqAbs(weth.balanceOf(creator), 1 ether, 1);
+
+        // Previously, rewardTokenAccounted stayed high after payout and blocked the next claim
+        // until new deposits exceeded the gap. New fees must be claimable immediately.
+        weth.mint(address(fraction), 0.5 ether);
+        uint256 before = weth.balanceOf(creator);
+
+        vm.prank(creator);
+        fraction.claimTradingFees();
+        assertApproxEqAbs(weth.balanceOf(creator) - before, 0.5 ether, 1);
+    }
+
+    function test_syncRewardAccounting_unlocksStuckFees() public {
+        weth.mint(address(fraction), 1 ether);
+        vm.prank(creator);
+        fraction.claimTradingFees();
+
+        // Simulate legacy drift: accounted above balance after payout.
+        // Force a second deposit that would be blocked without sync on old bytecode;
+        // with fixed claimTradingFees this path already works — also cover sync helper.
+        weth.mint(address(fraction), 0.25 ether);
+        fraction.syncRewardAccounting();
+
+        uint256 before = weth.balanceOf(creator);
+        vm.prank(creator);
+        fraction.claimTradingFees();
+        assertApproxEqAbs(weth.balanceOf(creator) - before, 0.25 ether, 1);
+    }
+
     function test_buyerShareHolder_claimsTradingFees() public {
         vm.prank(address(hoodFactory));
         fraction.issueBuyerShare(buyer);

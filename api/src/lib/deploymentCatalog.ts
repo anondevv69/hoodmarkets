@@ -1065,8 +1065,8 @@ export async function markDeploymentFeeClaimed(tokenAddress: string, txHash: str
   return new Promise((resolve) => {
     db!.run(
       `UPDATE deployment_catalog
-       SET fee_claimed_at = CASE WHEN TRIM(COALESCE(fee_claimed_at, '')) = '' THEN ? ELSE fee_claimed_at END,
-           fee_claim_tx_hash = CASE WHEN TRIM(COALESCE(fee_claimed_at, '')) = '' THEN ? ELSE fee_claim_tx_hash END
+       SET fee_claimed_at = ?,
+           fee_claim_tx_hash = ?
        WHERE lower(token_address) = ?`,
       [now, h, tok],
       function (this: { changes: number }, err) {
