@@ -6,6 +6,7 @@ import {
 } from '../lib/deploymentCatalog.js';
 import { isV3CatalogDeployment } from '../lib/hoodmarketsV3Fees.js';
 import { isHoodmarketsPlatformFeeRecipientLabel } from '../lib/platformFeeRecipient.js';
+import { readV3TradingFeePoolStatus } from '../lib/v3TradingFeePoolStatus.js';
 import { webDeployCorsHeaders } from '../lib/webDeployCors.js';
 
 function parseTokenParam(raw: string): `0x${string}` | null {
@@ -64,14 +65,20 @@ export function registerDeploymentFeeActionRoutes(app: Express): void {
         platformFees || feeModel === 'v3' ? 0n : await readPendingWethFeesForFeeOwner(feeOwner);
       const pendingHuman = Number(pendingWei) / 1e18;
 
+      const v3Pool =
+        feeModel === 'v3' ? await readV3TradingFeePoolStatus(tokenAddress) : null;
+
       res.json({
         feeRecipientAddress: feeOwner,
         platformFees,
         feeModel,
         pendingWethWei: pendingWei.toString(),
         pendingWethHuman: pendingHuman.toFixed(6),
+        /** V3 claims are always permissionless — no cooldown; revert only means no new fees to pay. */
+        claimAlwaysAvailable: true,
         feeClaimedAt: row.feeClaimedAt?.trim() || undefined,
         feeClaimTxHash: row.feeClaimTxHash?.trim() || undefined,
+        v3Pool: v3Pool ?? undefined,
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to load fee status.';
