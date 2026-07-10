@@ -22,6 +22,18 @@
   --rh-surface-light: #f5f5f5;
   --rh-surface-dim: #e8e8e8;
 
+  /* Layout + motion tokens */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+  --radius: var(--radius-md);
+  --duration-fast: 120ms;
+  --duration-ui: 160ms;
+  --duration-panel: 220ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
   font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -61,6 +73,12 @@
   --docs-code-fg: #e8ebe4;
   --docs-eyebrow: #6e6e6e;
   --docs-card-bg: var(--surface);
+  --text-muted: var(--muted);
+  --lp-border: var(--border);
+  --lp-surface: var(--surface);
+  --explore-media-bg: var(--surface-2);
+  --explore-placeholder-from: color-mix(in srgb, var(--surface-2) 86%, #000);
+  --explore-placeholder-to: color-mix(in srgb, var(--surface) 94%, #000);
   color: var(--text);
   background: var(--bg);
 }
@@ -98,6 +116,12 @@
   --docs-code-fg: #111111;
   --docs-eyebrow: #8a8a8a;
   --docs-card-bg: #ffffff;
+  --text-muted: var(--muted);
+  --lp-border: var(--border);
+  --lp-surface: var(--surface);
+  --explore-media-bg: var(--surface-2);
+  --explore-placeholder-from: color-mix(in srgb, var(--surface-2) 92%, var(--border));
+  --explore-placeholder-to: var(--surface);
   color: var(--text);
   background: var(--bg);
 }
@@ -123,7 +147,7 @@ body {
 }
 
 .lp-fade-in {
-  animation: lp-fadein 0.25s ease;
+  animation: lp-fadein var(--duration-panel) var(--ease-out);
 }
 
 @keyframes lp-fadein {
@@ -1274,9 +1298,24 @@ label {
 
 .btn {
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 0.7rem 1rem;
   font-weight: 700;
+  transition:
+    transform var(--duration-ui) var(--ease-out),
+    background-color var(--duration-ui) var(--ease-out),
+    border-color var(--duration-ui) var(--ease-out),
+    color var(--duration-ui) var(--ease-out),
+    opacity var(--duration-ui) var(--ease-out);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btn-sm {
@@ -1290,9 +1329,14 @@ label {
   border: 1px solid transparent;
 }
 
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-dim);
+}
+
 .btn-primary:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+  transform: none;
 }
 
 .btn-ghost {
@@ -1309,6 +1353,10 @@ label {
   border-color: var(--border);
   color: var(--text);
   background: var(--surface-2);
+}
+
+.btn-ghost:disabled {
+  transform: none;
 }
 
 .btn-launch {
@@ -3205,7 +3253,7 @@ label {
   gap: 0.45rem;
   min-width: 0;
   padding: 0.5rem 0.55rem;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-soft);
   background: var(--surface);
   color: var(--text);
@@ -3213,9 +3261,18 @@ label {
   font-size: 0.8rem;
   font-weight: 600;
   transition:
-    border-color 0.15s ease,
-    background 0.15s ease,
-    transform 0.15s ease;
+    border-color var(--duration-ui) var(--ease-out),
+    background-color var(--duration-ui) var(--ease-out),
+    transform var(--duration-ui) var(--ease-out);
+}
+
+.external-trade-bot-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.external-trade-bot-link:active {
+  transform: scale(0.97);
 }
 
 .external-trade-bot-link:hover {
@@ -3308,16 +3365,29 @@ label {
   width: 100%;
   margin-top: 0.875rem;
   padding: 0.7rem;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   border: 1px solid var(--accent-border);
   color: var(--accent);
   font-weight: 700;
   font-size: 0.8125rem;
+  transition:
+    transform var(--duration-ui) var(--ease-out),
+    background-color var(--duration-ui) var(--ease-out),
+    border-color var(--duration-ui) var(--ease-out);
 }
 
 .tp-claim-btn:hover:not(:disabled) {
   background: var(--accent-glow);
+}
+
+.tp-claim-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tp-claim-btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .tp-claim-btn--secondary {
@@ -3933,9 +4003,9 @@ label {
 .claim-fee-meter {
   margin: 0.65rem 0 0.85rem;
   padding: 0.7rem 0.8rem;
-  border: 1px solid color-mix(in srgb, var(--lp-border, #2a2a2a) 80%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--lp-surface, #121212) 92%, transparent);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
 }
 
 .claim-fee-meter-head {
@@ -3966,16 +4036,16 @@ label {
 .claim-fee-meter-fill {
   height: 100%;
   border-radius: inherit;
-  background: color-mix(in srgb, #6b9e6b 85%, #fff);
-  transition: width 0.35s ease;
+  background: color-mix(in srgb, var(--up) 65%, transparent);
+  transition: width var(--duration-panel) var(--ease-out);
 }
 
 .claim-fee-meter--ready .claim-fee-meter-fill {
-  background: color-mix(in srgb, #5cb85c 90%, #fff);
+  background: color-mix(in srgb, var(--up) 88%, #fff);
 }
 
 .claim-fee-meter--filling .claim-fee-meter-fill {
-  background: color-mix(in srgb, #c4a35a 88%, #fff);
+  background: color-mix(in srgb, var(--accent) 45%, var(--up));
 }
 
 .claim-fee-meter--empty .claim-fee-meter-fill {
@@ -5345,8 +5415,8 @@ label {
   background: transparent;
   color: inherit;
   text-align: left;
-  border-radius: 10px;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  border-radius: var(--radius-md);
+  transition: transform var(--duration-ui) var(--ease-out);
 }
 
 .explore-coin-main {
@@ -5364,7 +5434,7 @@ label {
 }
 
 .explore-coin-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .explore-coin-main:focus-visible {
@@ -5377,8 +5447,8 @@ label {
   aspect-ratio: 1;
   width: 100%;
   overflow: hidden;
-  border-radius: 10px;
-  background: #1a1a1a;
+  border-radius: var(--radius-md);
+  background: var(--explore-media-bg);
   border: 1px solid var(--border-soft);
 }
 
@@ -5399,7 +5469,7 @@ label {
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--muted-faint);
-  background: linear-gradient(145deg, #1c1c1c, #141414);
+  background: linear-gradient(145deg, var(--explore-placeholder-from), var(--explore-placeholder-to));
 }
 
 .explore-coin-badge {
@@ -5491,7 +5561,7 @@ label {
   font-size: 0.78rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #e8e4d4;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5896,6 +5966,28 @@ label {
 @media (prefers-reduced-motion: reduce) {
   .market-ticker__track {
     animation: none;
+  }
+
+  .lp-fade-in,
+  .token-avatar-pulse,
+  .tp-pulse,
+  .token-market-shimmer {
+    animation: none !important;
+  }
+
+  .btn,
+  .tp-claim-btn,
+  .explore-coin-card,
+  .external-trade-bot-link,
+  .claim-fee-meter-fill {
+    transition: none !important;
+  }
+
+  .btn:active:not(:disabled),
+  .tp-claim-btn:active:not(:disabled),
+  .explore-coin-card:hover,
+  .external-trade-bot-link:hover {
+    transform: none;
   }
 }
 
