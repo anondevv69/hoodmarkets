@@ -150,7 +150,7 @@ export function WalletProfilePage({ walletAddress }: { walletAddress: string }) 
   }
 
   return (
-    <div className="deployer-profile-page lp-fade-in">
+    <div className="deployer-profile-page">
       {isOwnProfile ? (
         <div className="profile-toolbar">
           <div className="muted" style={{ fontSize: '0.85rem' }}>

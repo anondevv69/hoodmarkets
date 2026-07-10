@@ -80,7 +80,7 @@ export function DeployerProfilePage({ username }: { username: string }) {
   }
 
   return (
-    <div className="deployer-profile-page lp-fade-in">
+    <div className="deployer-profile-page">
       <div className="lp-card deployer-profile-hero">
         <p className="section-label">Deployer profile</p>
         <h2 className="lp-display deployer-profile-handle">

@@ -1,0 +1,42 @@
+---
+description: UI motion, surfaces, and interaction polish for hood.markets web (Emil Kowalski design-eng principles)
+globs: web/src/**/*.{tsx,css}
+alwaysApply: false
+---
+
+# hood.markets design engineering
+
+Reference: [emilkowalski/skills](https://github.com/emilkowalski/skills) · [animations.dev](https://animations.dev/)
+
+## Tokens (use these — do not invent one-off values)
+
+| Token | Use |
+|-------|-----|
+| `--duration-ui` (160ms) | Buttons, hovers, small feedback |
+| `--duration-panel` (220ms) | Page enter, progress bars |
+| `--ease-out` | Enters, hovers, press release |
+| `--ease-in-out` | On-screen movement |
+| `--card-bg`, `--card-border`, `--card-radius`, `--shadow-card` | `.lp-card`, `.tp-zone`, `.token-card`, explore media |
+| `--radius-sm/md/lg` | 8 / 10 / 14px |
+
+## Motion rules
+
+1. **High-frequency UI** (explore hover, tab nav, sidebar): minimal motion — no large lifts.
+2. **Never `ease-in`** for UI enters; use `--ease-out`.
+3. **Never `transition: all`** — list exact properties.
+4. **Buttons**: `:hover`, `:focus-visible` ring, `:active { transform: scale(0.97) }`.
+5. **Page enters**: `.lp-page-enter` on route wrapper in `App.tsx` only — do not stack `lp-fade-in` on child pages.
+6. **`prefers-reduced-motion`**: disable transforms, animations, and transitions (see `index.css`).
+
+## Surfaces
+
+- **Raised cards** (launch forms, profile lists, sidebar zones): `--card-*` + `--shadow-card`.
+- **Token page zones**: flat editorial — transparent bg, `--border-soft` dividers only (`.token-page .tp-zone` override).
+- Prefer **soft borders** (`--border-soft`) over heavy `--border` on marketing surfaces.
+
+## Before shipping UI changes
+
+- [ ] Primary buttons have press + focus states
+- [ ] New colors use theme vars (no hardcoded `#1a1a1a` in explore)
+- [ ] Animations under 300ms unless explanatory
+- [ ] Reduced-motion block updated if adding new animations
