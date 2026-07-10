@@ -95,14 +95,32 @@ Holder NFT / share actions are **on-chain on the hood.markets token page only**.
 | Action | On-chain call | Agent may? |
 |--------|---------------|------------|
 | Claim trading fees | `claimTradingFees()` via API | **Yes** — `POST /api/agent/claim` or `claim-for-recipient` only |
-| Batch airdrop | `airdropShares` | **No** — token page + user wallet |
+| Batch airdrop | `airdropShares` | **Yes** — `POST /api/agent/prepare-airdrop-shares` then Bankr `/wallet/submit` (wallet must hold shares) |
 | List / buy / cancel listings | `listShares`, `buyShares`, `cancelListing` | **Yes** — `GET /api/agent/fraction-listings` + `prepare-buy-shares` / `prepare-list-shares` / `prepare-cancel-listing` then Bankr `/wallet/submit` (native ETH listings only) |
 | Buyer rewards | `fundBuyerRewardPool`, `cancelBuyerRewardPool` | **Yes** — `POST /api/agent/prepare-fund-buyer-rewards` / `prepare-cancel-buyer-rewards` then Bankr `/wallet/submit` (fee recipient wallet only) |
 | Transfer shares | ERC-1155 `safeTransferFrom` | **No** |
 
 **Do not** invent calldata for share txs — use the prepare endpoints above. `prepare-buy` / `prepare-sell` are for **Uniswap token swaps**, not Holder share listings.
 
-If a user asks to airdrop shares → direct them to **https://hood.markets/?token=0x…** and their connected wallet.
+**Airdrop shares (comment giveaways, rewards, etc.):**
+
+1. Resolve the recipient's **0x wallet** (Farcaster custody, linked wallet, etc.) — hood.markets does not resolve X handles.
+2. `POST /api/agent/prepare-airdrop-shares` with `wallet` (your Bankr wallet holding shares), `symbol` or `tokenAddress`, and `recipient` + `amount` (default **1** share).
+3. Submit `transactions[0]` via Bankr `/wallet/submit` on Robinhood (4663). **No platform fee** on airdrops (v0.11+).
+
+Example — airdrop 1 NORMIES share to a commenter:
+
+```json
+POST https://api.hood.markets/api/agent/prepare-airdrop-shares
+{
+  "wallet": "0xYourWallet…",
+  "symbol": "NORMIES",
+  "recipient": "0xCommenterWallet…",
+  "amount": 1
+}
+```
+
+Batch: use `recipients[]` + optional `amounts[]` (max 50 per call). v0.10+ uses one `airdropShares` tx; older bytecode falls back to per-wallet `safeTransferFrom` txs.
 
 **Share marketplace (list / buy / cancel):**
 

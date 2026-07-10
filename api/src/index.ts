@@ -281,7 +281,7 @@ async function main() {
         logger.info(`Agent Bankr briefing: GET http://localhost:${port}/api/agent/briefing`);
         logger.info(`Agent prepare deploy/buy/sell: POST http://localhost:${port}/api/agent/prepare-deploy|prepare-buy|prepare-sell`);
         logger.info(`Agent buyer rewards: POST http://localhost:${port}/api/agent/prepare-fund-buyer-rewards|prepare-cancel-buyer-rewards`);
-        logger.info(`Agent share marketplace: GET http://localhost:${port}/api/agent/fraction-listings · POST prepare-buy-shares|prepare-list-shares|prepare-cancel-listing`);
+        logger.info(`Agent share marketplace: GET http://localhost:${port}/api/agent/fraction-listings · POST prepare-buy-shares|prepare-list-shares|prepare-cancel-listing|prepare-airdrop-shares`);
         logger.info(`Agent token discussion: GET http://localhost:${port}/api/agent/token-space-posts | POST http://localhost:${port}/api/agent/token-space-post`);
         logger.info(`Resolve source (prefill): POST http://localhost:${port}/api/resolve-source`);
         logger.info(`My deployments: GET http://localhost:${port}/api/my-deployments (auth)`);

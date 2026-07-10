@@ -50,7 +50,7 @@ No Bankr `/wallet/submit`. Post `replyHint` when `ok: true`.
 
 ## Holder NFTs
 
-1,000 shares per launch. On-chain: send, `airdropShares` (one tx v0.10+), `listShares`/`buyShares`, `claimTradingFees()`, buyer rewards post-launch on token page. Web launch: fee recipient “Someone else” = `0x…` only. See `references/HOLDER-NFTS.md`.
+1,000 shares per launch. On-chain: send, `airdropShares` (one tx v0.10+), `listShares`/`buyShares`, `claimTradingFees()`, buyer rewards post-launch on token page. **Agents:** `POST /api/agent/prepare-airdrop-shares` for giveaways (resolve recipient `0x` first). Web launch: fee recipient “Someone else” = `0x…` only. See `references/HOLDER-NFTS.md`.
 
 ## Briefing & catalog
 

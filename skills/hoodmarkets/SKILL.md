@@ -103,7 +103,7 @@ if message mentions hoodmarkets / hood.markets / launch token on robinhood /
   10. **Claim fees (default):** `claim fees for $TICKER` or `claim fees for 0x…` → POST /api/agent/claim-for-recipient with `tokenSymbol` and/or `tokenAddress` — **no JWT, no NFTs, no deploy required** — references/CLAIM-BANKR.md
   11. **Claim own fees (rare):** only when user says **my** fees AND linked wallet = catalog fee recipient → POST /api/agent/claim — references/AUTH-BOUNDARY.md
   12. **Claim success:** `ok: true` → post `replyHint` if schema-valid. **Never** `/wallet/submit`. **Never** say "I didn't submit a transaction"
-  13. **Holder NFTs:** claim fees via API only — no airdrop/list/buyShares/rewards via agent — references/HOLDER-NFTS.md
+  13. **Holder NFTs:** claim fees via API; airdrop / list / buy / cancel shares via `prepare-*` + Bankr submit — references/HOLDER-NFTS.md
   14. **Token discussion:** read `GET /api/agent/token-space-posts?symbol=$TICKER`. Post `POST /api/agent/token-space-post` with Bankr wallet + `body` — wallet must hold ERC-20; no JWT, no `/wallet/submit`
   15. **Token page edit:** `POST /api/agent/update-token-page-profile` — description, socials, custom links, icon/banner URLs, Dex/launch/link toggles; admin wallet only
   16. **Verify token page:** `POST /api/agent/verify-token-page` — fee recipient wallet only
@@ -351,6 +351,28 @@ If unsure, prefer **`claim-for-recipient`** — it matches the hood.markets webs
 | **Pro (V4)** | Collect pool → claim WETH from locker |
 
 Response includes `feeRecipientAddress`, `txHash`, `explorerUrl`, `feeModel` / `launchType`.
+
+---
+
+## Airdrop Holder shares (giveaways)
+
+When the user holds shares and wants to send them (e.g. *"airdrop 1 $NORMIES share to whoever comments"*):
+
+1. **Resolve recipient `0x` wallet** — hood.markets does not map X/Farcaster handles.
+2. `POST https://api.hood.markets/api/agent/prepare-airdrop-shares`:
+
+```json
+{
+  "wallet": "0x…",
+  "symbol": "NORMIES",
+  "recipient": "0xCommenter…",
+  "amount": 1
+}
+```
+
+3. Validate txs per `references/TX-VALIDATION.md` → Bankr `/wallet/submit` on **4663**.
+
+**No platform fee** on airdrops (v0.11+). Signing wallet must hold the shares. Batch: `recipients[]` + optional `amounts[]` (max 50). See `references/HOLDER-NFTS.md` · `references/AGENT-API.md`.
 
 ---
 

@@ -16,7 +16,7 @@
     "Chain: Robinhood (4663) — abort if Bankr wallet does not support 4663 (references/CHAIN-4663.md)",
     "V3 factory: 0x9BDdC8ddf28f5629C989A36Eb5bb6C73cBA60Df5 (v0.11.0 — two fees only: swap + marketplace sales)",
     "Legacy V3 factories still valid in catalog — see known-contracts.json legacyHoodmarketsV3Factories",
-    "Holder NFTs: claim via API only — no agent airdrop/list/buyShares (references/HOLDER-NFTS.md)",
+    "Holder NFTs: claim via API; airdrop/list/buy via prepare-* + Bankr submit (references/HOLDER-NFTS.md)",
     "Community Launch / petition: references/COMMUNITY-LAUNCH.md — preflight → create; prepare-deposit → Bankr native ETH submit → confirm",
     "Web UI community launch: https://hood.markets/community-launch",
     "Web launch: Someone else fee recipient = 0x wallet only (not @handle)",

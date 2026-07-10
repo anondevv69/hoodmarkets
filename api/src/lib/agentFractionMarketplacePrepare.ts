@@ -19,6 +19,11 @@ import { ROBINHOOD_CHAIN_ID, ROBINHOOD_RPC_DEFAULT } from './robinhoodChain.js';
 
 const FRACTION_TOKEN_ID = 0n;
 const SHARE_SALE_PLATFORM_FEE_BPS = 500;
+const MAX_AIRDROP_RECIPIENTS = 50;
+
+/** Probe reverts when `airdropShares` exists but validation fails (v0.10+ bytecode). */
+const BATCH_AIRDROP_PROBE_REVERTS =
+  /InvalidListAmount|ArrayLengthMismatch|InsufficientFractionBalance|0x9ba2943a|0xa24a13a6|0x512d1fe6/i;
 
 const FRACTION_FACTORY_ABI = [
   {
@@ -119,6 +124,114 @@ async function loadFractionContext(tokenRaw: string) {
     symbol: row.tokenSymbol.replace(/^\$/, ''),
     fractionCollection: getAddress(fractionCollection),
   };
+}
+
+async function fractionSupportsBatchAirdrop(fractionCollection: Address): Promise<boolean> {
+  const client = publicClient();
+  try {
+    await client.simulateContract({
+      address: fractionCollection,
+      abi: HOODMARKETS_V3_FRACTION_ABI,
+      functionName: 'airdropShares',
+      args: [[zeroAddress], [0n]],
+      account: '0x0000000000000000000000000000000000000001',
+    });
+    return true;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return BATCH_AIRDROP_PROBE_REVERTS.test(msg);
+  }
+}
+
+function parsePositiveInt(raw: unknown): number | null {
+  const n =
+    typeof raw === 'number'
+      ? raw
+      : typeof raw === 'string'
+        ? Number.parseInt(raw.trim(), 10)
+        : NaN;
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
+function parseAirdropEntries(body: {
+  recipient?: unknown;
+  recipients?: unknown;
+  amount?: unknown;
+  amounts?: unknown;
+  shareAmount?: unknown;
+  shares?: unknown;
+}): { ok: true; recipients: Address[]; amounts: bigint[] } | { ok: false; error: string } {
+  const rawList: unknown[] = [];
+  if (typeof body.recipient === 'string' && body.recipient.trim()) {
+    rawList.push(body.recipient.trim());
+  }
+  if (Array.isArray(body.recipients)) {
+    for (const item of body.recipients) {
+      if (typeof item === 'string' && item.trim()) rawList.push(item.trim());
+    }
+  }
+
+  if (rawList.length === 0) {
+    return {
+      ok: false,
+      error: 'recipient or recipients[] is required (one or more 0x wallet addresses).',
+    };
+  }
+  if (rawList.length > MAX_AIRDROP_RECIPIENTS) {
+    return {
+      ok: false,
+      error: `Too many recipients (max ${MAX_AIRDROP_RECIPIENTS}). Split into multiple airdrops.`,
+    };
+  }
+
+  const recipients: Address[] = [];
+  const seen = new Set<string>();
+  for (const raw of rawList) {
+    try {
+      const addr = getAddress(raw);
+      if (addr === zeroAddress) {
+        return { ok: false, error: 'Recipient cannot be the zero address.' };
+      }
+      const key = addr.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      recipients.push(addr);
+    } catch {
+      return { ok: false, error: `Invalid recipient address: ${raw}` };
+    }
+  }
+
+  const defaultAmount =
+    parsePositiveInt(body.amount) ??
+    parsePositiveInt(body.shareAmount) ??
+    parsePositiveInt(body.shares) ??
+    1;
+
+  let amounts: bigint[];
+  if (body.amounts !== undefined) {
+    if (!Array.isArray(body.amounts)) {
+      return { ok: false, error: 'amounts must be an array when provided.' };
+    }
+    if (body.amounts.length !== recipients.length) {
+      return {
+        ok: false,
+        error: 'amounts[] length must match recipients[] length.',
+      };
+    }
+    amounts = [];
+    for (const raw of body.amounts) {
+      const n = parsePositiveInt(raw);
+      if (n == null) {
+        return { ok: false, error: 'Each amount in amounts[] must be a positive integer.' };
+      }
+      amounts.push(BigInt(n));
+    }
+  } else {
+    amounts = recipients.map(() => BigInt(defaultAmount));
+  }
+
+  return { ok: true, recipients, amounts };
 }
 
 export async function listAgentFractionListings(tokenRaw: string): Promise<
@@ -473,5 +586,129 @@ export async function prepareAgentCancelListing(params: {
     replyHint: `Prepared cancelListing #${listingId} for $${ctx.symbol}. Submit via Bankr /wallet/submit.`,
     confirmHint: 'Submit via Bankr /wallet/submit with waitForConfirmation: true.',
     bankrWalletSubmitRequired: true,
+  };
+}
+
+export async function prepareAgentAirdropShares(params: {
+  wallet: Address;
+  tokenAddress: string;
+  recipient?: unknown;
+  recipients?: unknown;
+  amount?: unknown;
+  amounts?: unknown;
+  shareAmount?: unknown;
+  shares?: unknown;
+}): Promise<
+  | {
+      ok: true;
+      chainId: number;
+      tokenAddress: Address;
+      tokenSymbol: string;
+      fractionCollection: Address;
+      recipients: Address[];
+      amounts: number[];
+      totalShares: number;
+      batched: boolean;
+      transactions: AgentPreparedTx[];
+      tokenPageUrl: string;
+      replyHint: string;
+      confirmHint: string;
+      bankrWalletSubmitRequired: true;
+      platformFeeNote: string;
+    }
+  | { ok: false; error: string; hint?: string; tokenPageUrl?: string }
+> {
+  const parsed = parseAirdropEntries(params);
+  if (!parsed.ok) return parsed;
+
+  const ctx = await loadFractionContext(params.tokenAddress);
+  if (!ctx.ok) return ctx;
+
+  const totalShares = parsed.amounts.reduce((sum, n) => sum + n, 0n);
+  const client = publicClient();
+  const balance = await client.readContract({
+    address: ctx.fractionCollection,
+    abi: HOODMARKETS_V3_FRACTION_ABI,
+    functionName: 'balanceOf',
+    args: [params.wallet, FRACTION_TOKEN_ID],
+  });
+  if (balance < totalShares) {
+    return {
+      ok: false,
+      error: `Insufficient Holder shares. Wallet holds ${balance}; airdrop needs ${totalShares}.`,
+      tokenPageUrl: tokenPageUrl(ctx.token),
+      hint: 'The signing wallet must hold the shares being airdropped.',
+    };
+  }
+
+  const batched = await fractionSupportsBatchAirdrop(ctx.fractionCollection);
+  const amountsHuman = parsed.amounts.map((n) => Number(n));
+  const recipientSummary =
+    parsed.recipients.length === 1
+      ? parsed.recipients[0]
+      : `${parsed.recipients.length} wallets`;
+
+  let transactions: AgentPreparedTx[];
+
+  if (batched) {
+    const data = encodeFunctionData({
+      abi: HOODMARKETS_V3_FRACTION_ABI,
+      functionName: 'airdropShares',
+      args: [parsed.recipients, parsed.amounts],
+    });
+    transactions = [
+      {
+        step: 'airdropShares',
+        to: ctx.fractionCollection,
+        data,
+        value: '0x0',
+        chainId: ROBINHOOD_CHAIN_ID,
+        description: `Airdrop ${totalShares} Holder share(s) for $${ctx.symbol} to ${recipientSummary}.`,
+      },
+    ];
+  } else {
+    transactions = parsed.recipients.map((recipient, i) => {
+      const amount = parsed.amounts[i];
+      const data = encodeFunctionData({
+        abi: HOODMARKETS_V3_FRACTION_ABI,
+        functionName: 'safeTransferFrom',
+        args: [params.wallet, recipient, FRACTION_TOKEN_ID, amount, '0x'],
+      });
+      return {
+        step: `transferShare-${i + 1}`,
+        to: ctx.fractionCollection,
+        data,
+        value: '0x0' as const,
+        chainId: ROBINHOOD_CHAIN_ID,
+        description: `Send ${amount} Holder share(s) for $${ctx.symbol} to ${recipient}.`,
+      };
+    });
+  }
+
+  const shareWord = Number(totalShares) === 1 ? 'share' : 'shares';
+  const replyHint =
+    parsed.recipients.length === 1
+      ? `Prepared airdrop: ${amountsHuman[0]} Holder ${shareWord} for $${ctx.symbol} → ${parsed.recipients[0]}. Submit via Bankr /wallet/submit on Robinhood (4663).`
+      : `Prepared airdrop: ${totalShares} Holder shares for $${ctx.symbol} to ${parsed.recipients.length} wallets. Submit ${transactions.length} tx(s) via Bankr /wallet/submit.`;
+
+  return {
+    ok: true,
+    chainId: ROBINHOOD_CHAIN_ID,
+    tokenAddress: ctx.token,
+    tokenSymbol: ctx.symbol,
+    fractionCollection: ctx.fractionCollection,
+    recipients: parsed.recipients,
+    amounts: amountsHuman,
+    totalShares: Number(totalShares),
+    batched,
+    transactions,
+    tokenPageUrl: tokenPageUrl(ctx.token),
+    replyHint,
+    confirmHint:
+      transactions.length === 1
+        ? 'Submit via Bankr /wallet/submit with waitForConfirmation: true. No platform fee on airdrops (v0.11+).'
+        : 'Submit each transaction in order via Bankr /wallet/submit. No platform fee on transfers (v0.11+).',
+    bankrWalletSubmitRequired: true,
+    platformFeeNote: 'No platform fee on Holder share airdrops or wallet sends (v0.11+ factory).',
   };
 }

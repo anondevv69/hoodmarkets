@@ -13,6 +13,7 @@ import {
 } from '../lib/agentBuyerRewardPrepare.js';
 import {
   listAgentFractionListings,
+  prepareAgentAirdropShares,
   prepareAgentBuyShares,
   prepareAgentCancelListing,
   prepareAgentListShares,
@@ -842,6 +843,54 @@ export function registerAgentBankrRoutes(app: Express): void {
     }
     const listingId = body.listingId ?? body.listing;
     const result = await prepareAgentCancelListing({ wallet, tokenAddress, listingId });
+    if (!result.ok) {
+      res.status(400).json(result);
+      return;
+    }
+    res.json({
+      ...result,
+      wallet,
+      bankrSubmitUrl: 'https://api.bankr.bot/wallet/submit',
+      bankrWalletSubmitRequired: true,
+    });
+  });
+
+  app.options('/api/agent/prepare-airdrop-shares', (req, res) => {
+    cors(req, res);
+    res.status(204).end();
+  });
+
+  app.post('/api/agent/prepare-airdrop-shares', async (req: Request, res: Response) => {
+    cors(req, res);
+    const wallet = walletFromBody(req.body) ?? walletFromReq(req);
+    if (!wallet) {
+      res.status(400).json({ ok: false, error: 'wallet required.' });
+      return;
+    }
+    const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const tokenAddress =
+      typeof body.tokenAddress === 'string'
+        ? body.tokenAddress.trim()
+        : typeof body.token === 'string'
+          ? body.token.trim()
+          : typeof body.symbol === 'string'
+            ? body.symbol.trim()
+            : '';
+    if (!tokenAddress) {
+      res.status(400).json({ ok: false, error: 'tokenAddress, token, or symbol is required.' });
+      return;
+    }
+
+    const result = await prepareAgentAirdropShares({
+      wallet,
+      tokenAddress,
+      recipient: body.recipient,
+      recipients: body.recipients,
+      amount: body.amount ?? body.shareAmount ?? body.shares,
+      amounts: body.amounts,
+      shareAmount: body.shareAmount,
+      shares: body.shares,
+    });
     if (!result.ok) {
       res.status(400).json(result);
       return;

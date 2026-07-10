@@ -125,15 +125,16 @@ POST https://api.hood.markets/api/agent/claim-for-recipient
 
 ---
 
-## Holder NFTs (on token page / on-chain)
+## Holder NFTs
 
-| Capability | Method |
-|------------|--------|
-| Send shares | `safeTransferFrom` (no fee v0.11) |
-| Batch airdrop | `airdropShares` — **one tx** (v0.10+; hood.markets auto-detects) |
-| List / buy / cancel | `listShares` / `buyShares` / `cancelListing` (5% on sale) |
-| Claim swap fees | `claimTradingFees()` |
-| Buyer rewards | `prepare-fund-buyer-rewards` / `prepare-cancel-buyer-rewards` → Bankr submit (fee recipient only) |
+| Capability | Agent API |
+|------------|-----------|
+| Airdrop shares | `POST /api/agent/prepare-airdrop-shares` → Bankr submit (no platform fee v0.11+) |
+| List / buy / cancel | `prepare-list-shares` / `prepare-buy-shares` / `prepare-cancel-listing` → Bankr submit |
+| Claim swap fees | `POST /api/agent/claim` or `claim-for-recipient` (no wallet submit) |
+| Buyer rewards | `prepare-fund-buyer-rewards` / `prepare-cancel-buyer-rewards` (fee recipient only) |
+
+**Comment giveaway example:** resolve commenter `0x` → `prepare-airdrop-shares` with `{ symbol, recipient, amount: 1 }` → Bankr submit.
 
 Full reference: skill `references/HOLDER-NFTS.md` · `references/AGENT-API.md`
 
