@@ -9,7 +9,6 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { TokenPage } from './components/TokenPage';
 import { TokensTab } from './components/TokensTab';
 import { useWebAuth } from './auth/WebAuthContext';
-import { useEnsureRobinhoodChain } from './hooks/useEnsureRobinhoodChain';
 import { isDevPage, openDevPage } from './lib/devRoute';
 import { migrateCommunityLaunchPath } from './lib/communityLaunchRoute';
 import {
@@ -78,7 +77,6 @@ function XIcon() {
 }
 
 export default function App() {
-  useEnsureRobinhoodChain();
   const { walletAddress } = useWebAuth();
   const [tab, setTab] = useState<Tab>(readTabFromUrl);
   const [tokenAddress, setTokenAddress] = useState<string | null>(readTokenFromUrl);
