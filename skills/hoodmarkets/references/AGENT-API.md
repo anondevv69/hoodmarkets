@@ -380,6 +380,77 @@ Submit returned tx via Bankr `/wallet/submit`.
 
 ---
 
+## GET /api/agent/fraction-listings
+
+List active Holder NFT share listings for a simple (V3) token.
+
+```http
+GET https://api.hood.markets/api/agent/fraction-listings?symbol=NORMIES
+GET https://api.hood.markets/api/agent/fraction-listings?token=0x426bB0A71fB3C49D893cA9896B0b45347AA8a004
+```
+
+**Response:** `listings[]` with `listingId`, `seller`, `shareAmount`, `priceEth`, `priceWei`, `paymentToken` (zero address = native ETH).
+
+---
+
+## POST /api/agent/prepare-buy-shares
+
+Buy a listed Holder share lot via `buyShares`. **Native ETH listings only** via agent API.
+
+```http
+POST https://api.hood.markets/api/agent/prepare-buy-shares
+Content-Type: application/json
+
+{
+  "wallet": "0x…",
+  "symbol": "NORMIES",
+  "listingId": 3
+}
+```
+
+**Response:** `transactions[]` with `value` = listing price, `listing`, `platformFeeNote`, `bankrWalletSubmitRequired: true`.
+
+Submit via Bankr `/wallet/submit` (`chainId` **4663**). **5%** platform fee on sale price.
+
+---
+
+## POST /api/agent/prepare-list-shares
+
+List Holder shares for sale (native ETH price).
+
+```http
+POST https://api.hood.markets/api/agent/prepare-list-shares
+Content-Type: application/json
+
+{
+  "wallet": "0x…",
+  "tokenAddress": "0x426bB0A71fB3C49D893cA9896B0b45347AA8a004",
+  "shareAmount": 10,
+  "priceEth": "0.05"
+}
+```
+
+Seller must hold enough shares in wallet. Submit returned tx via Bankr `/wallet/submit`.
+
+---
+
+## POST /api/agent/prepare-cancel-listing
+
+Cancel your active listing (seller wallet only).
+
+```http
+POST https://api.hood.markets/api/agent/prepare-cancel-listing
+Content-Type: application/json
+
+{
+  "wallet": "0x…",
+  "symbol": "NORMIES",
+  "listingId": 3
+}
+```
+
+---
+
 ## POST /api/agent/import-dex-branding
 
 Pull DexScreener Enhanced Token Info **icon + banner** into the hood.markets catalog (persists on token page). Requires Dex **paid** (`tokenProfile` order `approved` or `processing`). **Fee recipient, top Holder share holder, or deployer** — no Bankr wallet submit (server-side catalog update).

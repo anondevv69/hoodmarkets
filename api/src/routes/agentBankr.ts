@@ -11,6 +11,12 @@ import {
   prepareAgentCancelBuyerRewards,
   prepareAgentFundBuyerRewards,
 } from '../lib/agentBuyerRewardPrepare.js';
+import {
+  listAgentFractionListings,
+  prepareAgentBuyShares,
+  prepareAgentCancelListing,
+  prepareAgentListShares,
+} from '../lib/agentFractionMarketplacePrepare.js';
 import { importDexBrandingForToken } from '../lib/importDexBranding.js';
 import {
   listAgentTokenSpacePosts,
@@ -686,6 +692,156 @@ export function registerAgentBankrRoutes(app: Express): void {
     }
 
     const result = await prepareAgentCancelBuyerRewards({ wallet, tokenAddress });
+    if (!result.ok) {
+      res.status(400).json(result);
+      return;
+    }
+    res.json({
+      ...result,
+      wallet,
+      bankrSubmitUrl: 'https://api.bankr.bot/wallet/submit',
+      bankrWalletSubmitRequired: true,
+    });
+  });
+
+  app.options('/api/agent/fraction-listings', (req, res) => {
+    cors(req, res);
+    res.status(204).end();
+  });
+
+  app.get('/api/agent/fraction-listings', async (req: Request, res: Response) => {
+    cors(req, res);
+    const token =
+      typeof req.query.token === 'string'
+        ? req.query.token.trim()
+        : typeof req.query.tokenAddress === 'string'
+          ? req.query.tokenAddress.trim()
+          : typeof req.query.symbol === 'string'
+            ? req.query.symbol.trim()
+            : '';
+    if (!token) {
+      res.status(400).json({ ok: false, error: 'token, tokenAddress, or symbol query param is required.' });
+      return;
+    }
+    const result = await listAgentFractionListings(token);
+    if (!result.ok) {
+      res.status(400).json(result);
+      return;
+    }
+    res.json(result);
+  });
+
+  app.options('/api/agent/prepare-buy-shares', (req, res) => {
+    cors(req, res);
+    res.status(204).end();
+  });
+
+  app.post('/api/agent/prepare-buy-shares', async (req: Request, res: Response) => {
+    cors(req, res);
+    const wallet = walletFromBody(req.body) ?? walletFromReq(req);
+    if (!wallet) {
+      res.status(400).json({ ok: false, error: 'wallet required.' });
+      return;
+    }
+    const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const tokenAddress =
+      typeof body.tokenAddress === 'string'
+        ? body.tokenAddress.trim()
+        : typeof body.token === 'string'
+          ? body.token.trim()
+          : typeof body.symbol === 'string'
+            ? body.symbol.trim()
+            : '';
+    if (!tokenAddress) {
+      res.status(400).json({ ok: false, error: 'tokenAddress, token, or symbol is required.' });
+      return;
+    }
+    const listingId = body.listingId ?? body.listing;
+    const result = await prepareAgentBuyShares({ wallet, tokenAddress, listingId });
+    if (!result.ok) {
+      res.status(400).json(result);
+      return;
+    }
+    res.json({
+      ...result,
+      wallet,
+      bankrSubmitUrl: 'https://api.bankr.bot/wallet/submit',
+      bankrWalletSubmitRequired: true,
+    });
+  });
+
+  app.options('/api/agent/prepare-list-shares', (req, res) => {
+    cors(req, res);
+    res.status(204).end();
+  });
+
+  app.post('/api/agent/prepare-list-shares', async (req: Request, res: Response) => {
+    cors(req, res);
+    const wallet = walletFromBody(req.body) ?? walletFromReq(req);
+    if (!wallet) {
+      res.status(400).json({ ok: false, error: 'wallet required.' });
+      return;
+    }
+    const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const tokenAddress =
+      typeof body.tokenAddress === 'string'
+        ? body.tokenAddress.trim()
+        : typeof body.token === 'string'
+          ? body.token.trim()
+          : typeof body.symbol === 'string'
+            ? body.symbol.trim()
+            : '';
+    if (!tokenAddress) {
+      res.status(400).json({ ok: false, error: 'tokenAddress, token, or symbol is required.' });
+      return;
+    }
+    const shareAmount = body.shareAmount ?? body.shares ?? body.amount;
+    const priceEth =
+      typeof body.priceEth === 'string'
+        ? body.priceEth
+        : typeof body.price === 'string'
+          ? body.price
+          : undefined;
+    const result = await prepareAgentListShares({ wallet, tokenAddress, shareAmount, priceEth });
+    if (!result.ok) {
+      res.status(400).json(result);
+      return;
+    }
+    res.json({
+      ...result,
+      wallet,
+      bankrSubmitUrl: 'https://api.bankr.bot/wallet/submit',
+      bankrWalletSubmitRequired: true,
+    });
+  });
+
+  app.options('/api/agent/prepare-cancel-listing', (req, res) => {
+    cors(req, res);
+    res.status(204).end();
+  });
+
+  app.post('/api/agent/prepare-cancel-listing', async (req: Request, res: Response) => {
+    cors(req, res);
+    const wallet = walletFromBody(req.body) ?? walletFromReq(req);
+    if (!wallet) {
+      res.status(400).json({ ok: false, error: 'wallet required.' });
+      return;
+    }
+    const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const tokenAddress =
+      typeof body.tokenAddress === 'string'
+        ? body.tokenAddress.trim()
+        : typeof body.token === 'string'
+          ? body.token.trim()
+          : typeof body.symbol === 'string'
+            ? body.symbol.trim()
+            : '';
+    if (!tokenAddress) {
+      res.status(400).json({ ok: false, error: 'tokenAddress, token, or symbol is required.' });
+      return;
+    }
+    const listingId = body.listingId ?? body.listing;
+    const result = await prepareAgentCancelListing({ wallet, tokenAddress, listingId });
     if (!result.ok) {
       res.status(400).json(result);
       return;
