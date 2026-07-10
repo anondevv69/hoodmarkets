@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { addressUrl } from '../chain';
 import { type DevSection, normalizeDevSection } from '../lib/devRoute';
 
-const MONOREPO = 'https://github.com/anondevv69/hoodmarkets';
+const MONOREPO = 'https://github.com/hoodmarkets/Hood-Market';
+const SKILL_REPO = 'https://github.com/hoodmarkets/Hood-Market-Skill';
 const V3_JSON = `${MONOREPO}/blob/main/contracts/deployed-hoodmarkets-v3-mainnet.json`;
 const V3_DOCS = `${MONOREPO}/blob/main/docs/HOODMARKETS_V3.md`;
 const SETUP_DOCS = `${MONOREPO}/blob/main/docs/HOOD_MARKETS_SETUP.md`;
@@ -28,12 +29,12 @@ const CONTRACTS = [
   { name: 'Uniswap V3 SwapRouter02', address: '0xCaf681a66D020601342297493863E78C959E5cb2' },
 ] as const;
 
-const SDK_REPO = 'https://github.com/anondevv69/hoodmarkets-sdk';
+const SDK_REPO = `${MONOREPO}/blob/main/docs/sdk.md`;
 const SDK_MD = '/sdk.md';
-const CONTRACTS_REPO = 'https://github.com/anondevv69/hoodmarkets/tree/main/contracts';
-const AGENT_SKILL = 'https://github.com/anondevv69/hoodmarkets/tree/main/skills/hoodmarkets';
-const AGENT_API_REF = `${MONOREPO}/blob/main/skills/hoodmarkets/references/AGENT-API.md`;
-const KNOWN_CONTRACTS = `${MONOREPO}/blob/main/skills/hoodmarkets/known-contracts.json`;
+const CONTRACTS_REPO = `${MONOREPO}/tree/main/contracts`;
+const AGENT_SKILL = SKILL_REPO;
+const AGENT_API_REF = `${SKILL_REPO}/blob/main/references/AGENT-API.md`;
+const KNOWN_CONTRACTS = `${SKILL_REPO}/blob/main/known-contracts.json`;
 const API_BASE = 'https://api.hood.markets';
 
 const AGENT_ENDPOINTS = [
@@ -51,28 +52,28 @@ const AGENT_ENDPOINTS = [
 
 const GITHUB_LINKS = [
   {
-    title: 'Monorepo',
-    desc: 'Web app, API, contracts, and agent skill',
+    title: 'Hood Market',
+    desc: 'Contracts, API, and public docs',
     href: MONOREPO,
-    label: 'anondevv69/hoodmarkets',
+    label: 'hoodmarkets/Hood-Market',
   },
   {
-    title: 'TypeScript SDK',
-    desc: 'Deploy and interact from your own site or script',
+    title: 'SDK docs',
+    desc: 'Contracts, install paths, and integration guide',
     href: SDK_REPO,
-    label: 'anondevv69/hoodmarkets-sdk',
+    label: 'docs/sdk.md',
   },
   {
     title: 'Contracts',
     desc: 'Foundry source, deploy scripts, and ABIs',
     href: CONTRACTS_REPO,
-    label: 'hoodmarkets/contracts',
+    label: 'hoodmarkets/Hood-Market/contracts',
   },
   {
     title: 'Agent skill',
     desc: 'Bankr skill + references for autonomous agents',
     href: AGENT_SKILL,
-    label: 'skills/hoodmarkets',
+    label: 'hoodmarkets/Hood-Market-Skill',
   },
   {
     title: 'sdk.md',
@@ -126,7 +127,7 @@ const FAQ = [
   },
   {
     q: 'Can I deploy from my own website?',
-    a: 'Yes — use the hoodmarkets-sdk npm package or call the factory contract directly. Same on-chain contracts as hood.markets.',
+    a: 'Yes — call the HoodMarketsV3 factory on-chain, or use the Agent API at api.hood.markets. Same contracts as hood.markets — see github.com/hoodmarkets/Hood-Market.',
   },
   {
     q: 'Are older factory versions still valid?',
@@ -477,36 +478,35 @@ export function DevPage() {
             </p>
             <div className="docs-links-row">
               <a className="docs-pill" href={SDK_REPO} target="_blank" rel="noreferrer">
-                hoodmarkets-sdk (GitHub)
+                SDK docs (GitHub)
               </a>
               <a className="docs-pill" href={SDK_MD} target="_blank" rel="noreferrer">
                 sdk.md
               </a>
+              <a className="docs-pill" href={CONTRACTS_REPO} target="_blank" rel="noreferrer">
+                Contracts
+              </a>
             </div>
-            <pre className="docs-code">{`npm install github:anondevv69/hoodmarkets-sdk viem
+            <pre className="docs-code">{`# Contracts + API live in the public Hood-Market repo
+# https://github.com/hoodmarkets/Hood-Market
 
-import { HoodMarkets, robinhood, ROBINHOOD_RPC_DEFAULT } from 'hoodmarkets-sdk';
-import { createPublicClient, createWalletClient, http } from 'viem';
+# Deploy via Agent API (any EVM wallet / agent)
+curl -X POST https://api.hood.markets/api/deploy \\
+  -H "Content-Type: application/json" \\
+  -H "X-Agent-Captcha-JWT: …" \\
+  -d '{"name":"My Token","symbol":"MTK","image":"ipfs://…","feeRecipient":"0x…"}'
 
-const publicClient = createPublicClient({
-  chain: robinhood,
-  transport: http(ROBINHOOD_RPC_DEFAULT),
-});
-const wallet = createWalletClient({ account, chain: robinhood, transport: http(ROBINHOOD_RPC_DEFAULT) });
-
-const hm = new HoodMarkets({ wallet, publicClient });
-const result = await hm.deployToken({
-  name: 'My Token',
-  symbol: 'MTK',
-  image: 'ipfs://…',
-  feeRecipient: account.address,
-});`}</pre>
+# Or call HoodMarketsV3.deployToken on-chain (factory below)
+# Source: contracts/src/v31/ in hoodmarkets/Hood-Market`}</pre>
             <p className="docs-foot">
-              CLI:{' '}
-              <code className="docs-inline">
-                npx github:anondevv69/hoodmarkets-sdk deploy --name "My Token" --symbol "MTK" --image
-                "ipfs://…"
-              </code>
+              Full integration guide:{' '}
+              <a className="docs-link" href={SDK_MD} target="_blank" rel="noreferrer">
+                hood.markets/sdk.md
+              </a>
+              {' · '}
+              <a className="docs-link" href={MONOREPO} target="_blank" rel="noreferrer">
+                github.com/hoodmarkets/Hood-Market
+              </a>
             </p>
           </section>
 

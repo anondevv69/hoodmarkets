@@ -72,4 +72,4 @@ PR this folder to [BankrBot/skills](https://github.com/BankrBot/skills) → `hoo
 - [hood.markets/sdk.md](https://hood.markets/sdk.md) — contracts + SDK + capabilities
 - [hood.markets/agent.md](https://hood.markets/agent.md) — agent API summary
 - [hood.markets/docs#community-launch](https://hood.markets/docs#community-launch) — Community Launch API
-- [docs/HOODMARKETS_V3.md](https://github.com/anondevv69/hoodmarkets/blob/main/docs/HOODMARKETS_V3.md) — full V3 reference
+- [docs/HOODMARKETS_V3.md](https://github.com/hoodmarkets/Hood-Market/blob/main/docs/HOODMARKETS_V3.md) — full V3 reference
