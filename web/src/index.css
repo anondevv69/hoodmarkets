@@ -3997,6 +3997,12 @@ label {
   opacity: 0.9;
 }
 
+.claim-fee-meter-note {
+  margin: 0.45rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
 .claim-fees-card--platform {
   margin-top: 0.5rem;
 }
