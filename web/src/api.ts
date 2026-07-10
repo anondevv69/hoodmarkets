@@ -970,6 +970,7 @@ export interface TokenFeeStatus {
   v3Pool?: {
     fractionAddress: string;
     fractionWethHuman: string;
+    accountedWethHuman: string;
     gapWethHuman: string;
     surplusWethHuman: string;
     uncollectedWethHuman: string;
@@ -978,6 +979,8 @@ export interface TokenFeeStatus {
     progress: number;
     claimReady: boolean;
     statusLabel: 'ready' | 'filling' | 'empty';
+    /** WETH on Holder NFT that is not currently claimable (legacy accounting gap). */
+    legacyStuckDust: boolean;
   };
 }
 

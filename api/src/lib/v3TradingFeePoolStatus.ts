@@ -63,6 +63,12 @@ export type V3TradingFeePoolStatus = {
   progress: number;
   claimReady: boolean;
   statusLabel: 'ready' | 'filling' | 'empty';
+  /**
+   * Legacy deployments: WETH sits on the Holder NFT but `rewardTokenAccounted` is above
+   * balance, so holders' pending is 0 and claim reverts until more LP fees refill the gap.
+   * This is NOT a claimable pending payout — surface it for transparency only.
+   */
+  legacyStuckDust: boolean;
 };
 
 function human(wei: bigint): string {
@@ -201,6 +207,8 @@ export async function readV3TradingFeePoolStatus(
     if (claimReady) statusLabel = 'ready';
     else if (gap > 0n || uncollectedWeth > 0n) statusLabel = 'filling';
 
+    const legacyStuckDust = gap > 0n && rewardableWeth > 0n && surplus === 0n;
+
     return {
       fractionAddress: fraction,
       fractionWethWei: rewardableWeth.toString(),
@@ -220,6 +228,7 @@ export async function readV3TradingFeePoolStatus(
       progress,
       claimReady,
       statusLabel,
+      legacyStuckDust,
     };
   } catch {
     return null;
