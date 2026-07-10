@@ -152,7 +152,7 @@ export function TokenSwap({
       ? tokenAmountFromPercent(tokenBalance, Number(amountTokens.replace('%', '')), tokenDecimals)
       : amountTokens;
   const sellHeroAmount = amountTokens.trim()
-    ? sellDisplayAmount || '0'
+    ? amountTokens.trim()
     : authenticated
       ? balanceLoading
         ? '…'
