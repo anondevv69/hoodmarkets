@@ -20,7 +20,9 @@ function V3FeePoolMeter({ pool }: { pool: NonNullable<TokenFeeStatus['v3Pool']> 
     pool.statusLabel === 'ready'
       ? 'Ready to claim'
       : pool.statusLabel === 'filling'
-        ? 'Filling toward next claim'
+        ? pct >= 100
+          ? 'LP fees built up — try claiming'
+          : 'Filling toward next claim'
         : 'Waiting on new swap fees';
 
   const detail =
@@ -29,11 +31,15 @@ function V3FeePoolMeter({ pool }: { pool: NonNullable<TokenFeeStatus['v3Pool']> 
         ? `~${pool.surplusWethHuman} WETH is ready to pay share holders.`
         : `~${pool.uncollectedWethHuman} WETH in the LP is ready to pull and pay share holders.`
       : pool.statusLabel === 'filling'
-        ? `~${pool.estimatedIncomingWethHuman} WETH waiting in the LP` +
-          (Number.parseFloat(pool.remainingWethHuman) > 0
-            ? ` · ~${pool.remainingWethHuman} WETH more trading needed before the next payout`
-            : '') +
-          '.'
+        ? pool.legacyStuckDust && pct >= 100
+          ? `~${pool.estimatedIncomingWethHuman} WETH waiting in the LP. This older deployment may still revert until surplus is on-chain — more trading helps.`
+          : pct >= 100
+            ? `~${pool.estimatedIncomingWethHuman} WETH waiting in the LP — anyone can try claiming to pull fees to share holders.`
+            : `~${pool.estimatedIncomingWethHuman} WETH waiting in the LP` +
+              (Number.parseFloat(pool.remainingWethHuman) > 0
+                ? ` · ~${pool.remainingWethHuman} WETH more trading needed before the next payout`
+                : '') +
+              '.'
         : 'No new swap fees in the locked LP since the last payout.';
 
   return (

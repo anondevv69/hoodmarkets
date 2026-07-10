@@ -189,15 +189,13 @@ export async function readV3TradingFeePoolStatus(
     const estimatedIncoming = (uncollectedWeth * (100n - PLATFORM_FEE_PCT)) / 100n;
     const remaining = gap > estimatedIncoming ? gap - estimatedIncoming : 0n;
 
-    const claimReady =
-      surplus > 0n ||
-      (gap === 0n && uncollectedWeth > 0n) ||
-      (gap > 0n && remaining === 0n && estimatedIncoming > 0n);
+    // Ready only when fees are on-chain now, or a healthy pool with no accounting gap.
+    const claimReady = surplus > 0n || (gap === 0n && uncollectedWeth > 0n);
 
     let progress = 0;
-    if (claimReady) {
+    if (surplus > 0n) {
       progress = 1;
-    } else if (gap > 0n) {
+    } else if (gap > 0n && estimatedIncoming > 0n) {
       progress = clamp01(Number(estimatedIncoming) / Number(gap));
     } else if (uncollectedWeth > 0n) {
       progress = 1;
