@@ -4,7 +4,7 @@
  */
 
 export interface ExternalTradeBotLink {
-  id: 'basedBot' | 'maestro' | 'gmgn' | 'sigma';
+  id: 'basedBot' | 'maestro' | 'gmgn' | 'sigma' | 'fomo';
   label: string;
   href: string;
   logoSrc: string;
@@ -53,6 +53,12 @@ export function buildExternalTradeBotLinks(tokenAddress: string): ExternalTradeB
       label: 'Sigma',
       logoSrc: '/trade-bots/sigma.png',
       href: `https://t.me/Sigma_buyBot?start=ref=${SIGMA_REF}-${token}`,
+    },
+    {
+      id: 'fomo',
+      label: 'fomo',
+      logoSrc: '/trade-bots/fomo.png',
+      href: `https://fomo.family/tokens/robinhood/${token}`,
     },
   ];
 }
