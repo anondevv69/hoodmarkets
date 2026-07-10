@@ -61,7 +61,7 @@
     "swapTradingFeeSplit": "5% platform / 95% pro-rata to share holders (LP locker at claimTradingFees)",
     "tradingFeeToHoldersPercent": 95,
     "noFundLpOnSite": "Launch LP locked — users buy/sell token on Uniswap, not fund LP on hood.markets",
-    "agentRestrictions": "Agents: claim fees via API only — NO airdropShares, buyShares, listShares, fundBuyerRewardPool via Bankr submit",
+    "agentRestrictions": "Agents: claim fees via API; airdrop/list/buy/cancel shares via prepare-* + Bankr submit; resolve recipient 0x yourself for giveaways",
     "seeAlso": "references/HOLDER-NFTS.md"
   },
   "communityLaunch": {

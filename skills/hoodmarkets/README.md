@@ -37,7 +37,7 @@ No fee on sends, batch airdrops (`airdropShares`), or list/cancel escrow (v0.11 
 | Buy/sell Simple (V3) | No — Uniswap link from token-info |
 | Buy/sell Pro (V4) | Yes — prepare-buy/sell → TX-VALIDATION → submit chain 4663 |
 | Claim swap fees | No — POST /api/agent/claim or claim-for-recipient |
-| Holder NFT marketplace / airdrop | **No** — token page only (`HOLDER-NFTS.md`) |
+| Holder NFT marketplace / airdrop | **Yes** — `prepare-airdrop-shares`, `prepare-list-shares`, `prepare-buy-shares` → Bankr submit (`HOLDER-NFTS.md`) |
 | Community Launch create / status / refund | No JWT — public API (`COMMUNITY-LAUNCH.md`) |
 | Community Launch deposit | Yes — prepare-deposit `nextStep` → native ETH submit → confirm |
 

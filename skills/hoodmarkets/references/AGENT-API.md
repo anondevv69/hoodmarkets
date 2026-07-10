@@ -23,7 +23,7 @@ No platform fee on sends, batch airdrops, list/cancel escrow, mint/burn, or buye
 |-------|---------------------|-----------|
 | Fee recipient “other” | `0x…` wallet address **only** | May resolve `@handle` / social URL on some channels |
 | Buyer rewards | Post-launch on token page (`fundBuyerRewardPool`) | Optional `buyerRewardShareCount` at deploy (legacy) |
-| Batch airdrop | Token page `airdropShares` one tx (v0.10+) | On-chain only — not agent API |
+| Batch airdrop | Token page or `prepare-airdrop-shares` → Bankr submit | **Yes** — `POST /api/agent/prepare-airdrop-shares` |
 
 ---
 
@@ -448,6 +448,38 @@ Content-Type: application/json
   "listingId": 3
 }
 ```
+
+---
+
+## POST /api/agent/prepare-airdrop-shares
+
+Send Holder NFT shares from your wallet to one or more recipients. **No platform fee** (v0.11+). Use for comment giveaways, rewards, etc.
+
+**You must resolve the recipient's 0x wallet** — hood.markets does not map X/Farcaster handles to addresses.
+
+```http
+POST https://api.hood.markets/api/agent/prepare-airdrop-shares
+Content-Type: application/json
+
+{
+  "wallet": "0x…",
+  "symbol": "NORMIES",
+  "recipient": "0xCommenterWallet…",
+  "amount": 1
+}
+```
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `wallet` | yes | Bankr wallet that **holds** the shares |
+| `symbol` / `tokenAddress` | yes | Catalog token |
+| `recipient` or `recipients[]` | yes | One or more `0x` addresses (max 50) |
+| `amount` | no | Default **1** share per recipient |
+| `amounts[]` | no | Per-recipient amounts; length must match `recipients[]` |
+
+**Response:** `transactions[]` — usually one `airdropShares` tx (v0.10+). Older bytecode may return multiple `safeTransferFrom` steps. Submit via Bankr `/wallet/submit` (`chainId` **4663**).
+
+**Example intent:** *"If someone comments $NORMIES on my tweet, airdrop them 1 share"* → resolve commenter wallet → `prepare-airdrop-shares` → Bankr submit.
 
 ---
 
