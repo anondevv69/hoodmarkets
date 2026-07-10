@@ -183,7 +183,6 @@ function ExploreToolbarActions({ onLaunch }: { onLaunch: () => void }) {
 }
 
 const SORT_OPTIONS: { id: ExploreSort; label: string }[] = [
-  { id: 'lastTrade', label: 'Last trade' },
   { id: 'launch', label: 'New' },
   { id: 'volume', label: 'Top volume' },
   { id: 'mcap', label: 'Market cap' },
