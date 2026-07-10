@@ -15,7 +15,6 @@ import {
 
 function V3FeePoolMeter({ pool }: { pool: NonNullable<TokenFeeStatus['v3Pool']> }) {
   const pct = Math.round(Math.max(0, Math.min(1, pool.progress)) * 100);
-  const held = Number.parseFloat(pool.fractionWethHuman) || 0;
   const surplus = Number.parseFloat(pool.surplusWethHuman) || 0;
   const title =
     pool.statusLabel === 'ready'
@@ -27,7 +26,7 @@ function V3FeePoolMeter({ pool }: { pool: NonNullable<TokenFeeStatus['v3Pool']> 
   const detail =
     pool.statusLabel === 'ready'
       ? surplus > 0
-        ? `~${pool.surplusWethHuman} WETH on the Holder NFT is ready to pay share holders.`
+        ? `~${pool.surplusWethHuman} WETH is ready to pay share holders.`
         : `~${pool.uncollectedWethHuman} WETH in the LP is ready to pull and pay share holders.`
       : pool.statusLabel === 'filling'
         ? `~${pool.estimatedIncomingWethHuman} WETH waiting in the LP` +
@@ -54,32 +53,22 @@ function V3FeePoolMeter({ pool }: { pool: NonNullable<TokenFeeStatus['v3Pool']> 
         <div className="claim-fee-meter-fill" style={{ width: `${pct}%` }} />
       </div>
       <p className="claim-fee-meter-detail muted">{detail}</p>
-      <div className="claim-fee-meter-stats">
-        {held > 0 ? (
-          <span title="WETH sitting on the Holder NFT contract (fee inbox / vault fees)">
-            On Holder NFT <strong className="lp-mono">{pool.fractionWethHuman}</strong> WETH
-          </span>
-        ) : null}
-        <span>
-          In LP <strong className="lp-mono">{pool.uncollectedWethHuman}</strong> WETH
-        </span>
-        {pool.statusLabel === 'filling' && Number.parseFloat(pool.remainingWethHuman) > 0 ? (
+      {pool.statusLabel === 'filling' || surplus > 0 ? (
+        <div className="claim-fee-meter-stats">
           <span>
-            Still need <strong className="lp-mono">{pool.remainingWethHuman}</strong> WETH
+            In LP <strong className="lp-mono">{pool.uncollectedWethHuman}</strong> WETH
           </span>
-        ) : null}
-        {surplus > 0 ? (
-          <span>
-            Claimable now <strong className="lp-mono">{pool.surplusWethHuman}</strong> WETH
-          </span>
-        ) : null}
-      </div>
-      {pool.legacyStuckDust ? (
-        <p className="claim-fee-meter-note muted">
-          ~{pool.fractionWethHuman} WETH is on the Holder NFT but <strong>not claimable</strong> right
-          now — legacy fee accounting already marked it paid. New trading must refill ~{pool.gapWethHuman}{' '}
-          WETH before the next payout. This is not buyer-reward escrow earning fees.
-        </p>
+          {pool.statusLabel === 'filling' && Number.parseFloat(pool.remainingWethHuman) > 0 ? (
+            <span>
+              Still need <strong className="lp-mono">{pool.remainingWethHuman}</strong> WETH
+            </span>
+          ) : null}
+          {surplus > 0 ? (
+            <span>
+              Claimable now <strong className="lp-mono">{pool.surplusWethHuman}</strong> WETH
+            </span>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
