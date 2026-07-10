@@ -5345,16 +5345,29 @@ label {
   background: transparent;
   color: inherit;
   text-align: left;
-  cursor: pointer;
   border-radius: 10px;
   transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.explore-coin-main {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 10px;
 }
 
 .explore-coin-card:hover {
   transform: translateY(-2px);
 }
 
-.explore-coin-card:focus-visible {
+.explore-coin-main:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
@@ -5407,32 +5420,104 @@ label {
 .explore-coin-body {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.55rem 0.15rem 0.2rem;
+  gap: 0.2rem;
+  padding: 0.55rem 0.15rem 0.1rem;
   min-width: 0;
 }
 
 .explore-coin-title-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
   min-width: 0;
 }
 
-.explore-coin-meta-row {
+.explore-coin-social-flags {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.explore-coin-social-flag {
+  font-size: 0.68rem;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.explore-coin-ticker-row {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 0.4rem;
-  margin-top: 0.12rem;
   min-width: 0;
 }
 
-.explore-coin-stats {
+.explore-coin-desc {
+  margin: 0.05rem 0 0;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.explore-coin-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+.explore-coin-metric {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 0.08rem;
-  flex-shrink: 0;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.explore-coin-metric-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-faint);
+}
+
+.explore-coin-metric-value {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #e8e4d4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.explore-coin-links {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.15rem 0.15rem;
+}
+
+.explore-coin-link {
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: var(--muted);
+  text-decoration: none;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+  line-height: 1.2;
+}
+
+.explore-coin-link:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-soft));
 }
 
 .explore-coin-name {
@@ -5443,15 +5528,6 @@ label {
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
-}
-
-.explore-coin-mcap {
-  flex-shrink: 0;
-  font-size: 0.78rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: #e8e4d4;
-  white-space: nowrap;
 }
 
 .explore-coin-ticker {
