@@ -17,6 +17,30 @@ export function buildWebWalletLoginMessage(params: {
   ].join('\n');
 }
 
+export function parseWebWalletLoginMessage(message: string): {
+  walletAddress: Address;
+  nonce: string;
+  issuedAt: string;
+} | null {
+  const trimmed = message.trim();
+  if (!trimmed.startsWith('hoodmarkets wallet login')) return null;
+
+  let wallet: string | undefined;
+  let nonce: string | undefined;
+  let issuedAt: string | undefined;
+  for (const line of trimmed.split('\n')) {
+    if (line.startsWith('Wallet: ')) wallet = line.slice('Wallet: '.length).trim();
+    else if (line.startsWith('Nonce: ')) nonce = line.slice('Nonce: '.length).trim();
+    else if (line.startsWith('Issued: ')) issuedAt = line.slice('Issued: '.length).trim();
+  }
+  if (!wallet || !nonce || !issuedAt) return null;
+  try {
+    return { walletAddress: getAddress(wallet), nonce, issuedAt };
+  } catch {
+    return null;
+  }
+}
+
 export function webWalletDeployerId(walletAddress: Address): string {
   return `web-wallet:${getAddress(walletAddress).toLowerCase()}`;
 }

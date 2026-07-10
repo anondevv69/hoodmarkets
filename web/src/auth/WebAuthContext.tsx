@@ -17,7 +17,11 @@ import {
   type StoredWebSession,
 } from './session';
 import { fetchWalletLoginChallenge, verifyWalletLogin } from './walletAuthApi';
-import { isWalletUserRejection, signWalletLoginMessage } from './signWalletLoginMessage';
+import {
+  isWalletUserRejection,
+  signWalletMessageNow,
+  waitForWalletReady,
+} from './signWalletLoginMessage';
 
 export type WebAuthMethod = 'rainbow' | null;
 
@@ -48,6 +52,11 @@ function isTransientSignInError(error: unknown): boolean {
   );
 }
 
+function isChallengeError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /challenge expired|challenge not found|already used|invalid login message/i.test(msg);
+}
+
 export function WebAuthProvider({ children }: { children: ReactNode }) {
   const { address, isConnected, status } = useAccount();
   const { disconnect } = useDisconnect();
@@ -58,6 +67,7 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const signInFlightRef = useRef<string | null>(null);
+  const signInPromiseRef = useRef<Promise<void> | null>(null);
   const sessionRef = useRef<StoredWebSession | null>(null);
 
   useEffect(() => {
@@ -80,30 +90,42 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
     setReady(true);
   }, []);
 
-  const completeWalletLogin = useCallback(
-    async (walletAddress: string, sign: (message: string) => Promise<string>, walletKind: string) => {
+  const completeWalletLogin = useCallback(async (walletAddress: string, walletKind: string) => {
+    await waitForWalletReady(walletAddress);
+
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
       const challenge = await fetchWalletLoginChallenge(walletAddress);
-      const signature = await sign(challenge.message);
-      const verified = await verifyWalletLogin({
-        walletAddress,
-        message: challenge.message,
-        signature,
-        walletKind,
-      });
-      const stored: StoredWebSession = {
-        token: verified.token,
-        walletAddress: verified.walletAddress,
-        walletKind: verified.walletKind,
-        expiresAt: verified.expiresAt,
-      };
-      writeStoredSession(stored);
-      setSession(stored);
-      sessionRef.current = stored;
-      setAuthMethod('rainbow');
-      setAuthError(null);
-    },
-    [],
-  );
+      try {
+        const signature = await signWalletMessageNow(walletAddress, challenge.message);
+        const verified = await verifyWalletLogin({
+          walletAddress,
+          message: challenge.message,
+          signature,
+          walletKind,
+        });
+        const stored: StoredWebSession = {
+          token: verified.token,
+          walletAddress: verified.walletAddress,
+          walletKind: verified.walletKind,
+          expiresAt: verified.expiresAt,
+        };
+        writeStoredSession(stored);
+        setSession(stored);
+        sessionRef.current = stored;
+        setAuthMethod('rainbow');
+        setAuthError(null);
+        return;
+      } catch (error) {
+        lastError = error;
+        if (isWalletUserRejection(error)) throw error;
+        if (attempt === 0 && isChallengeError(error)) continue;
+        throw error;
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error('Wallet sign-in failed.');
+  }, []);
 
   const runSignInIfNeeded = useCallback(
     async (walletAddress: string) => {
@@ -122,36 +144,49 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
+      if (signInPromiseRef.current) {
+        await signInPromiseRef.current.catch(() => undefined);
+        const afterWait = sessionRef.current ?? readStoredSession();
+        if (afterWait?.walletAddress?.toLowerCase() === key) return;
+      }
       if (signInFlightRef.current === key) return;
 
       signInFlightRef.current = key;
       setSigningIn(true);
       setAuthError(null);
-      try {
-        await completeWalletLogin(
-          walletAddress,
-          (message) => signWalletLoginMessage(walletAddress, message),
-          'injected',
-        );
-      } catch (e) {
-        if (signInFlightRef.current !== key) return;
-        if (isUserRejection(e)) {
-          setAuthError('Sign-in cancelled in wallet. Click Connect wallet to try again.');
-        } else {
-          const msg = e instanceof Error ? e.message : 'Wallet sign-in failed.';
-          setAuthError(msg);
-          if (!/challenge expired/i.test(msg) && !isTransientSignInError(e)) {
-            disconnect();
-            clearStoredSession();
-            setSession(null);
-            sessionRef.current = null;
-            setAuthMethod(null);
+
+      const signInPromise = (async () => {
+        try {
+          await completeWalletLogin(walletAddress, 'injected');
+        } catch (e) {
+          if (signInFlightRef.current !== key) return;
+          if (isUserRejection(e)) {
+            setAuthError('Sign-in cancelled in wallet. Click Connect wallet to try again.');
+          } else {
+            const msg = e instanceof Error ? e.message : 'Wallet sign-in failed.';
+            setAuthError(msg);
+            if (!isChallengeError(e) && !isTransientSignInError(e)) {
+              disconnect();
+              clearStoredSession();
+              setSession(null);
+              sessionRef.current = null;
+              setAuthMethod(null);
+            }
+          }
+        } finally {
+          if (signInFlightRef.current === key) {
+            signInFlightRef.current = null;
+            setSigningIn(false);
           }
         }
+      })();
+
+      signInPromiseRef.current = signInPromise;
+      try {
+        await signInPromise;
       } finally {
-        if (signInFlightRef.current === key) {
-          signInFlightRef.current = null;
-          setSigningIn(false);
+        if (signInPromiseRef.current === signInPromise) {
+          signInPromiseRef.current = null;
         }
       }
     },
@@ -197,6 +232,7 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     signInFlightRef.current = null;
+    signInPromiseRef.current = null;
     setSigningIn(false);
     clearStoredSession();
     setSession(null);
