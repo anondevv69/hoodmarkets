@@ -9,6 +9,7 @@ import {
   fetchBuyerRewardAdmin,
   fetchTokenFractionInfo,
   fetchWalletFractionBalance,
+  formatFractionLoadError,
   type TokenFractionInfo,
 } from '../lib/tokenFractions';
 import { TokenFractionShareActions } from './TokenFractionShareActions';
@@ -62,7 +63,7 @@ export function TokenFractionPanel({
         setInfo(row);
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Failed to load holder NFTs.');
+          setError(formatFractionLoadError(e));
           setInfo(null);
         }
       } finally {
