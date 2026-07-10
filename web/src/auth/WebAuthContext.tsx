@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useAccount, useAccountEffect, useDisconnect } from 'wagmi';
+import { useAccount, useDisconnect } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
 import {
   clearStoredSession,
@@ -157,13 +157,6 @@ export function WebAuthProvider({ children }: { children: ReactNode }) {
     },
     [completeWalletLogin, disconnect],
   );
-
-  useAccountEffect({
-    onConnect({ address: connectedAddress }) {
-      if (!ready || !connectedAddress) return;
-      void runSignInIfNeeded(connectedAddress);
-    },
-  });
 
   useEffect(() => {
     if (!ready) return;

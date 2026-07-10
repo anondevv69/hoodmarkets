@@ -4,7 +4,12 @@ type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 };
 
-/** Prompt MetaMask (etc.) to add Robinhood Chain — avoids "Unrecognized chain ID 0x1237". */
+function isUnknownChainError(error: unknown): boolean {
+  const code = (error as { code?: number })?.code;
+  return code === 4902;
+}
+
+/** Prompt MetaMask (etc.) to switch to Robinhood Chain — only when an on-chain action needs it. */
 export async function ensureRobinhoodChainInWallet(
   ethereum: EthereumProvider | undefined,
 ): Promise<void> {
@@ -16,11 +21,11 @@ export async function ensureRobinhoodChainInWallet(
     const current = (await ethereum.request({ method: 'eth_chainId' })) as string;
     if (current?.toLowerCase() === chainIdHex.toLowerCase()) return;
   } catch {
-    // continue to add/switch
+    // continue to switch/add
   }
 
-  try {
-    await ethereum.request({
+  const addChain = () =>
+    ethereum.request({
       method: 'wallet_addEthereumChain',
       params: [
         {
@@ -32,16 +37,24 @@ export async function ensureRobinhoodChainInWallet(
         },
       ],
     });
-  } catch {
-    // user rejected or wallet already knows the chain
-  }
 
-  try {
-    await ethereum.request({
+  const switchChain = () =>
+    ethereum.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: chainIdHex }],
     });
+
+  try {
+    await switchChain();
+    return;
+  } catch (error) {
+    if (!isUnknownChainError(error)) return;
+  }
+
+  try {
+    await addChain();
+    await switchChain();
   } catch {
-    // non-fatal — deploy is server-side; chain only needed for wallet UX
+    // user rejected or wallet already on the chain
   }
 }
