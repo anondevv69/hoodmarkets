@@ -8,12 +8,12 @@ import {
   formatEther,
   getAddress,
   parseEther,
-  parseUnits,
   toHex,
   type Hex,
 } from 'viem';
 import { robinhood } from '../chain';
 import { API_BASE } from '../api';
+import { parseHumanTokenAmount } from './formatTokenBalance';
 
 /** Universal Router — V4_SWAP only (WETH deposited on the user wallet first). */
 const CMD_V4_SWAP = 0x10;
@@ -387,12 +387,24 @@ export async function sellViaSwapHelper(opts: {
   const helper = opts.config.swapHelper;
   if (!helper) throw new Error('Swap helper is not configured on the API yet.');
 
-  const amountIn = parseUnits(opts.amountTokens, 18);
-  if (amountIn <= 0n) throw new Error('Enter a token amount greater than zero.');
-
   const token = getAddress(opts.config.tokenAddress);
   const helperAddr = getAddress(helper);
   const { publicClient, walletClient } = walletClients(opts.walletProvider, opts.account);
+
+  let decimals = 18;
+  try {
+    decimals = Number(
+      await publicClient.readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: 'decimals',
+      }),
+    );
+  } catch {
+    decimals = 18;
+  }
+  const amountIn = parseHumanTokenAmount(opts.amountTokens, decimals);
+  if (amountIn <= 0n) throw new Error('Enter a token amount greater than zero.');
 
   const ethBefore = await publicClient.getBalance({ address: opts.account });
   const allowance = await publicClient.readContract({
@@ -640,13 +652,26 @@ export async function swapHoodmarketsTokenForEth(opts: {
     return sellViaSwapHelper(opts);
   }
 
-  const amountInWei = parseUnits(opts.amountTokens, 18);
+  const token = getAddress(opts.config.tokenAddress);
+  const { publicClient, walletClient } = walletClients(opts.walletProvider, opts.account);
+  let decimals = 18;
+  try {
+    decimals = Number(
+      await publicClient.readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: 'decimals',
+      }),
+    );
+  } catch {
+    decimals = 18;
+  }
+  const amountInWei = parseHumanTokenAmount(opts.amountTokens, decimals);
   if (amountInWei <= 0n) throw new Error('Enter a token amount greater than zero.');
 
   const weth = getAddress(opts.config.weth);
   const permit2 = getAddress(opts.config.permit2);
   const router = getAddress(opts.config.universalRouter);
-  const token = getAddress(opts.config.tokenAddress);
   const expiry = Math.floor(Date.now() / 1000) + 60 * 20;
   const deadline = BigInt(expiry);
   const { commands, inputs } = encodeV4ExactInSwap(

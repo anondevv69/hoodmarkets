@@ -8,12 +8,12 @@ import {
   formatUnits,
   getAddress,
   parseEther,
-  parseUnits,
   type Hex,
   type PublicClient,
   type WalletClient,
 } from 'viem';
 import { robinhood } from '../chain';
+import { parseHumanTokenAmount } from './formatTokenBalance';
 
 /** Uniswap V3 SwapRouter02 on Robinhood Chain mainnet. */
 export const ROBINHOOD_V3_SWAP_ROUTER =
@@ -158,7 +158,7 @@ export async function swapV3TokenForEth(opts: {
   const token = getAddress(opts.tokenAddress);
   const { publicClient, walletClient } = walletClients(opts.walletProvider, opts.account);
   const decimals = await tokenDecimals(publicClient, token);
-  const amountIn = parseUnits(opts.amountTokens, decimals);
+  const amountIn = parseHumanTokenAmount(opts.amountTokens, decimals);
   if (amountIn <= 0n) throw new Error('Enter a token amount greater than zero.');
 
   const balance = await publicClient.readContract({
