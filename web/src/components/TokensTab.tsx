@@ -350,7 +350,7 @@ export function TokensTab({ onNavigateToLaunch }: { onNavigateToLaunch?: () => v
 
   if (openingToken && addressLookupState !== 'miss') {
     return (
-      <div className="lp-fade-in">
+      <div>
         <div className="explore-toolbar">
           <input
             className="lp-input explore-search"
@@ -366,7 +366,7 @@ export function TokensTab({ onNavigateToLaunch }: { onNavigateToLaunch?: () => v
   }
 
   return (
-    <div className="lp-fade-in">
+    <div>
       <div className="explore-toolbar">
         <input
           className="lp-input explore-search"

@@ -116,6 +116,16 @@ export default function App() {
     navigateToAppTab(next);
   }, [walletAddress]);
 
+  const pageKey = devPage
+    ? 'dev'
+    : tokenAddress
+      ? `token-${tokenAddress.toLowerCase()}`
+      : deployerProfile
+        ? deployerProfile.platform === 'x'
+          ? `x-${deployerProfile.username.toLowerCase()}`
+          : `wallet-${deployerProfile.address.toLowerCase()}`
+        : `tab-${tab}`;
+
   return (
     <div className="app-shell">
       {/* Left sidebar */}
@@ -212,7 +222,10 @@ export default function App() {
 
         {/* Page content */}
         <main className="app-content">
-          <div className={tokenAddress || devPage ? 'token-page-panel' : 'content-panel'}>
+          <div
+            key={pageKey}
+            className={`lp-page-enter ${tokenAddress || devPage ? 'token-page-panel' : 'content-panel'}`}
+          >
             {devPage ? (
               <DevPage />
             ) : tokenAddress ? (

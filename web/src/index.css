@@ -79,6 +79,10 @@
   --explore-media-bg: var(--surface-2);
   --explore-placeholder-from: color-mix(in srgb, var(--surface-2) 86%, #000);
   --explore-placeholder-to: color-mix(in srgb, var(--surface) 94%, #000);
+  --card-bg: var(--surface);
+  --card-border: var(--border-soft);
+  --card-radius: var(--radius-lg);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28), 0 0 0 1px color-mix(in srgb, var(--border-soft) 65%, transparent);
   color: var(--text);
   background: var(--bg);
 }
@@ -122,6 +126,10 @@
   --explore-media-bg: var(--surface-2);
   --explore-placeholder-from: color-mix(in srgb, var(--surface-2) 92%, var(--border));
   --explore-placeholder-to: var(--surface);
+  --card-bg: var(--surface);
+  --card-border: var(--border-soft);
+  --card-radius: var(--radius-lg);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px var(--border-soft);
   color: var(--text);
   background: var(--bg);
 }
@@ -148,6 +156,21 @@ body {
 
 .lp-fade-in {
   animation: lp-fadein var(--duration-panel) var(--ease-out);
+}
+
+.lp-page-enter {
+  animation: lp-page-enter var(--duration-panel) var(--ease-out);
+}
+
+@keyframes lp-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes lp-fadein {
@@ -645,9 +668,10 @@ a.sidebar-nav-item {
 }
 
 .lp-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-card);
 }
 
 .footer-note {
@@ -2558,10 +2582,11 @@ label {
 }
 
 .tp-zone {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   padding: 1.25rem;
+  box-shadow: var(--shadow-card);
 }
 
 .token-page .tp-zone {
@@ -3227,9 +3252,10 @@ label {
 .external-trade-bots {
   margin: 0.65rem 0 0.85rem;
   padding: 0.85rem 1rem 1rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--border-soft);
-  background: color-mix(in srgb, var(--surface) 88%, #000);
+  border-radius: var(--card-radius);
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-card);
 }
 
 .external-trade-bots-label {
@@ -5449,7 +5475,8 @@ label {
   overflow: hidden;
   border-radius: var(--radius-md);
   background: var(--explore-media-bg);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-card);
 }
 
 .explore-coin-img {
@@ -5969,6 +5996,7 @@ label {
   }
 
   .lp-fade-in,
+  .lp-page-enter,
   .token-avatar-pulse,
   .tp-pulse,
   .token-market-shimmer {
@@ -6087,11 +6115,12 @@ label {
 }
 
 .token-card {
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   padding: 0.9rem 1rem;
-  background: var(--bg);
+  background: var(--card-bg);
   margin-bottom: 0.75rem;
+  box-shadow: var(--shadow-card);
 }
 
 .token-card-header {

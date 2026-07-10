@@ -189,7 +189,7 @@ export function TokenPage({ tokenAddress }: { tokenAddress: string }) {
   };
 
   return (
-    <div className="token-page lp-fade-in">
+    <div className="token-page">
       {displayBannerUrl ? (
         <div className="tp-page-banner-wrap">
           <img

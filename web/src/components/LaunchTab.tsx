@@ -446,7 +446,7 @@ export function LaunchTab() {
 
   if (result && launchedMeta) {
     return (
-      <div className="launch-done lp-fade-in">
+      <div className="launch-done">
         <div className="launch-done-icon" aria-hidden>
           ✓
         </div>
@@ -486,7 +486,7 @@ export function LaunchTab() {
   }
 
   return (
-    <div className="launch-layout lp-fade-in">
+    <div className="launch-layout">
       <div className="launch-form-col">
         {/* Launch type picker */}
         <div className="launch-type-picker">
