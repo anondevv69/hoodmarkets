@@ -93,6 +93,25 @@ function ExploreCoinMedia({
   );
 }
 
+function normalizeExternalUrl(raw: string): string | null {
+  const t = raw.trim();
+  if (!t) return null;
+  try {
+    const u = new URL(t.startsWith('http') ? t : `https://${t}`);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+function truncateExploreDescription(raw: string | undefined, max = 72): string | null {
+  const t = raw?.replace(/\s+/g, ' ').trim();
+  if (!t) return null;
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1).trimEnd()}…`;
+}
+
 function ExploreCoinCard({
   item,
   imagePriority = false,
@@ -104,6 +123,10 @@ function ExploreCoinCard({
   const sym = d.tokenSymbol.replace(/^\$/, '');
   const age = formatTickerAge(d.createdAt);
   const mcap = item.stats.mcapUsd;
+  const volume24h = item.stats.volume24hUsd;
+  const description = truncateExploreDescription(d.tokenDescription);
+  const websiteHref = d.tokenWebsiteUrl ? normalizeExternalUrl(d.tokenWebsiteUrl) : null;
+  const xHref = d.tokenXUrl ? normalizeExternalUrl(d.tokenXUrl) : null;
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | undefined>(d.tokenImageUrl);
 
   useEffect(() => {
@@ -134,10 +157,10 @@ function ExploreCoinCard({
   }
 
   return (
-    <li>
+    <li className="explore-coin-card">
       <button
         type="button"
-        className="explore-coin-card"
+        className="explore-coin-main"
         onClick={openDetails}
         onKeyDown={onKeyDown}
         aria-label={`${d.tokenName} $${sym} — view token details`}
@@ -151,23 +174,71 @@ function ExploreCoinCard({
         <div className="explore-coin-body">
           <div className="explore-coin-title-row">
             <span className="explore-coin-name lp-display">{d.tokenName}</span>
+            {(websiteHref || xHref) && (
+              <span className="explore-coin-social-flags" aria-hidden>
+                {xHref ? <span className="explore-coin-social-flag" title="Has X">𝕏</span> : null}
+                {websiteHref ? (
+                  <span className="explore-coin-social-flag" title="Has website">
+                    ⌂
+                  </span>
+                ) : null}
+              </span>
+            )}
           </div>
-          <div className="explore-coin-meta-row">
+          <div className="explore-coin-ticker-row">
             <span className="explore-coin-ticker">${sym}</span>
-            <div className="explore-coin-stats">
-              {mcap > 0 ? (
-                <span className="explore-coin-mcap" title="Market cap">
-                  {formatUsdVol(mcap)}
-                </span>
-              ) : null}
-              <span className="explore-coin-age">
-                <span className="explore-coin-age-dot" aria-hidden />
-                {age}
+            <span className="explore-coin-age">
+              <span className="explore-coin-age-dot" aria-hidden />
+              {age}
+            </span>
+          </div>
+          {description ? <p className="explore-coin-desc">{description}</p> : null}
+          <div className="explore-coin-metrics">
+            <div className="explore-coin-metric">
+              <span className="explore-coin-metric-label">Mcap</span>
+              <span className="explore-coin-metric-value">
+                {mcap > 0 ? formatUsdVol(mcap) : '—'}
+              </span>
+            </div>
+            <div className="explore-coin-metric">
+              <span className="explore-coin-metric-label">24h vol</span>
+              <span className="explore-coin-metric-value">
+                {volume24h > 0 ? formatUsdVol(volume24h) : '—'}
               </span>
             </div>
           </div>
         </div>
       </button>
+      {(websiteHref || xHref) && (
+        <div className="explore-coin-links">
+          {xHref ? (
+            <a
+              className="explore-coin-link"
+              href={xHref}
+              target="_blank"
+              rel="noreferrer"
+              title="X"
+              aria-label={`${d.tokenName} on X`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              𝕏
+            </a>
+          ) : null}
+          {websiteHref ? (
+            <a
+              className="explore-coin-link"
+              href={websiteHref}
+              target="_blank"
+              rel="noreferrer"
+              title="Website"
+              aria-label={`${d.tokenName} website`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              Web
+            </a>
+          ) : null}
+        </div>
+      )}
     </li>
   );
 }
