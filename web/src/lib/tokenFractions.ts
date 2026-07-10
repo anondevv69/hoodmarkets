@@ -116,6 +116,20 @@ const FRACTION_ABI = [
   },
   {
     type: 'function',
+    name: 'shareHolderCount',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'shareHolderAt',
+    stateMutability: 'view',
+    inputs: [{ name: 'index', type: 'uint256' }],
+    outputs: [{ name: '', type: 'address' }],
+  },
+  {
+    type: 'function',
     name: 'buyerRewardShareCap',
     stateMutability: 'view',
     inputs: [],
@@ -356,6 +370,176 @@ function aggregateHoldersFromLogs(
   return balances;
 }
 
+const LOG_CHUNK_BLOCKS = 20_000n;
+
+function holdersFromBalances(
+  balances: Map<Address, bigint>,
+  total: number,
+): FractionHolder[] {
+  const holders: FractionHolder[] = [];
+  for (const [address, shares] of balances) {
+    if (shares <= 0n) continue;
+    const n = Number(shares);
+    holders.push({
+      address,
+      shares: n,
+      pct: total > 0 ? (n / total) * 100 : 0,
+    });
+  }
+  holders.sort((a, b) => b.shares - a.shares || a.address.localeCompare(b.address));
+  return holders;
+}
+
+async function appendContractEscrowHolder(
+  client: ReturnType<typeof publicClient>,
+  collectionAddress: Address,
+  tokenId: bigint,
+  total: number,
+  holders: FractionHolder[],
+): Promise<void> {
+  const escrow = await client.readContract({
+    address: collectionAddress,
+    abi: FRACTION_ABI,
+    functionName: 'balanceOf',
+    args: [collectionAddress, tokenId],
+  });
+  if (escrow <= 0n) return;
+  const n = Number(escrow);
+  const existing = holders.find((h) => h.address.toLowerCase() === collectionAddress.toLowerCase());
+  if (existing) {
+    existing.shares += n;
+    existing.pct = total > 0 ? (existing.shares / total) * 100 : 0;
+    return;
+  }
+  holders.push({
+    address: collectionAddress,
+    shares: n,
+    pct: total > 0 ? (n / total) * 100 : 0,
+  });
+  holders.sort((a, b) => b.shares - a.shares || a.address.localeCompare(b.address));
+}
+
+async function fetchHoldersViaRegistry(
+  client: ReturnType<typeof publicClient>,
+  collectionAddress: Address,
+  tokenId: bigint,
+  total: number,
+): Promise<FractionHolder[] | null> {
+  try {
+    const count = await client.readContract({
+      address: collectionAddress,
+      abi: FRACTION_ABI,
+      functionName: 'shareHolderCount',
+    });
+    const n = Number(count);
+    if (n === 0) return [];
+
+    const addresses = await Promise.all(
+      Array.from({ length: n }, (_, i) =>
+        client.readContract({
+          address: collectionAddress,
+          abi: FRACTION_ABI,
+          functionName: 'shareHolderAt',
+          args: [BigInt(i)],
+        }),
+      ),
+    );
+
+    const balances = await Promise.all(
+      addresses.map((addr) =>
+        client.readContract({
+          address: collectionAddress,
+          abi: FRACTION_ABI,
+          functionName: 'balanceOf',
+          args: [getAddress(addr as Address), tokenId],
+        }),
+      ),
+    );
+
+    const map = new Map<Address, bigint>();
+    for (let i = 0; i < n; i++) {
+      const shares = balances[i] as bigint;
+      if (shares <= 0n) continue;
+      map.set(getAddress(addresses[i] as Address), shares);
+    }
+    const holders = holdersFromBalances(map, total);
+    await appendContractEscrowHolder(client, collectionAddress, tokenId, total, holders);
+    return holders;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchTransferSingleLogsChunked(
+  client: ReturnType<typeof publicClient>,
+  collectionAddress: Address,
+  fromBlock: bigint,
+) {
+  const latest = await client.getBlockNumber();
+  const logs: Awaited<ReturnType<typeof client.getLogs>> = [];
+  let start = fromBlock > latest ? latest : fromBlock;
+
+  while (start <= latest) {
+    const end = start + LOG_CHUNK_BLOCKS > latest ? latest : start + LOG_CHUNK_BLOCKS;
+    const chunk = await client.getLogs({
+      address: collectionAddress,
+      event: {
+        type: 'event',
+        name: 'TransferSingle',
+        inputs: [
+          { name: 'operator', type: 'address', indexed: true },
+          { name: 'from', type: 'address', indexed: true },
+          { name: 'to', type: 'address', indexed: true },
+          { name: 'id', type: 'uint256', indexed: false },
+          { name: 'value', type: 'uint256', indexed: false },
+        ],
+      },
+      fromBlock: start,
+      toBlock: end,
+    });
+    logs.push(...chunk);
+    start = end + 1n;
+  }
+
+  return logs;
+}
+
+async function fetchHoldersForFraction(
+  client: ReturnType<typeof publicClient>,
+  collectionAddress: Address,
+  tokenId: bigint,
+  total: number,
+  fromBlock: bigint,
+): Promise<FractionHolder[]> {
+  const viaRegistry = await fetchHoldersViaRegistry(client, collectionAddress, tokenId, total);
+  if (viaRegistry !== null) return viaRegistry;
+
+  const logs = await fetchTransferSingleLogsChunked(client, collectionAddress, fromBlock);
+  const balances = aggregateHoldersFromLogs(logs, tokenId);
+  return holdersFromBalances(balances, total);
+}
+
+/** User-facing Holder NFT load errors — hide raw RPC / viem dumps. */
+export function formatFractionLoadError(error: unknown): string {
+  const raw =
+    error instanceof Error
+      ? [error.message, (error as { shortMessage?: string }).shortMessage].filter(Boolean).join('\n')
+      : String(error);
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes('getlogs') ||
+    lower.includes('eth_getlogs') ||
+    lower.includes('internal server error') ||
+    lower.includes('missing or invalid parameters')
+  ) {
+    return 'Could not load the holder list from Robinhood Chain right now. Try again in a moment.';
+  }
+  if (lower.includes('failed to fetch') || lower.includes('network')) {
+    return 'Network error loading Holder NFTs. Check your connection and try again.';
+  }
+  return 'Could not load Holder NFTs. Try refreshing the page.';
+}
+
 export async function fetchWalletFractionBalance(
   collectionAddress: Address,
   walletAddress: Address,
@@ -412,39 +596,18 @@ export async function fetchTokenFractionInfo(
   const id = Number(tokenId);
   const fromBlock = opts?.fromBlock ?? 0n;
 
-  const logs = await client.getLogs({
-    address: collectionAddress,
-    event: {
-      type: 'event',
-      name: 'TransferSingle',
-      inputs: [
-        { name: 'operator', type: 'address', indexed: true },
-        { name: 'from', type: 'address', indexed: true },
-        { name: 'to', type: 'address', indexed: true },
-        { name: 'id', type: 'uint256', indexed: false },
-        { name: 'value', type: 'uint256', indexed: false },
-      ],
-    },
+  const holders = await fetchHoldersForFraction(
+    client,
+    collectionAddress,
+    BigInt(id),
+    total,
     fromBlock,
-    toBlock: 'latest',
-  });
-
-  const balances = aggregateHoldersFromLogs(logs, BigInt(id));
-  const holders: FractionHolder[] = [];
+  );
 
   let outstanding = 0n;
-  for (const [address, shares] of balances) {
-    if (shares <= 0n) continue;
-    const n = Number(shares);
-    outstanding += shares;
-    holders.push({
-      address,
-      shares: n,
-      pct: total > 0 ? (n / total) * 100 : 0,
-    });
+  for (const h of holders) {
+    outstanding += BigInt(h.shares);
   }
-
-  holders.sort((a, b) => b.shares - a.shares || a.address.localeCompare(b.address));
 
   const outstandingShares = Number(outstanding);
   const redeemedShares = Math.max(0, total - outstandingShares);

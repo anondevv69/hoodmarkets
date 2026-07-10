@@ -29,6 +29,30 @@ const FRACTION_ABI = [
     outputs: [{ name: '', type: 'uint256' }],
   },
   {
+    type: 'function',
+    name: 'balanceOf',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'account', type: 'address' },
+      { name: 'id', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'shareHolderCount',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'shareHolderAt',
+    stateMutability: 'view',
+    inputs: [{ name: 'index', type: 'uint256' }],
+    outputs: [{ name: '', type: 'address' }],
+  },
+  {
     type: 'event',
     name: 'TransferSingle',
     inputs: [
@@ -97,6 +121,91 @@ function aggregateHoldersFromLogs(
   return balances;
 }
 
+const LOG_CHUNK_BLOCKS = 20_000n;
+
+async function fetchHoldersViaRegistry(
+  client: ReturnType<typeof publicClient>,
+  collection: Address,
+  tokenId: bigint,
+): Promise<ShareHolder[] | null> {
+  try {
+    const count = await client.readContract({
+      address: collection,
+      abi: FRACTION_ABI,
+      functionName: 'shareHolderCount',
+    });
+    const n = Number(count);
+    if (n === 0) return [];
+
+    const addresses = await Promise.all(
+      Array.from({ length: n }, (_, i) =>
+        client.readContract({
+          address: collection,
+          abi: FRACTION_ABI,
+          functionName: 'shareHolderAt',
+          args: [BigInt(i)],
+        }),
+      ),
+    );
+
+    const balances = await Promise.all(
+      addresses.map((addr) =>
+        client.readContract({
+          address: collection,
+          abi: FRACTION_ABI,
+          functionName: 'balanceOf',
+          args: [getAddress(addr as Address), tokenId],
+        }),
+      ),
+    );
+
+    const holders: ShareHolder[] = [];
+    for (let i = 0; i < n; i++) {
+      const shares = Number(balances[i]);
+      if (shares <= 0) continue;
+      holders.push({ address: getAddress(addresses[i] as Address), shares });
+    }
+    holders.sort((a, b) => b.shares - a.shares || a.address.localeCompare(b.address));
+    return holders;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchTransferSingleLogsChunked(
+  client: ReturnType<typeof publicClient>,
+  collection: Address,
+  fromBlock: bigint,
+) {
+  const latest = await client.getBlockNumber();
+  const logs: Awaited<ReturnType<typeof client.getLogs>> = [];
+  let start = fromBlock > latest ? latest : fromBlock;
+
+  while (start <= latest) {
+    const end = start + LOG_CHUNK_BLOCKS > latest ? latest : start + LOG_CHUNK_BLOCKS;
+    const chunk = await client.getLogs({
+      address: collection,
+      event: {
+        type: 'event',
+        name: 'TransferSingle',
+        inputs: [
+          { name: 'operator', type: 'address', indexed: true },
+          { name: 'from', type: 'address', indexed: true },
+          { name: 'to', type: 'address', indexed: true },
+          { name: 'id', type: 'uint256', indexed: false },
+          { name: 'value', type: 'uint256', indexed: false },
+        ],
+      },
+      fromBlock: start,
+      toBlock: end,
+    });
+    logs.push(...chunk);
+    start = end + 1n;
+  }
+
+  return logs;
+}
+
 /** Top Holder NFT (share) holders for a launch token — used for page admin. */
 export async function fetchTopShareHolders(
   tokenAddress: string,
@@ -107,32 +216,19 @@ export async function fetchTopShareHolders(
   if (!collection) return [];
 
   const client = publicClient();
-  const [tokenId] = await Promise.all([
-    client.readContract({
-      address: collection,
-      abi: FRACTION_ABI,
-      functionName: 'FRACTION_TOKEN_ID',
-    }),
-  ]);
-
-  const fromBlock = opts?.fromBlock ?? 0n;
-  const logs = await client.getLogs({
+  const tokenId = await client.readContract({
     address: collection,
-    event: {
-      type: 'event',
-      name: 'TransferSingle',
-      inputs: [
-        { name: 'operator', type: 'address', indexed: true },
-        { name: 'from', type: 'address', indexed: true },
-        { name: 'to', type: 'address', indexed: true },
-        { name: 'id', type: 'uint256', indexed: false },
-        { name: 'value', type: 'uint256', indexed: false },
-      ],
-    },
-    fromBlock,
-    toBlock: 'latest',
+    abi: FRACTION_ABI,
+    functionName: 'FRACTION_TOKEN_ID',
   });
 
+  const fromBlock = opts?.fromBlock ?? 0n;
+  const viaRegistry = await fetchHoldersViaRegistry(client, collection, BigInt(tokenId));
+  if (viaRegistry !== null) {
+    return viaRegistry.slice(0, opts?.limit ?? 5);
+  }
+
+  const logs = await fetchTransferSingleLogsChunked(client, collection, fromBlock);
   const balances = aggregateHoldersFromLogs(logs, BigInt(tokenId));
   const holders: ShareHolder[] = [];
   for (const [address, shares] of balances) {
