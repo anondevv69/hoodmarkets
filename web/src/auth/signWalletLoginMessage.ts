@@ -16,7 +16,8 @@ function isTransientConnectorError(error: unknown): boolean {
   return /connector not connected|unavailable while reconnecting/i.test(msg);
 }
 
-async function waitForWalletReady(walletAddress: string, timeoutMs = 12_000): Promise<void> {
+/** Wait until wagmi reports the expected wallet is connected and ready to sign. */
+export async function waitForWalletReady(walletAddress: string, timeoutMs = 30_000): Promise<void> {
   const expected = walletAddress.toLowerCase();
   const start = Date.now();
 
@@ -41,13 +42,11 @@ async function waitForWalletReady(walletAddress: string, timeoutMs = 12_000): Pr
 
 const RETRY_DELAYS_MS = [0, 200, 400, 700, 1100, 1600];
 
-/** Sign a login challenge after wagmi connector is fully ready (retries transient connector races). */
-export async function signWalletLoginMessage(
+/** Sign immediately — caller must ensure the wallet connector is ready first. */
+export async function signWalletMessageNow(
   walletAddress: string,
   message: string,
 ): Promise<string> {
-  await waitForWalletReady(walletAddress);
-
   let lastError: unknown;
   for (const waitMs of RETRY_DELAYS_MS) {
     if (waitMs > 0) await delay(waitMs);
@@ -66,4 +65,13 @@ export async function signWalletLoginMessage(
   throw lastError instanceof Error
     ? lastError
     : new Error('Wallet connector not ready. Click Connect wallet to try again.');
+}
+
+/** Sign a login challenge after wagmi connector is fully ready (retries transient connector races). */
+export async function signWalletLoginMessage(
+  walletAddress: string,
+  message: string,
+): Promise<string> {
+  await waitForWalletReady(walletAddress);
+  return signWalletMessageNow(walletAddress, message);
 }
