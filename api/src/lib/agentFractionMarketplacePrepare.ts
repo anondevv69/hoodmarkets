@@ -162,7 +162,7 @@ function parseAirdropEntries(body: {
   shareAmount?: unknown;
   shares?: unknown;
 }): { ok: true; recipients: Address[]; amounts: bigint[] } | { ok: false; error: string } {
-  const rawList: unknown[] = [];
+  const rawList: string[] = [];
   if (typeof body.recipient === 'string' && body.recipient.trim()) {
     rawList.push(body.recipient.trim());
   }
