@@ -51,6 +51,20 @@ GET https://api.hood.markets/health
 
 ---
 
+## GET /api/quote-tokens
+
+Robinhood quote assets for V3 launches (WETH, USDG, ~96 stock tokens from RHJ).
+
+```http
+GET https://api.hood.markets/api/quote-tokens?liquidity=1
+```
+
+**Response:** `tokens[]` with `symbol`, `name`, `address`, `kind` (`weth`|`stable`|`stock`), `hasWethLiquidity`, `wethPoolFee`.
+
+Use `quoteToken` on deploy (symbol or `0x` address). Default **WETH**. Non-WETH pairs require a WETH/quote Uniswap V3 pool on chain 4663.
+
+---
+
 ## GET /api/agent/briefing
 
 Deployments where this wallet is the **fee recipient**.
@@ -68,7 +82,7 @@ GET https://api.hood.markets/api/agent/briefing?wallet=0x…
 Check deploy blockers **before** captcha (ticker/name taken, wallet cooldown, launch mode).
 
 ```http
-GET https://api.hood.markets/api/agent/preflight-deploy?wallet=0x…&name=My+Token&symbol=MTK&launchMode=simple
+GET https://api.hood.markets/api/agent/preflight-deploy?wallet=0x…&name=My+Token&symbol=MTK&launchMode=simple&quoteToken=NVDA
 ```
 
 **200** when `canDeploy: true`. **409** when blocked.
@@ -83,18 +97,21 @@ GET https://api.hood.markets/api/agent/preflight-deploy?wallet=0x…&name=My+Tok
 | `fee_recipient_cooldown` | Wallet already had a launch in the cooldown window (legacy mode only — **not** hood.markets web-only) |
 | `duplicate_deployer_name_symbol` | Same wallet already launched this exact name+ticker |
 | `launch_mode_unavailable` | V3 or V4 not configured on API |
+| `quote_token_unknown` | Invalid `quoteToken` — use GET /api/quote-tokens |
+| `quote_token_no_liquidity` | No WETH/quote pool on Robinhood yet |
 
 | `warnings[].code` | Meaning |
 |-------------------|---------|
 | `rate_limit_would_force_platform_fee` | Deploy allowed — fees on this token go to hood.markets platform (same as website) |
 | `rate_limit_would_force_burn` | Legacy non-web-only mode only — fees → burn |
 | `third_party_rolling_warning` | Recent launch on this wallet — fees may burn |
+| `quote_token_pair_notice` | Non-WETH pair — seed is ETH; trading fees accrue in the quote token |
 
 | `blocks[].code` | User-facing meaning |
 |-----------------|---------------------|
 | `agent_x_daily_limit` | **1 X launch/day used** — `replyHint` + `xDailyLimit.todayToken` + `resetsAtEastern`; send user to hood.markets for more |
 
-`POST` with JSON `{ wallet, name, symbol, launchMode }` also supported.
+`POST` with JSON `{ wallet, name, symbol, launchMode, quoteToken? }` also supported.
 
 ---
 
@@ -158,6 +175,7 @@ Content-Type: application/json
   "name": "My Token",
   "symbol": "MTK",
   "launchMode": "simple",
+  "quoteToken": "NVDA",
   "agentChannel": "x",
   "xUsername": "Rayblancoeth",
   "tweetUrl": "https://x.com/Rayblancoeth/status/…",

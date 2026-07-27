@@ -39,6 +39,7 @@ import {
   isAgentXChannel,
   type AgentXDeployLimitStatus,
 } from './agentXDeployLimit.js';
+import { resolveQuoteTokenInput } from './robinhoodQuoteTokens.js';
 export type AgentPreflightIssueCode =
   | 'invalid_name'
   | 'invalid_symbol'
@@ -53,7 +54,10 @@ export type AgentPreflightIssueCode =
   | 'rate_limit_would_force_burn'
   | 'rate_limit_would_force_platform_fee'
   | 'agent_x_daily_limit'
-  | 'third_party_rolling_warning';
+  | 'third_party_rolling_warning'
+  | 'quote_token_unknown'
+  | 'quote_token_no_liquidity'
+  | 'quote_token_pair_notice';
 
 export type AgentPreflightIssue = {
   code: AgentPreflightIssueCode;
@@ -73,6 +77,8 @@ export type AgentDeployPreflightInput = {
   launchMode?: 'simple' | 'pro';
   /** `x` for Bankr/X thread launches — subject to daily free-launch cap. */
   agentChannel?: string | null;
+  /** Robinhood quote asset symbol or address (V3 simple launches). Default WETH. */
+  quoteToken?: string | null;
 };
 
 export type AgentDeployPreflightResult = {
@@ -267,6 +273,37 @@ export async function runAgentDeployPreflight(
       message: 'Pro launch (Uniswap V4) is not configured on the API.',
       replyHint: 'Pro launch is temporarily unavailable on hood.markets — try Simple mode.',
     });
+  }
+
+  if (launchMode === 'simple' && blocks.every((b) => b.code !== 'launch_mode_unavailable')) {
+    const quoteRaw = (input.quoteToken ?? 'WETH').trim() || 'WETH';
+    try {
+      const quote = await resolveQuoteTokenInput(quoteRaw, { requireLiquidity: true });
+      if (!quote.isWeth && !quote.hasWethLiquidity) {
+        blocks.push({
+          code: 'quote_token_no_liquidity',
+          severity: 'block',
+          message: `No WETH/${quote.symbol} Uniswap pool on Robinhood — pick WETH or another quote with liquidity.`,
+          replyHint: `Can't launch against $${quote.symbol} yet — no WETH/${quote.symbol} pool. Use WETH or check GET /api/quote-tokens?liquidity=1.`,
+        });
+      } else if (!quote.isWeth && quote.hasWethLiquidity) {
+        warnings.push({
+          code: 'quote_token_pair_notice',
+          severity: 'warn',
+          message: `Launch pairs against $${quote.symbol}. Pool seed is paid in ETH (WETH → ${quote.symbol} → your token). Trading fees accrue in ${quote.symbol}.`,
+          replyHint: `Launching $${symbol} / $${quote.symbol} on hood.markets — seed is ETH; fees pay in ${quote.symbol}.`,
+        });
+      }
+    } catch (quoteErr) {
+      blocks.push({
+        code: 'quote_token_unknown',
+        severity: 'block',
+        message:
+          quoteErr instanceof Error ? quoteErr.message : 'Unknown quote token for this launch.',
+        replyHint:
+          'Unknown quote token — use WETH, USDG, or a Robinhood stock from GET /api/quote-tokens.',
+      });
+    }
   }
 
   if (config.webOnlyMode) {

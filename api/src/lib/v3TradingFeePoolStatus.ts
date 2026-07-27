@@ -8,6 +8,7 @@ import {
 } from 'viem';
 import { config } from '../config.js';
 import { robinhood } from './robinhoodChain.js';
+import { quoteTokenSymbolForAddress } from './robinhoodQuoteTokens.js';
 
 const FACTORY_ABI = parseAbi([
   'function fractionCollectionForToken(address) view returns (address)',
@@ -39,8 +40,14 @@ const MAX_UINT128 = (1n << 128n) - 1n;
 
 export type V3TradingFeePoolStatus = {
   fractionAddress: string;
-  /** WETH on the Holder NFT that counts as trading fees (excludes vault-locked launch token). */
+  quoteTokenAddress: string;
+  quoteTokenSymbol: string;
+  /** Quote-side reward balance on the Holder NFT (excludes vault-locked launch token). */
+  fractionQuoteWei: string;
+  fractionQuoteHuman: string;
+  /** @deprecated use fractionQuoteWei — kept for older clients */
   fractionWethWei: string;
+  /** @deprecated use fractionQuoteHuman */
   fractionWethHuman: string;
   accountedWethWei: string;
   accountedWethHuman: string;
@@ -50,14 +57,26 @@ export type V3TradingFeePoolStatus = {
   /** max(0, balance − accounted) — already on contract and payable. */
   surplusWethWei: string;
   surplusWethHuman: string;
-  /** Uncollected WETH still in the Uniswap V3 LP NFT. */
+  /** Uncollected quote token still in the Uniswap V3 LP NFT. */
+  uncollectedQuoteWei: string;
+  uncollectedQuoteHuman: string;
+  /** @deprecated use uncollectedQuoteWei */
   uncollectedWethWei: string;
+  /** @deprecated use uncollectedQuoteHuman */
   uncollectedWethHuman: string;
   /** ~95% of uncollected that lands on the fraction after the platform cut. */
+  estimatedIncomingQuoteWei: string;
+  estimatedIncomingQuoteHuman: string;
+  /** @deprecated use estimatedIncomingQuoteWei */
   estimatedIncomingWethWei: string;
+  /** @deprecated use estimatedIncomingQuoteHuman */
   estimatedIncomingWethHuman: string;
-  /** Extra WETH still needed after applying estimated incoming. */
+  /** Extra quote token still needed after applying estimated incoming. */
+  remainingQuoteWei: string;
+  remainingQuoteHuman: string;
+  /** @deprecated use remainingQuoteWei */
   remainingWethWei: string;
+  /** @deprecated use remainingQuoteHuman */
   remainingWethHuman: string;
   /** 0–1 toward next successful claim. */
   progress: number;
@@ -127,6 +146,8 @@ export async function readV3TradingFeePoolStatus(
 
     const wethAddr =
       reward0.toLowerCase() === launchToken.toLowerCase() ? reward1 : reward0;
+    const quoteTokenAddress = wethAddr;
+    const quoteTokenSymbol = (await quoteTokenSymbolForAddress(wethAddr)) ?? 'QUOTE';
 
     const [wethBal, accounted, positionManager] = await Promise.all([
       client.readContract({
@@ -209,6 +230,10 @@ export async function readV3TradingFeePoolStatus(
 
     return {
       fractionAddress: fraction,
+      quoteTokenAddress,
+      quoteTokenSymbol,
+      fractionQuoteWei: rewardableWeth.toString(),
+      fractionQuoteHuman: human(rewardableWeth),
       fractionWethWei: rewardableWeth.toString(),
       fractionWethHuman: human(rewardableWeth),
       accountedWethWei: accounted.toString(),
@@ -217,10 +242,16 @@ export async function readV3TradingFeePoolStatus(
       gapWethHuman: human(gap),
       surplusWethWei: surplus.toString(),
       surplusWethHuman: human(surplus),
+      uncollectedQuoteWei: uncollectedWeth.toString(),
+      uncollectedQuoteHuman: human(uncollectedWeth),
       uncollectedWethWei: uncollectedWeth.toString(),
       uncollectedWethHuman: human(uncollectedWeth),
+      estimatedIncomingQuoteWei: estimatedIncoming.toString(),
+      estimatedIncomingQuoteHuman: human(estimatedIncoming),
       estimatedIncomingWethWei: estimatedIncoming.toString(),
       estimatedIncomingWethHuman: human(estimatedIncoming),
+      remainingQuoteWei: remaining.toString(),
+      remainingQuoteHuman: human(remaining),
       remainingWethWei: remaining.toString(),
       remainingWethHuman: human(remaining),
       progress,

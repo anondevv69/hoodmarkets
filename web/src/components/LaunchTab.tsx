@@ -38,6 +38,7 @@ import {
 } from '../lib/communityLaunchRoute';
 import { CommunityLaunchPanel } from './CommunityLaunchPage';
 import { TokenAvatar } from './TokenAvatar';
+import { QuoteTokenSelect } from './QuoteTokenSelect';
 
 function useDebounced<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -65,6 +66,7 @@ export function LaunchTab() {
   const [feeTarget, setFeeTarget] = useState<'self' | 'other'>('self');
   const [feeRecipient, setFeeRecipient] = useState('');
   const [initialBuyEth, setInitialBuyEth] = useState('');
+  const [quoteToken, setQuoteToken] = useState('WETH');
   const [rateLimitNotice, setRateLimitNotice] = useState<string | null>(null);
   const [config, setConfig] = useState<WebDeployConfig | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -337,6 +339,7 @@ export function LaunchTab() {
           description: description.trim() || undefined,
           initialBuyEth: buyEth,
           launchMode: 'simple',
+          quoteToken: quoteToken !== 'WETH' ? quoteToken : undefined,
           feeTarget,
           recipientPaste: feeTarget === 'other' ? feeRecipient.trim() : undefined,
         },
@@ -365,6 +368,7 @@ export function LaunchTab() {
       setFeeTarget('self');
       setFeeRecipient('');
       setInitialBuyEth(config?.initialBuyDefaultEth ?? '0.005');
+      setQuoteToken('WETH');
       setRateLimitNotice(null);
       setLiveTickerConflict(null);
       setLiveNameConflict(null);
@@ -647,6 +651,16 @@ export function LaunchTab() {
                 </label>
               </div>
             </div>
+
+            {config?.quoteTokenLaunchEnabled !== false && config?.v3LaunchEnabled ? (
+              <div className="lp-card form-section">
+                <QuoteTokenSelect
+                  value={quoteToken}
+                  onChange={setQuoteToken}
+                  disabled={submitting}
+                />
+              </div>
+            ) : null}
 
             {config?.walletDeployEnabled ? (
               <div className="lp-card form-section">

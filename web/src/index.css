@@ -1454,6 +1454,69 @@ label {
   gap: 0.5rem;
 }
 
+.quote-token-select {
+  position: relative;
+}
+
+.quote-token-trigger {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quote-token-trigger-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quote-token-dropdown {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.quote-token-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.quote-token-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.35rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.quote-token-option:hover,
+.quote-token-option.is-active {
+  background: var(--surface-2);
+}
+
+.quote-token-logo {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.quote-token-logo--placeholder {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  background: var(--surface-2);
+}
+
 .launch-type-badge {
   font-size: 0.68rem;
   font-weight: 600;

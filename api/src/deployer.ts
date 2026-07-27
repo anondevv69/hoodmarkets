@@ -17,6 +17,7 @@ import {
   assertHoodMarketsV3Factory,
   deployHoodMarketsV3Token,
 } from './lib/hoodmarketsV3Deploy.js';
+import { resolveQuoteTokenInput } from './lib/robinhoodQuoteTokens.js';
 import { recordDeploymentCatalog } from './lib/deploymentCatalog.js';
 import { hoodmarketsTokenUrl, launcherAppLaunchesTokenUrl } from './lib/launcherAppUrl.js';
 import type { DeployChain } from './lib/deployChain.js';
@@ -74,6 +75,8 @@ export interface TokenDeploymentParams {
   tokenDescription?: string;
   /** Catalog-only fee recipient when on-chain admin differs (e.g. petition launcher deploy). */
   catalogFeeRecipientAddress?: string;
+  /** Robinhood quote asset symbol or address (default WETH). */
+  quoteToken?: string;
 }
 
 export interface DeploymentResult {
@@ -182,6 +185,10 @@ export class LiquidDeployer {
     const tokenAdmin = assertValidTokenAdmin(params.walletAddress);
 
     const launchMode = params.launchMode ?? config.defaultLaunchMode;
+    const resolvedQuote =
+      launchMode === 'simple'
+        ? await resolveQuoteTokenInput(params.quoteToken, { requireLiquidity: true })
+        : null;
 
     const { image, metadata, context } = await buildWebDeployArtifacts({
       name: params.name,
@@ -195,7 +202,7 @@ export class LiquidDeployer {
     });
 
     const onchain =
-      launchMode === 'simple'
+      launchMode === 'simple' && resolvedQuote
         ? await deployHoodMarketsV3Token(this.publicClient, this.walletClient, {
             factory: assertHoodMarketsV3Factory(config.hoodmarketsV3.factory),
             name: params.name,
@@ -205,6 +212,9 @@ export class LiquidDeployer {
             metadata,
             context,
             devBuyAmount: params.devBuyAmount,
+            pairedToken: resolvedQuote.address,
+            launchTick: resolvedQuote.launchTick,
+            wethHopPoolFee: resolvedQuote.wethHopPoolFee,
             ...(params.feesToPlatformOnly && config.platformFeeRecipient
               ? {
                   feesToPlatformOnly: true,
@@ -283,6 +293,12 @@ export class LiquidDeployer {
         launchMode === 'simple'
           ? config.hoodmarketsV3.factory
           : config.liquid.factory,
+      ...(resolvedQuote
+        ? {
+            quoteTokenAddress: resolvedQuote.address,
+            quoteTokenSymbol: resolvedQuote.symbol,
+          }
+        : {}),
     });
 
     return result;

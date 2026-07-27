@@ -19,6 +19,8 @@ import {
 import {
   swapEthForV3Token,
   swapV3TokenForEth,
+  fetchV3SimpleSwapConfig,
+  type V3SimpleSwapConfig,
 } from '../lib/robinhoodV3Swap';
 
 const BUY_PRESETS = ['0.001', '0.005', '0.01', '0.02'] as const;
@@ -56,12 +58,28 @@ export function TokenSwap({
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [v3SwapConfig, setV3SwapConfig] = useState<V3SimpleSwapConfig | null>(null);
 
   useEffect(() => {
     if (suggestedBuyEth?.trim()) setAmountEth(suggestedBuyEth.trim());
   }, [suggestedBuyEth]);
 
   const isSimpleLaunch = isSimpleLaunchDeployment({ poolId, factoryAddress });
+
+  useEffect(() => {
+    if (!isSimpleLaunch) return;
+    let cancelled = false;
+    void fetchV3SimpleSwapConfig(tokenAddress)
+      .then((c) => {
+        if (!cancelled) setV3SwapConfig(c);
+      })
+      .catch(() => {
+        if (!cancelled) setV3SwapConfig(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tokenAddress, isSimpleLaunch]);
 
   useEffect(() => {
     if (isSimpleLaunch) return;
@@ -217,12 +235,19 @@ export function TokenSwap({
       const account = wallet.address as `0x${string}`;
 
       if (isSimpleLaunch) {
+        const quoteOpts = v3SwapConfig && !v3SwapConfig.isWethQuote
+          ? {
+              quoteToken: v3SwapConfig.quoteToken,
+              wethHopPoolFee: v3SwapConfig.wethHopPoolFee,
+            }
+          : {};
         if (mode === 'buy') {
           const result = await swapEthForV3Token({
             tokenAddress,
             amountEth,
             walletProvider: provider,
             account,
+            ...quoteOpts,
           });
           setTxHash(result.swapTxHash);
           setSuccessMsg(`You received ${formatHumanTokenAmount(result.amountOut)} $${sym}.`);
@@ -237,6 +262,7 @@ export function TokenSwap({
             amountTokens: sellAmount,
             walletProvider: provider,
             account,
+            ...quoteOpts,
           });
           setTxHash(result.swapTxHash);
           setSuccessMsg(`You received ${formatHumanTokenAmount(result.amountOut)} ETH.`);

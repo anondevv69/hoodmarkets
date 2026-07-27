@@ -81,7 +81,11 @@ export interface Deployment {
   /** Catalog rows where this fee wallet receives fees (including this row). */
   feeRecipientDeploymentCount?: number;
   poolId?: string;
+  /** HoodMarkets V3/V4 factory that created this token (empty on legacy rows). */
   factoryAddress?: string;
+  /** V3 quote asset when not WETH. */
+  quoteTokenAddress?: string;
+  quoteTokenSymbol?: string;
   /** Catalog block number — scopes fraction transfer scan. */
   blockNumber?: string;
 }
@@ -112,6 +116,7 @@ export interface WebDeployConfig {
   v3PlatformFeePercent: number;
   defaultLaunchMode: 'simple' | 'pro';
   v3LaunchEnabled: boolean;
+  quoteTokenLaunchEnabled?: boolean;
   proLaunchEnabled: boolean;
   imageUploadEnabled: boolean;
   /** WETH seeded at launch from hood.markets launcher wallet (`DEPLOY_BOND_ETH`) when you skip your buy. */
@@ -645,6 +650,27 @@ export async function fetchWebDeployConfig(): Promise<WebDeployConfig> {
   return parseJson<WebDeployConfig>(res);
 }
 
+export type QuoteTokenOption = {
+  symbol: string;
+  name: string;
+  address: string;
+  kind: 'weth' | 'stable' | 'stock';
+  logoUrl?: string;
+  usdPrice?: number;
+  wethPoolFee?: number;
+  hasWethLiquidity?: boolean;
+};
+
+export async function fetchQuoteTokens(opts?: { liquidity?: boolean }): Promise<QuoteTokenOption[]> {
+  const params = new URLSearchParams();
+  if (opts?.liquidity) params.set('liquidity', '1');
+  const qs = params.toString();
+  const res = await fetch(`${API_BASE}/api/quote-tokens${qs ? `?${qs}` : ''}`);
+  const data = (await res.json()) as { tokens?: QuoteTokenOption[]; error?: string };
+  if (!res.ok) throw new Error(data.error || 'Failed to load quote tokens.');
+  return data.tokens ?? [];
+}
+
 export async function checkDeployCooldown(
   symbol?: string,
   name?: string,
@@ -675,6 +701,8 @@ export interface LaunchPayload {
   launchMode?: 'simple' | 'pro';
   /** Optional Holder NFT shares escrowed for automatic first-buyer rewards (0–1000). */
   buyerRewardShareCount?: number | string;
+  /** Robinhood quote asset symbol or address (V3 simple). Default WETH. */
+  quoteToken?: string;
   /** `self` = your Privy wallet (default). `other` = fees go to pasted wallet / @handle. */
   feeTarget?: 'self' | 'other';
   recipientPaste?: string;
@@ -969,17 +997,22 @@ export interface TokenFeeStatus {
   /** Simple / V3 Holder NFT fee pool progress (claim readiness). */
   v3Pool?: {
     fractionAddress: string;
+    quoteTokenSymbol?: string;
+    fractionQuoteHuman?: string;
     fractionWethHuman: string;
     accountedWethHuman: string;
     gapWethHuman: string;
     surplusWethHuman: string;
+    uncollectedQuoteHuman?: string;
     uncollectedWethHuman: string;
+    estimatedIncomingQuoteHuman?: string;
     estimatedIncomingWethHuman: string;
+    remainingQuoteHuman?: string;
     remainingWethHuman: string;
     progress: number;
     claimReady: boolean;
     statusLabel: 'ready' | 'filling' | 'empty';
-    /** WETH on Holder NFT that is not currently claimable (legacy accounting gap). */
+    /** Quote on Holder NFT that is not currently claimable (legacy accounting gap). */
     legacyStuckDust: boolean;
   };
 }

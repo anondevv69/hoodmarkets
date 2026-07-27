@@ -24,6 +24,7 @@ import { registerResolveSourceRoutes } from './routes/resolveSource.js';
 import { registerDeploymentCatalogRoutes } from './routes/deploymentCatalog.js';
 import { registerDeploymentFeedRoutes } from './routes/deploymentFeed.js';
 import { registerTokenSwapRoutes } from './routes/tokenSwap.js';
+import { registerQuoteTokenRoutes } from './routes/quoteTokens.js';
 import { registerTokenTradesRoutes } from './routes/tokenTrades.js';
 import { registerVestingProxyRoutes } from './routes/vestingProxy.js';
 import { registerMyDeploymentsRoutes } from './routes/myDeployments.js';
@@ -242,6 +243,7 @@ async function main() {
     registerFractionBuyerRewardRoutes(app);
     registerFractionMetadataRoutes(app);
     registerTokenSwapRoutes(app);
+    registerQuoteTokenRoutes(app);
     registerTokenTradesRoutes(app);
     registerVestingProxyRoutes(app);
     registerMyDeploymentsRoutes(app);

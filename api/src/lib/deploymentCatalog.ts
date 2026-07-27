@@ -54,6 +54,9 @@ export interface DeploymentCatalogRow {
   chain: string;
   /** HoodMarkets V3/V4 factory that created this token (empty on legacy rows). */
   factoryAddress?: string;
+  /** V3 quote asset when not WETH (Robinhood stock / USDG). */
+  quoteTokenAddress?: string;
+  quoteTokenSymbol?: string;
   tokenName: string;
   tokenSymbol: string;
   tokenAddress: string;
@@ -129,6 +132,8 @@ export interface RecordDeploymentCatalogInput {
   chain?: string;
   /** Launch factory address (V3 simple or V4 pro). */
   factoryAddress?: string;
+  quoteTokenAddress?: string;
+  quoteTokenSymbol?: string;
 }
 
 const DEAD_FEE_LOWER = BASE_DEAD_FEE_RECIPIENT.toLowerCase();
@@ -858,6 +863,30 @@ export function initDeploymentCatalogDb(): void {
       },
     );
     db!.run(
+      `ALTER TABLE deployment_catalog ADD COLUMN quote_token_address TEXT NOT NULL DEFAULT ''`,
+      (err) => {
+        if (
+          err &&
+          !String(err.message).toLowerCase().includes('duplicate') &&
+          !String(err.message).toLowerCase().includes('already exists')
+        ) {
+          logger.warn('deploymentCatalog: quote_token_address column migration:', err.message);
+        }
+      },
+    );
+    db!.run(
+      `ALTER TABLE deployment_catalog ADD COLUMN quote_token_symbol TEXT NOT NULL DEFAULT ''`,
+      (err) => {
+        if (
+          err &&
+          !String(err.message).toLowerCase().includes('duplicate') &&
+          !String(err.message).toLowerCase().includes('already exists')
+        ) {
+          logger.warn('deploymentCatalog: quote_token_symbol column migration:', err.message);
+        }
+      },
+    );
+    db!.run(
       `CREATE TABLE IF NOT EXISTS agent_payment_tx (
         tx_hash TEXT PRIMARY KEY NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -979,6 +1008,15 @@ export async function recordDeploymentCatalog(
       factoryAddress = '';
     }
   }
+  let quoteTokenAddress = '';
+  if (input.quoteTokenAddress?.trim()) {
+    try {
+      quoteTokenAddress = getAddress(input.quoteTokenAddress.trim());
+    } catch {
+      quoteTokenAddress = '';
+    }
+  }
+  const quoteTokenSymbol = (input.quoteTokenSymbol ?? '').trim().slice(0, 32);
 
   return new Promise((resolve) => {
     db!.run(
@@ -986,8 +1024,8 @@ export async function recordDeploymentCatalog(
         platform, deployer_id, deployer_label, fee_recipient_address,
         token_name, token_symbol, token_address, pool_id, transaction_hash, block_number, source_url,
         fee_recipient_label, fee_to_self, privy_user_id, client_kind, agent_metadata, chain, token_image_url,
-        token_website_url, token_x_url, token_description, factory_address
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        token_website_url, token_x_url, token_description, factory_address, quote_token_address, quote_token_symbol
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.platform.slice(0, 64),
         input.deployerId.slice(0, 256),
@@ -1011,6 +1049,8 @@ export async function recordDeploymentCatalog(
         tokenXUrl,
         tokenDescription,
         factoryAddress,
+        quoteTokenAddress,
+        quoteTokenSymbol,
       ],
       (err) => {
         if (err) {
@@ -1622,6 +1662,8 @@ const SELECT_DEPLOYMENT_ROW = `dc.id, dc.created_at AS createdAt, dc.platform, d
               dc.fee_recipient_address AS feeRecipientAddress,
               COALESCE(dc.chain, 'base') AS chain,
               COALESCE(dc.factory_address, '') AS factoryAddress,
+              COALESCE(dc.quote_token_address, '') AS quoteTokenAddress,
+              COALESCE(dc.quote_token_symbol, '') AS quoteTokenSymbol,
               dc.token_name AS tokenName, dc.token_symbol AS tokenSymbol,
               COALESCE(dc.token_image_url, '') AS tokenImageUrl,
               COALESCE(dc.token_banner_url, '') AS tokenBannerUrl,

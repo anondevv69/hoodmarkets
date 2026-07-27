@@ -98,6 +98,7 @@ import {
   buildWebWalletDeployPrepareV3,
   completeWebWalletDeployV3,
 } from '../lib/webWalletDeployV3.js';
+import { resolveQuoteTokenInput, quoteTokenSymbolForAddress } from '../lib/robinhoodQuoteTokens.js';
 import { clampBuyerRewardShareCount } from '../lib/hoodmarketsV3Deploy.js';
 import {
   deserializeV3DeploymentConfig,
@@ -244,6 +245,8 @@ interface DeployWebBody {
   deployCommitment?: string;
   /** Robinhood ETH payment tx from agent wallet to treasury (402 flow). */
   paymentTxHash?: string;
+  /** Quote asset symbol or `0x` address for V3 pairs (default WETH). */
+  quoteToken?: string;
 }
 
 function normalizeAnonymousClientId(raw: unknown): string | null {
@@ -481,6 +484,7 @@ export function registerWebDeployRoutes(
       v3PlatformFeePercent: 5,
       defaultLaunchMode: config.defaultLaunchMode,
       v3LaunchEnabled: !!config.hoodmarketsV3.factory,
+      quoteTokenLaunchEnabled: !!config.hoodmarketsV3.factory,
       proLaunchEnabled: !!config.liquid.factory,
       imageUploadEnabled: imageUploadService.isConfigured(),
       /** Fixed WETH seed at launch — paid by launcher wallet for agents only (`DEPLOY_BOND_ETH`). */
@@ -1004,6 +1008,22 @@ export function registerWebDeployRoutes(
         return;
       }
 
+      const quoteTokenRaw =
+        typeof body.quoteToken === 'string' ? body.quoteToken.trim() : '';
+      let resolvedQuote: Awaited<ReturnType<typeof resolveQuoteTokenInput>> | null = null;
+      if (launchMode === 'simple') {
+        try {
+          resolvedQuote = await resolveQuoteTokenInput(quoteTokenRaw || 'WETH', {
+            requireLiquidity: true,
+          });
+        } catch (quoteErr) {
+          res.status(400).json({
+            error: quoteErr instanceof Error ? quoteErr.message : 'Invalid quote token.',
+          });
+          return;
+        }
+      }
+
       const useWalletDeploy =
         deployerPaysPoolSeed &&
         userInitialBuyWei > 0n &&
@@ -1054,6 +1074,7 @@ export function registerWebDeployRoutes(
             clientKind: webClientKind,
             feesToPlatformOnly: rateLimitForcedPlatformFee,
             buyerRewardShareCount,
+            quoteToken: quoteTokenRaw || 'WETH',
           });
           res.json(prepare);
           return;
@@ -1224,6 +1245,11 @@ export function registerWebDeployRoutes(
           });
 
           const catalogImage = v3cfg.tokenConfig.image || undefined;
+          const paired = v3cfg.poolConfig.pairedToken;
+          const quoteSymbol =
+            resolvedQuote?.symbol ??
+            (await quoteTokenSymbolForAddress(paired)) ??
+            '';
           await recordDeploymentCatalog({
             platform: 'web',
             deployerId: userId,
@@ -1246,6 +1272,8 @@ export function registerWebDeployRoutes(
             ...(launchTweetUrl ? { sourceUrl: launchTweetUrl } : {}),
             chain: deployChain,
             factoryAddress: config.hoodmarketsV3.factory,
+            quoteTokenAddress: paired,
+            quoteTokenSymbol: quoteSymbol,
           });
 
           result = {
@@ -1343,6 +1371,7 @@ export function registerWebDeployRoutes(
         tokenDescription: userDescription || undefined,
         ...(launchTweetUrl ? { sourceUrl: launchTweetUrl } : {}),
         chain: deployChain,
+        ...(resolvedQuote ? { quoteToken: resolvedQuote.symbol } : {}),
       });
       }
 

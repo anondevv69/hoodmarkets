@@ -26,6 +26,9 @@ export function TokenCard({
   variant = 'default',
 }: TokenCardProps) {
   const sym = d.tokenSymbol.replace(/^\$/, '');
+  const quoteSym = d.quoteTokenSymbol?.trim();
+  const pairLabel =
+    quoteSym && quoteSym.toUpperCase() !== 'WETH' ? `$${sym} / $${quoteSym.replace(/^\$/, '')}` : null;
   const profile = variant === 'profile';
 
   return (
@@ -35,7 +38,11 @@ export function TokenCard({
           <TokenAvatar symbol={sym} imageUrl={d.tokenImageUrl} size={40} />
           <h3>
             <button type="button" className="token-card-name-link" onClick={() => openTokenPage(d.tokenAddress)}>
-              {d.tokenName} <span className="muted">${sym}</span>
+              {d.tokenName}{' '}
+              <span className="muted">
+                ${sym}
+                {pairLabel ? ` · ${pairLabel}` : ''}
+              </span>
             </button>
           </h3>
         </div>

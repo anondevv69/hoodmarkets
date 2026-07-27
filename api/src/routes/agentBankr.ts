@@ -209,6 +209,8 @@ export function registerAgentBankrRoutes(app: Express): void {
       typeof req.query.launchMode === 'string' ? req.query.launchMode.trim().toLowerCase() : '';
     const launchMode =
       launchModeRaw === 'pro' ? 'pro' : launchModeRaw === 'simple' ? 'simple' : config.defaultLaunchMode;
+    const quoteToken =
+      typeof req.query.quoteToken === 'string' ? req.query.quoteToken.trim() : undefined;
 
     if (!name || !symbolRaw) {
       res.status(400).json({
@@ -224,6 +226,7 @@ export function registerAgentBankrRoutes(app: Express): void {
       symbol: symbolRaw,
       launchMode,
       agentChannel: agentChannelFromRequest(req),
+      quoteToken,
     });
 
     res.status(preflight.canDeploy ? 200 : 409).json({
@@ -248,6 +251,7 @@ export function registerAgentBankrRoutes(app: Express): void {
       typeof body.launchMode === 'string' ? body.launchMode.trim().toLowerCase() : '';
     const launchMode =
       launchModeRaw === 'pro' ? 'pro' : launchModeRaw === 'simple' ? 'simple' : config.defaultLaunchMode;
+    const quoteToken = typeof body.quoteToken === 'string' ? body.quoteToken.trim() : undefined;
 
     if (!name || !symbol) {
       res.status(400).json({ ok: false, error: 'name and symbol are required.' });
@@ -260,6 +264,7 @@ export function registerAgentBankrRoutes(app: Express): void {
       symbol,
       launchMode,
       agentChannel: agentChannelFromRequest(req, body),
+      quoteToken,
     });
 
     const resolvedImage = await resolveAgentDeployImageUrlAsync(agentImageInputFromBody(body));
@@ -368,6 +373,7 @@ export function registerAgentBankrRoutes(app: Express): void {
       typeof body.launchMode === 'string' ? body.launchMode.trim().toLowerCase() : '';
     const launchMode =
       launchModeRaw === 'pro' ? 'pro' : launchModeRaw === 'simple' ? 'simple' : config.defaultLaunchMode;
+    const quoteToken = typeof body.quoteToken === 'string' ? body.quoteToken.trim() : undefined;
 
     if (!name || name.length < 2) {
       res.status(400).json({ ok: false, error: 'name is required (min 2 chars).' });
@@ -409,6 +415,7 @@ export function registerAgentBankrRoutes(app: Express): void {
       symbol,
       launchMode,
       agentChannel: resolvedChannel,
+      quoteToken,
     });
 
     if (!preflight.canDeploy) {
@@ -443,6 +450,7 @@ export function registerAgentBankrRoutes(app: Express): void {
       xUrl,
       wallet,
       agentFeeRecipient: wallet,
+      ...(quoteToken ? { quoteToken } : {}),
       ...(resolvedChannel ? { agentChannel: resolvedChannel } : {}),
       ...(requesterXUsername ? { xUsername: requesterXUsername } : {}),
       ...(launchTweetUrl ? { tweetUrl: launchTweetUrl, sourceUrl: launchTweetUrl } : {}),

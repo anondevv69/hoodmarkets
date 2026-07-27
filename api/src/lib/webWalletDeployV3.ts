@@ -24,6 +24,7 @@ import {
 import { assertWalletDeploySenderMatches } from './webWalletDeploy.js';
 import { claimVanitySaltForLaunch } from './vanitySaltBank.js';
 import { resolveWebVanityAddressSuffix } from './vanitySalt.js';
+import { resolveQuoteTokenInput } from './robinhoodQuoteTokens.js';
 
 export type WebWalletDeployV3PrepareInput = {
   name: string;
@@ -38,6 +39,7 @@ export type WebWalletDeployV3PrepareInput = {
   clientKind?: 'web' | 'agent';
   feesToPlatformOnly?: boolean;
   buyerRewardShareCount?: number;
+  quoteToken?: string;
 };
 
 export type WebWalletDeployV3PrepareResult = {
@@ -49,6 +51,12 @@ export type WebWalletDeployV3PrepareResult = {
   gas: string;
   chainId: number;
   imageUrl: string;
+  quoteToken?: {
+    symbol: string;
+    address: `0x${string}`;
+    launchTick: number;
+    wethHopPoolFee: number;
+  };
 };
 
 export async function buildWebWalletDeployPrepareV3(
@@ -72,6 +80,8 @@ export async function buildWebWalletDeployPrepareV3(
     clientKind: input.clientKind,
   });
 
+  const quote = await resolveQuoteTokenInput(input.quoteToken, { requireLiquidity: true });
+
   const deploymentConfig = buildHoodMarketsV3DeploymentConfig({
     name: input.name,
     symbol: input.symbol,
@@ -84,6 +94,9 @@ export async function buildWebWalletDeployPrepareV3(
       ? config.platformFeeRecipient || undefined
       : undefined,
     buyerRewardShareCount: input.buyerRewardShareCount,
+    pairedToken: quote.address,
+    launchTick: quote.launchTick,
+    wethHopPoolFee: quote.wethHopPoolFee,
   });
 
   const vanitySuffix = resolveWebVanityAddressSuffix();
@@ -119,6 +132,12 @@ export async function buildWebWalletDeployPrepareV3(
     gas: '15000000',
     chainId: robinhood.id,
     imageUrl: image,
+    quoteToken: {
+      symbol: quote.symbol,
+      address: quote.address,
+      launchTick: quote.launchTick,
+      wethHopPoolFee: quote.wethHopPoolFee,
+    },
   };
 }
 

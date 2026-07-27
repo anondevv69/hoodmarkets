@@ -8,7 +8,11 @@ import {
 } from '../lib/hoodmarketsPoolKey.js';
 import { readRobinhoodPoolStats } from '../lib/robinhoodV4PoolStats.js';
 import { ROBINHOOD_WETH } from '../lib/robinhoodChain.js';
+import { findWethQuotePool } from '../lib/wethQuotePool.js';
 import { webDeployCorsHeadersRead } from '../lib/webDeployCors.js';
+
+const DEFAULT_V3_SWAP_ROUTER =
+  '0xCaf681a66D020601342297493863E78C959E5cb2' as const;
 
 const DEFAULT_UNIVERSAL_ROUTER =
   '0x53BF6B0684Ec7eF91e1387Da3D1a1769bC5A6F77' as const;
@@ -67,12 +71,25 @@ export function registerTokenSwapRoutes(app: Express): void {
 
     const isV3 = !!deployment.poolId && deployment.poolId.toLowerCase().startsWith('v3:');
     if (isV3) {
+      const quoteAddress = deployment.quoteTokenAddress?.trim() || ROBINHOOD_WETH;
+      const quoteSymbol = deployment.quoteTokenSymbol?.trim() || 'WETH';
+      const isWethQuote = quoteAddress.toLowerCase() === ROBINHOOD_WETH.toLowerCase();
+      const wethPool = isWethQuote ? null : await findWethQuotePool(quoteAddress as `0x${string}`);
       res.json({
         launchType: 'simple',
         chainId: 4663,
         tokenAddress,
         poolId: deployment.poolId,
-        uniswapSwapUrl: `https://app.uniswap.org/swap?chain=robinhood&outputCurrency=${tokenAddress}`,
+        quoteToken: quoteAddress,
+        quoteTokenSymbol: quoteSymbol,
+        weth: ROBINHOOD_WETH,
+        swapRouter: DEFAULT_V3_SWAP_ROUTER,
+        hoodmarketsPoolFee: 10_000,
+        wethHopPoolFee: wethPool?.fee ?? 10_000,
+        isWethQuote,
+        uniswapSwapUrl: isWethQuote
+          ? `https://app.uniswap.org/swap?chain=robinhood&outputCurrency=${tokenAddress}`
+          : `https://app.uniswap.org/swap?chain=robinhood&inputCurrency=NATIVE&outputCurrency=${tokenAddress}`,
       });
       return;
     }

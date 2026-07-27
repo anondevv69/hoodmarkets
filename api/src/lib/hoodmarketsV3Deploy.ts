@@ -40,6 +40,11 @@ export type HoodMarketsV3DeployInput = {
   feesToPlatformOnly?: boolean;
   platformFeeRecipient?: Address;
   buyerRewardShareCount?: number;
+  /** Quote asset for the V3 pool (default WETH). */
+  pairedToken?: Address;
+  launchTick?: number;
+  /** Uniswap fee tier for WETH → quote hop when pairedToken is not WETH. */
+  wethHopPoolFee?: number;
 };
 
 export type HoodMarketsV3DeployResult = {
@@ -117,6 +122,9 @@ export function buildHoodMarketsV3DeploymentConfig(input: {
   feesToPlatformOnly?: boolean;
   platformFeeRecipient?: Address;
   buyerRewardShareCount?: number;
+  pairedToken?: Address;
+  launchTick?: number;
+  wethHopPoolFee?: number;
   /** Pre-mined CREATE2 salt; when omitted a random salt is used (or vanity-mined at deploy). */
   salt?: Hex;
 }): HoodMarketsV3DeploymentConfig {
@@ -145,11 +153,11 @@ export function buildHoodMarketsV3DeploymentConfig(input: {
       vaultDuration: 0n,
     },
     poolConfig: {
-      pairedToken: ROBINHOOD_WETH,
-      tickIfToken0IsNewToken: DEFAULT_LAUNCH_TICK,
+      pairedToken: input.pairedToken ? getAddress(input.pairedToken) : ROBINHOOD_WETH,
+      tickIfToken0IsNewToken: input.launchTick ?? DEFAULT_LAUNCH_TICK,
     },
     initialBuyConfig: {
-      pairedTokenPoolFee: POOL_FEE,
+      pairedTokenPoolFee: input.wethHopPoolFee ?? POOL_FEE,
       pairedTokenSwapAmountOutMinimum: 0n,
     },
     rewardsConfig: {
@@ -180,6 +188,9 @@ function buildDeploymentConfig(input: HoodMarketsV3DeployInput, salt?: Hex) {
     feesToPlatformOnly: input.feesToPlatformOnly,
     platformFeeRecipient: input.platformFeeRecipient,
     buyerRewardShareCount: input.buyerRewardShareCount,
+    pairedToken: input.pairedToken,
+    launchTick: input.launchTick,
+    wethHopPoolFee: input.wethHopPoolFee,
     salt,
   });
 }
