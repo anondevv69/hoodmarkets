@@ -682,7 +682,6 @@ export async function swapHoodmarketsTokenForEth(opts: {
     amountInWei,
   );
 
-  const { publicClient, walletClient } = walletClients(opts.walletProvider, opts.account);
   const ethBefore = await publicClient.getBalance({ address: opts.account });
 
   const tokenAllowancePermit2 = await publicClient.readContract({
