@@ -129,7 +129,8 @@ export async function buildWebWalletDeployPrepareV3(
     factory,
     deploymentConfig: serializeV3DeploymentConfig(deploymentConfig),
     msgValueWei: input.devBuyAmount.toString(),
-    gas: '15000000',
+    /** Stock/USDG pairs run an extra WETH→quote hop; ~12M+ gas observed on mainnet fork. */
+    gas: quote.isWeth ? '15000000' : '20000000',
     chainId: robinhood.id,
     imageUrl: image,
     quoteToken: {
